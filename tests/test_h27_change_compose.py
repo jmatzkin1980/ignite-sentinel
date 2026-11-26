@@ -149,5 +149,27 @@ class ProjectComposeBytes(SnapshotWorkspaceCase):
         self.assertEqual(project_output_hashes(self.temp), json.loads(BASELINE.read_text(encoding="utf-8")))
 
 
+class ProjectFlowIsolation(unittest.TestCase):
+    """The bytes baseline cannot depend on the installed LanceDB or on what ran before in the process (verify.ps1's .venv
+    has lancedb 0.33, whose ranking wrote a different EPIC-001 than 0.41)."""
+
+    def test_flow_runs_on_the_json_index_with_a_clean_environment(self):
+        import os
+        import tempfile
+        from unittest.mock import patch
+        from change_inc8b_flow import ISOLATED_ENV, isolated_flow
+        from sentinel.memory import ContextBroker
+
+        leaked = {name: "leaked" for name in ISOLATED_ENV}
+        with patch.dict(os.environ, leaked), tempfile.TemporaryDirectory() as tmp:
+            old = os.getcwd()
+            with isolated_flow(Path(tmp)):
+                self.assertEqual([name for name in ISOLATED_ENV if name in os.environ], [])
+                self.assertEqual(Path.cwd().resolve(), Path(tmp).resolve())
+                self.assertIsNone(ContextBroker._connect_lancedb(object()))  # the JSON index, whatever LanceDB is installed
+            self.assertEqual(os.getcwd(), old)
+            self.assertEqual({name: os.environ.get(name) for name in ISOLATED_ENV}, leaked)
+
+
 if __name__ == "__main__":
     unittest.main()

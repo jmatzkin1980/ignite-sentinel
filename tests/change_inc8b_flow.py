@@ -2,16 +2,27 @@
 
 `build_project_outputs(work)` runs the three commands on a plain project; `project_output_hashes(work)` returns the
 normalized sha256 of their outputs. The baseline in fixtures/change_inc8 was taken with the code before IMP-433.
+
+The flow runs on the JSON memory index, as `release_project_flow` does: `EPIC-001.md` quotes what retrieval ranks first, and
+LanceDB ranks differently from one installed version to another (0.33 in the repo's .venv, which verify.ps1 prefers, and 0.41
+elsewhere wrote two different epics). The environment variables that steer memory, themes and the semantic home, and the read
+caches of `sentinel.core.io`, are isolated for the length of the flow, so whatever ran before in the same process cannot leak in.
 """
 from __future__ import annotations
 
 import json
+import os
 import sys
+from contextlib import contextmanager
 from pathlib import Path
+from typing import Iterator
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from helpers import build_matured_workspace, gap_acceptance_answer, run_ok  # noqa: E402
 from release_project_flow import ROOT, normalized_sha256  # noqa: E402
+from sentinel.core.io import forget_read_snapshots  # noqa: E402
+from sentinel.memory import ContextBroker  # noqa: E402
 
 PID = "BASE"
 BASELINE = Path(__file__).resolve().parent / "fixtures" / "change_inc8" / "after_backlog_project_sha256.json"
@@ -31,8 +42,35 @@ GLOBS = ("03_specs/prd.md", "03_specs/compositions/*", "04_backlog/EPIC-001.md",
          "04_backlog/refinements/*", "07_changes/05_implementation_feedback/*")
 
 
+ISOLATED_ENV = ("SENTINEL_MEMORY_BACKEND", "SENTINEL_MODEL2VEC_MODEL", "SENTINEL_SENTENCE_TRANSFORMERS_MODEL", "SENTINEL_HOME",
+                "IGNITE_THEMES_DIR")
+
+
+@contextmanager
+def isolated_flow(work: Path) -> Iterator[None]:
+    """JSON memory index, no inherited memory/theme/semantic env, fresh read caches, cwd `work`; all restored afterwards."""
+    saved = {name: os.environ.pop(name) for name in ISOLATED_ENV if name in os.environ}
+    old = os.getcwd()
+    forget_read_snapshots()
+    os.chdir(work)
+    try:
+        with patch.object(ContextBroker, "_connect_lancedb", lambda self: None):
+            yield
+    finally:
+        os.chdir(old)
+        forget_read_snapshots()
+        for name in ISOLATED_ENV:
+            os.environ.pop(name, None)
+        os.environ.update(saved)
+
+
 def build_project_outputs(work: Path) -> None:
-    """Run in the current folder (`work`): matured project, then refine, compose and implementation-feedback."""
+    """Run in `work`: matured project, then refine, compose and implementation-feedback (inside `isolated_flow`)."""
+    with isolated_flow(work):
+        _build_project_outputs(work)
+
+
+def _build_project_outputs(work: Path) -> None:
     ws = build_matured_workspace(PID, RAW, gap_acceptance_answer(EARS), backlog=False)
     (ws / "00_raw" / "02_technology_context" / "tech.md").write_text(
         "Execution commands: run pytest. Critical surfaces: risk dashboard module and queue metrics API. "
@@ -80,13 +118,7 @@ def project_output_hashes(work: Path, only: tuple[str, ...] = GLOBS) -> dict[str
 
 
 if __name__ == "__main__":
-    import os
     import tempfile
     with tempfile.TemporaryDirectory() as tmp:
-        old = os.getcwd()
-        os.chdir(tmp)
-        try:
-            build_project_outputs(Path(tmp))
-            print(json.dumps(project_output_hashes(Path(tmp)), indent=2))
-        finally:
-            os.chdir(old)
+        build_project_outputs(Path(tmp))
+        print(json.dumps(project_output_hashes(Path(tmp)), indent=2))
