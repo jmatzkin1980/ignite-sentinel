@@ -272,7 +272,7 @@ Claude Code has its own `/doctor`. In a Claude Code clone, if `/doctor` runs Cla
 
 ## `setup`
 
-**What it does.** Turns on semantic memory. Downloads one pinned embedding model, checks every file's sha256 and size, and only then activates it: the model goes to your model cache (`$SENTINEL_HOME` or `~/.ignite-sentinel`), the verified path is saved in `semantic.json`, and every workspace is reindexed. It is the only Sentinel command that may use the network; `/init`, `/ingest`, `/next`, `/reindex` and `/doctor` never do.
+**What it does.** Turns on semantic memory. Downloads one pinned embedding model, checks every file's sha256 and size, and only then activates it: the model goes to your model cache (`$SENTINEL_HOME` or `~/.ignite-sentinel`), the verified path is saved in `semantic.json`, and every workspace is reindexed. It is the only Sentinel command that may use the network (https only, to `huggingface.co` and `.hf.co` subdomains). Sentinel never downloads, except /setup --semantic-memory, which you run yourself and which checks every file's sha256 before using it. `/init`, `/ingest`, `/next`, `/reindex` and `/doctor` never use the network.
 
 **Type.** Exempt (no project). Not available as an MCP tool: the person runs it, not an agent.
 

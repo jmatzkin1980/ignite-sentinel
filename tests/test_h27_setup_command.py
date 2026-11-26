@@ -130,5 +130,25 @@ class SetupCommandTests(unittest.TestCase):
         self.fetch.assert_not_called()
 
 
+class GuideExceptionTests(unittest.TestCase):
+    CANON = ("Sentinel never downloads, except /setup --semantic-memory, which you run yourself "
+             "and which checks every file's sha256 before using it.")
+    GUIDE = Path(__file__).resolve().parent.parent / "user_guide"
+
+    def test_guide_states_the_one_exception(self) -> None:
+        for page in sorted(self.GUIDE.glob("*.md")):
+            text = page.read_text(encoding="utf-8")
+            self.assertNotIn("never downloads a model", text, page.name)
+            self.assertNotIn("never downloads one", text, page.name)
+        for name in ("05-traceability-and-memory.md", "06-installation-vscode.md",
+                     "09-secure-environments.md", "16-portability.md"):
+            self.assertIn(self.CANON, (self.GUIDE / name).read_text(encoding="utf-8"), name)
+        admin = (self.GUIDE / "20-admin-guide.md").read_text(encoding="utf-8")
+        manifest = semantic_setup.load_manifest()
+        for host in list(manifest["allowed_hosts"]) + list(manifest.get("allowed_host_suffixes", [])):
+            self.assertIn(host, admin)
+        self.assertIn("--offline-from", admin)
+
+
 if __name__ == "__main__":
     unittest.main()

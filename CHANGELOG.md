@@ -6,6 +6,18 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+### Added
+
+- **`/setup --semantic-memory`, `--offline-from DIR` and `--status` (IMP-425, H27 inc 7b).** Turns on semantic memory in one step: installs the pinned model `minishlab/potion-multilingual-128M` (revision pinned in `templates/semantic_models.json`), verifying every file's sha256 and size before activation, https only, hosts `huggingface.co` and `.hf.co` subdomains. `--offline-from` installs from a local folder with the same checks; `--status` verifies without network. It is not an MCP tool. The guide, admin guide, `sentinel-health` and `sentinel-command-router` say so: Sentinel never downloads, except `/setup --semantic-memory`.
+
+### Changed
+
+- `/doctor` and its recommendation name `/setup --semantic-memory`; `network_import_violations` allows only `setup_download.py`. The verified model path is used after the environment variables, which still override.
+
+### Fixed
+
+- T2-D4 and T2-18: a missing semantic model no longer leaves the user without a way to install it.
+
 ## [0.35.0] — 2026-11-26
 
 ### Added

@@ -154,7 +154,7 @@ Use packs when a workspace is too large to load fully, when a skill needs only p
 Sentinel is local-first.
 
 - `privacy_mode: local-only` is the default; the index lives under the workspace.
-- Semantic embeddings, when enabled, run only from local packages and local model files. Retrieval never calls an external embedding API and never downloads a model.
+- Semantic embeddings, when enabled, run only from local packages and local model files. Retrieval never calls an external embedding API. Sentinel never downloads, except /setup --semantic-memory, which you run yourself and which checks every file's sha256 before using it. Ask in chat to turn on semantic memory and the agent runs it for you; see [`/setup`](01-command-reference.md#setup).
 - Hash embeddings are deterministic and local, and remain the fallback for restricted environments.
 - Do not use remote MCP servers, external vector databases or external embedding APIs for client data unless that is approved outside this framework.
 
@@ -202,7 +202,7 @@ Sentinel auto-detects local embedders in this order: `model2vec` with a local mu
 To enable semantic retrieval offline:
 
 1. Install the extra in the environment that runs Sentinel: `python -m pip install -e .[memory-semantic]`.
-2. Make a multilingual model available locally, by pre-seeding the cache or pointing at a folder:
+2. Ask in chat to turn on semantic memory, or run `/setup --semantic-memory`: it installs the one pinned model (`minishlab/potion-multilingual-128M`) after checking every file's sha256 and size. On an air-gapped machine use `/setup --semantic-memory --offline-from FOLDER` (same checks), and `--status` re-verifies the install without network. If you prefer, make a multilingual model available locally yourself, by pre-seeding the cache or pointing at a folder (these environment variables still override the installed model):
 
    ```powershell
    $env:SENTINEL_MODEL2VEC_MODEL = "C:\models\potion-multilingual-128M"

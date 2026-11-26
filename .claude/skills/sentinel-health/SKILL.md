@@ -33,6 +33,15 @@ Use this skill as the final gate for any Sentinel workflow.
 - `/validate` emits an `iso29148_coverage` report (IMP-189): the nine ISO/IEC/IEEE 29148 individual-requirement quality characteristics, each `covered` (with the deterministic checks that cover it via `covers_29148`), an open `heuristic_gap`, or `out_of_scope` with a stated reason. Characteristics no local deterministic heuristic can honestly decide — Complete, Feasible, Correct, Necessary — are declared out of scope rather than simulated. The block also lists `verifiability_findings`: requirement statements (including well-formed EARS ones) that carry no measurable or observable acceptance anchor. Use it as an auditability lens against the standard, not a gate.
 - If BA/Product intentionally proceeds despite `/validate`, use `--override PATH` with cited `decisions[]` in `DEC-*` shape. Sentinel writes the rationale to `06_traceability/gate_overrides/` but keeps the structural `VALID` / `INVALID` result unchanged.
 
+## Semantic memory (/setup)
+
+When `/doctor` warns that the semantic embedder is not active and the user wants better memory search, run `/setup --semantic-memory` yourself (it is not an MCP tool). It is the only download in Sentinel: the model `minishlab/potion-multilingual-128M` at its pinned revision, https only, hosts `huggingface.co` and `.hf.co` subdomains, every file's sha256 and size verified before activation. Never download or place a model by other means.
+
+- Without network use `--offline-from DIR` (same checks); `--status` checks the install without network.
+- `/setup` does not pip-install `model2vec`: if missing it refuses before downloading and prints the pip command with `constraints/memory-semantic.txt`; give it to the user, who runs it through the organization's index or proxy.
+- Config and model live under `$SENTINEL_HOME` or `~/.ignite-sentinel`; the env vars still override.
+- If a workspace reindex fails after activation, the model stays active and the result lists warnings with `sentinel /reindex ID --full`; report them.
+
 ## Adaptive Decision Ladder (coaching posture)
 
 When `/health` returns findings, present the remediation as numbered rungs — *use this when…* plus the *why* — instead of a single instruction. The owning command, never a hand-edit, is always the route. (Posture: the Adaptive Decision Ladder, Peters.)
