@@ -47,7 +47,7 @@ When the BA is working on one change (a request that modifies a system that alre
 
 - The sections are those of `03_specs/CHG-NNN/prd.md`. A citation is a verbatim line of the change's own text: its request, brief, specs and units. The project's raw input is not part of it.
 - The accepted blocks live in `03_specs/CHG-NNN/compositions/` and `/specs --change` writes them back into the PRD each time it regenerates it; a block whose citation no longer holds is left out and listed in `regeneration_report.md`.
-- `/compose PROJECT_ID` without `--change` is the project's PRD and does not touch the change's. A workspace that only has changes refuses the form without `--change` and names the one to use. `--release` is not accepted.
+- `/compose PROJECT_ID` without `--change` is the project's PRD and does not touch the change's. In a workspace that only has changes there is no `03_specs/prd.md`, so the form without `--change` refuses for that reason; use `--change`. `--release` is not accepted.
 
 ## Formato
 

@@ -106,6 +106,57 @@ class BorrWithBacklog(SnapshotWorkspaceCase):
         forget_read_snapshots()
         self.assertEqual(change_next_step("BORR", CID)["key"], "quality")
 
+    def test_change_refine_refuses_a_backlog_that_is_behind(self):
+        """I1 (review inc 8b): `/specs --change` dropped a unit after the backlog: refine refuses like `/quality --change`."""
+        from sentinel.backlog.refinement import apply_backlog_refinement
+        from sentinel.errors import GateRefusal
+
+        units = read_change_units("BORR", CID)
+        dropped = next(u for u in units if u["id"] != self.unit)
+        dropped["path"].unlink()
+        forget_read_snapshots()
+        snapshot = {p: p.read_bytes() for p in (self.base / "04_backlog").rglob("*") if p.is_file()}
+        with self.assertRaises(GateRefusal) as caught:
+            apply_backlog_refinement("BORR", Path(source("b.json", [missing_story(self.unit)])), CID)
+        self.assertEqual(str(caught.exception), "El backlog de CHG-001 falta o está atrasado")
+        self.assertEqual(caught.exception.next_step, "/backlog BORR --change CHG-001")
+        self.assertEqual({p: p.read_bytes() for p in (self.base / "04_backlog").rglob("*") if p.is_file()}, snapshot)
+        code, _out = refine("BORR", "b2.json", [missing_story(self.unit)])
+        self.assertEqual(code, 4)  # a gate refusal from the CLI too
+
+    def test_epic_only_refinement_makes_quality_stale(self):
+        """M1 (review inc 8b): a `missing-story` refinement writes only the change epic; it also leaves quality behind."""
+        self.assertEqual(change_next_step("BORR", CID)["key"], "done")
+        run_ok(["refine-backlog", "BORR", "--source", source("m.json", [missing_story(self.unit)]), "--change", CID])
+        forget_read_snapshots()
+        self.assertEqual(change_next_step("BORR", CID)["key"], "quality")
+
+    def test_change_evidence_excludes_agent_refinements(self):
+        """M4 (review inc 8b): a second refinement cannot cite the agent prose of the first one."""
+        from sentinel.backlog.refinement import change_refinement_evidence_text
+
+        prose = "Add a story for the draft list."
+        self.assertNotIn(prose, change_refinement_evidence_text("BORR", CID))
+        run_ok(["refine-backlog", "BORR", "--source", source("e.json", [missing_story(self.unit)]), "--change", CID])
+        forget_read_snapshots()
+        self.assertNotIn(prose, change_refinement_evidence_text("BORR", CID))
+        code, out = refine("BORR", "e2.json", [missing_story(self.unit, citation=prose)])
+        self.assertNotEqual(code, 0, out)
+
+    def test_change_refine_leaves_stories_outside_its_scope(self):
+        """M5 (review inc 8b): a record that targets a story outside the change (a 0.39 project refinement) is not rendered into it."""
+        from sentinel.backlog.refinement import render_backlog_refinements
+
+        other = self.base / "04_backlog" / "US-950.md"
+        other.write_text("---\nid: US-950\n---\n\n# US-950\n", encoding="utf-8")
+        before = other.read_bytes()
+        epic = self.base / "04_backlog" / "EPIC-CHG-001.md"
+        record = {"id": "BREF-009", "kind": "reslice", "target_stories": ["US-950", self.story], "source_units": [self.unit],
+                  "recommendation": "Keep it small.", "rationale": "One result.", "citations": [QUOTE], "status": "accepted"}
+        render_backlog_refinements(self.base, [record], epic, story_ids={self.story})
+        self.assertEqual(other.read_bytes(), before)
+        self.assertIn("## Agent Backlog Refinements", (self.base / "04_backlog" / f"{self.story}.md").read_text(encoding="utf-8"))
+
     def test_change_unit_texts_joins_the_units_of_the_change(self):
         texts = change_unit_texts("BORR", CID)
         self.assertEqual(sorted(texts), sorted(unit["id"] for unit in read_change_units("BORR", CID)))

@@ -54,6 +54,11 @@ def apply_backlog_refinement(project_id: str, source: Path, change_id: str | Non
             language = "en" if change_language(project_id, change) == "en" else "es"
             raise GateRefusal(CHANGE_TEXT[language]["no_backlog"].format(cid=change_id),
                               next_step=f"/backlog {project_id} --change {change_id}")
+        # IMP-433 review I1: the change's own gate stands in for the project's DIRTY one: a backlog behind its units (specs
+        # regenerated since) is refused like `/quality --change`, before anything is written.
+        from ..quality import refuse_change_backlog_behind
+
+        refuse_change_backlog_behind(project_id, change_id)
     else:
         epic_path = base / "04_backlog" / "EPIC-001.md"
         if not epic_path.exists():
@@ -97,7 +102,7 @@ def apply_backlog_refinement(project_id: str, source: Path, change_id: str | Non
     existing_refinements = existing if isinstance(existing, list) else []
     merged, unchanged = merge_refinements(existing_refinements, accepted)
     write_json(accepted_path, merged)
-    render_backlog_refinements(base, merged, epic_path if change_id else None)
+    render_backlog_refinements(base, merged, epic_path if change_id else None, set(story_index))
     report_path = write_refinement_report(project_id, accepted, rejected, archived, change_id)
 
     refinement_id = add_node(
@@ -404,21 +409,29 @@ def change_refinement_evidence_text(project_id: str, change_id: str) -> str:
     parts = [change_grounding_text(project_id, change_id)]
     files = [base / "04_backlog" / f"{epic_id_for(change_id)}.md",
              *(base / "04_backlog" / f"{sid}.md" for sid in _change_story_ids(base, change_id))]
+    refinements = _refinement_dir(base, change_id)
     for root in (base / "03_specs" / change_id, base / "04_backlog" / change_id, base / "08_context_packs" / change_id):
         if root.exists():
-            files += [path for path in sorted(root.rglob("*")) if path.is_file()]
+            # IMP-433 review M4: the agent's earlier refinements (payloads, accepted records, report) never ground a new one
+            files += [path for path in sorted(root.rglob("*")) if path.is_file() and refinements not in path.parents]
     for path in files:
         if path.is_file() and path.suffix.lower() in {".md", ".txt", ".json"}:
-            parts.append(path.read_text(encoding="utf-8", errors="ignore"))
+            # ...nor does the "Agent Backlog Refinements" section they wrote into the epic and the stories
+            parts.append(strip_refinement_section(path.read_text(encoding="utf-8", errors="ignore")))
     return "\n\n".join(parts)
 
 
-def render_backlog_refinements(base: Path, refinements: list[dict[str, Any]], epic_path: Path | None = None) -> None:
+def render_backlog_refinements(base: Path, refinements: list[dict[str, Any]], epic_path: Path | None = None,
+                               story_ids: set[str] | None = None) -> None:
+    """The epic's section and each target story's; with `story_ids`, only the stories of the scope (IMP-433 review M5: a 0.39
+    project record that targeted a change story no longer rewrites it, and a change run leaves the project's alone)."""
     epic_path = epic_path or base / "04_backlog" / "EPIC-001.md"
     write_text(epic_path, append_refinement_section(strip_refinement_section(epic_path.read_text(encoding="utf-8")), refinements, "epic"))
     by_story: dict[str, list[dict[str, Any]]] = {}
     for refinement in refinements:
         for story_id in refinement.get("target_stories", []):
+            if story_ids is not None and str(story_id) not in story_ids:
+                continue
             by_story.setdefault(str(story_id), []).append(refinement)
     for story_id, story_refinements in by_story.items():
         story_path = base / "04_backlog" / f"{story_id}.md"

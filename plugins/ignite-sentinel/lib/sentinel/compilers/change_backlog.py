@@ -181,6 +181,13 @@ def change_backlog_digest(project_id: str, change_id: str) -> str:
     for story_id in sorted(_change_story_ids(base, change_id)):
         text = (base / "04_backlog" / f"{story_id}.md").read_text(encoding="utf-8")
         digest.update(story_id.encode("utf-8") + b"\n" + _audited_story_text(text).encode("utf-8"))
+    # IMP-433 review M1: a refinement that only writes the change epic (`missing-story`) leaves the audit behind too. Only the
+    # epic's refinement section counts, and only when there is one, so a change never refined keeps its digest.
+    marker = "## Agent Backlog Refinements"
+    epic = base / "04_backlog" / f"{epic_id_for(change_id)}.md"
+    epic_text = epic.read_text(encoding="utf-8") if epic.is_file() else ""
+    if marker in epic_text:
+        digest.update(b"EPIC\n" + epic_text.split(marker, 1)[1].encode("utf-8"))
     return digest.hexdigest()
 
 

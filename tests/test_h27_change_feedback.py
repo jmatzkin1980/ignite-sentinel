@@ -93,6 +93,16 @@ class BorrWithBacklog(SnapshotWorkspaceCase):
         front = parse_frontmatter((self.base / "04_backlog" / f"{story}.md").read_text(encoding="utf-8"))
         self.assertEqual(front["status"], "Stale")
 
+    def test_story_of_a_missing_change_does_not_refuse_the_run(self):
+        """M6 (review inc 8b): a story naming a change no longer in state leaves the other findings alone."""
+        (self.base / "04_backlog" / "US-990.md").write_text("---\nid: US-990\nchange: CHG-009\n---\n\n# US-990\n", encoding="utf-8")
+        story = _change_story_ids(self.base, CID)[0]
+        out = json.loads(run_ok(["implementation-feedback", "BORR", "--source", self._write("x.json", [finding(story)])]))
+        self.assertEqual(len(out["accepted"]), 1)
+        code, _out = feedback("BORR", "y.json", [finding("US-990", source_units=["SPEC-U-001"])])
+        self.assertNotEqual(code, 0)
+        self.assertIn("source unit does not exist for CHG-009: SPEC-U-001", (self.base / REPORT).read_text(encoding="utf-8"))
+
     def test_change_only_report_has_change_column(self):
         story = _change_story_ids(self.base, CID)[0]
         run_ok(["implementation-feedback", "BORR", "--source", self._write("c.json", [finding(story)])])
@@ -134,6 +144,22 @@ class MixWithChangeBacklog(SnapshotWorkspaceCase):
         code, _out = feedback("MIX", "n.json", [finding(own, source_units=["SPEC-U-998"])])
         self.assertNotEqual(code, 0)
         self.assertTrue(units)
+
+    def test_change_story_rejects_project_unit(self):
+        """I2 (review inc 8b): a story of a change answers only for its change's units; a project unit is refused (like refine),
+        so a change-scoped finding never marks a project story Stale."""
+        cid = type(self).cid
+        base = workspace_path("MIX")
+        own = _change_story_ids(base, cid)[0]
+        change_units = {u["id"] for u in read_change_units("MIX", cid)}
+        project_unit = next(p.stem for p in sorted((base / "03_specs" / "units").glob("SPEC-U-*.md")) if p.stem not in change_units)
+        project_stories = sorted({p.stem for p in (base / "04_backlog").glob("US-*.md")} - set(_change_story_ids(base, cid)))
+        before = {sid: (base / "04_backlog" / f"{sid}.md").read_bytes() for sid in project_stories}
+        code, _out = feedback("MIX", "pu.json", [finding(own, source_units=[project_unit], mark_stale=True)])
+        self.assertNotEqual(code, 0)
+        report = (base / REPORT).read_text(encoding="utf-8")
+        self.assertIn(f"source unit does not exist for {cid}: {project_unit}", report)
+        self.assertEqual({sid: (base / "04_backlog" / f"{sid}.md").read_bytes() for sid in project_stories}, before)
 
 
 class ProjectFeedbackBytes(SnapshotWorkspaceCase):

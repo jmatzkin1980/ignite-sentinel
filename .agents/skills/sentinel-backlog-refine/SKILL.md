@@ -56,7 +56,8 @@ When the BA is working on one change (a request that modifies a system that alre
 - `target_stories` are stories of that change (`04_backlog/US-NNN.md` with `change: CHG-NNN`), and `source_units` are units the change owns: those of the change and of its releases. A story or unit of the project, or of another change, is refused.
 - Citations are verbatim lines of the change's own text: its request, brief, specs, stories and context packs. The project's raw input is not part of it.
 - The proposals open in the change (`04_backlog/CHG-NNN/refinements/`), with their own report. `/refine-backlog PROJECT_ID` without `--change` leaves the stories of a change alone, and a refinement of the change makes its quality audit stale: run `/quality PROJECT_ID --change CHG-NNN` again.
-- A workspace that only has changes refuses the form without `--change` and names the one to use. `--release` is not accepted.
+- If `/specs --change` regenerated the units after the backlog, the backlog of the change is behind: the command refuses ("The backlog of CHG-NNN is missing or behind") and names `/backlog PROJECT_ID --change CHG-NNN`, as `/quality --change` does.
+- In a workspace that only has changes, the form without `--change` refuses (the project has no `EPIC-001` and its health is not clean); use `--change`. `--release` is not accepted.
 
 ## Formato
 

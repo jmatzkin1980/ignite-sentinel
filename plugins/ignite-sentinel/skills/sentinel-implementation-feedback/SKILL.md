@@ -50,7 +50,7 @@ Field contract — the runtime rejects anything outside it, so copy it exactly:
 
 A story of a change (its frontmatter has `change: CHG-NNN`) needs no flag: the story knows its change. In chat: "this story of CHG-001 hits a blocker". The command is the same.
 
-- `source_units` of a finding on a change story must be units that change owns (those of the change and of its releases) or the project's; any other unit is refused with `source unit does not exist for CHG-NNN`.
+- `source_units` of a finding on a change story must be units that change owns (those of the change and of its releases); a unit of the project or of another change is refused with `source unit does not exist for CHG-NNN`, so feedback on a change story never marks a project story `Stale`.
 - `mark_stale` marks only the stories whose `source_units` match, as for the project.
 - The report adds a `Change` column only when an accepted finding is on a change story; for the project it is unchanged.
 

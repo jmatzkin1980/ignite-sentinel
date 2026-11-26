@@ -30,6 +30,15 @@ def next_key() -> str:
     return cli_json(["next", PID, "--change", CID])["key"]
 
 
+def validation() -> dict:
+    """`/validate --change`: each check's status and the findings (a crash or a usage error fails the walk)."""
+    code, out = cli(["validate", PID, "--change", CID])
+    if code not in (0, 5):
+        raise AssertionError(out)
+    result = json.loads(out)
+    return {"checks": {c["id"]: c["status"] for c in result["checks"]}, "findings": list(result["findings"])}
+
+
 def write(name: str, payload: dict) -> str:
     Path(name).write_text(json.dumps(payload), encoding="utf-8")
     return name
@@ -56,10 +65,10 @@ class Inc8bWalk(SnapshotWorkspaceCase):
 
     def test_walk(self) -> None:
         base = workspace_path(PID)
-        code, before = cli(["validate", PID, "--change", CID])
         run_ok(["backlog", PID, "--change", CID])
         run_ok(["quality", PID, "--change", CID])
         self.assertEqual(next_key(), "done")
+        before = validation()
         unit = read_change_units(PID, CID)[0]["id"]
         story = _change_story_ids(base, CID)[0]
 
@@ -88,8 +97,12 @@ class Inc8bWalk(SnapshotWorkspaceCase):
         report = (base / "07_changes" / "05_implementation_feedback" / "feedback_report.md").read_text(encoding="utf-8")
         self.assertIn("Change", report)
 
-        code_after, after = cli(["validate", PID, "--change", CID])
-        self.assertLessEqual(code_after, 4, after)  # open feedback may be reported, a crash or a usage error may not
+        # M7 (review inc 8b): refine and compose change no validation result; only the open feedback may add a finding
+        after = validation()
+        self.assertEqual(after["checks"], before["checks"])
+        added = [f for f in after["findings"] if f not in before["findings"]]
+        self.assertTrue(all("feedback" in f.lower() or "IFB-" in f for f in added), added)
+        self.assertEqual([f for f in before["findings"] if f not in after["findings"]], [])
 
     def test_commands_and_guide_name_the_change_form(self) -> None:
         self.assertEqual(skill_for_command(f"/refine-backlog {PID} --source x --change {CID}"), "sentinel-backlog-refine §Change")

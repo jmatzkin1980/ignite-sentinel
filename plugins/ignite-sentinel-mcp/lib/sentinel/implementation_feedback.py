@@ -203,7 +203,7 @@ def validate_finding_shape(finding: Any, story_index: dict[str, dict[str, Any]])
         return f"story does not exist: {story_id}"
     change_id = story_index[story_id].get("change", "")
     if change_id:
-        # IMP-433: a story of a change answers for its units: those of the change (and its releases) or the project's folder.
+        # IMP-433: a story of a change answers for its units: those of the change and of its releases, never the project's.
         valid = story_index[story_id].get("valid_units", set())
         for unit in normalized_list(finding.get("source_units", [])):
             if unit not in valid:
@@ -280,9 +280,15 @@ def load_story_index(base: Path, project_id: str | None = None) -> dict[str, dic
         if change_id:
             if change_id not in valid_by_change:
                 from .compilers.change_backlog import change_unit_texts
+                from .errors import GateRefusal
 
-                project_units = {p.stem for p in (base / "03_specs" / "units").glob("SPEC-U-*.md")}
-                valid_by_change[change_id] = project_units | set(change_unit_texts(project_id or base.name, change_id))
+                # IMP-433 review I2: only the change's own units (and its releases'); a project unit would let a change-scoped
+                # finding mark project stories Stale. M6: a change no longer in state leaves its stories with no valid unit
+                # instead of refusing the whole run.
+                try:
+                    valid_by_change[change_id] = set(change_unit_texts(project_id or base.name, change_id))
+                except GateRefusal:
+                    valid_by_change[change_id] = set()
             stories[story_id]["valid_units"] = valid_by_change[change_id]
     return stories
 
