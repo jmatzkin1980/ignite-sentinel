@@ -252,12 +252,9 @@ class ChangeBacklog(SnapshotWorkspaceCase):
         code, out = run_cli(["backlog", "BORR", "--change", self.cid])
         self.assertEqual(code, 0)
         self.assertEqual(json.loads(out)["change_id"], self.cid)
+        # IMP-429: --release with --change is accepted; without a confirmed series of the change it refuses (nothing written)
         code, _ = run_cli(["backlog", "BORR", "--change", self.cid, "--release", "r1"])
-        self.assertEqual(code, 3)
-        err = io.StringIO()
-        with redirect_stderr(err), redirect_stdout(io.StringIO()):
-            cli_main(["backlog", "BORR", "--change", self.cid, "--release", "r1"])
-        self.assertIn("/backlog --change no se combina con --release", err.getvalue())
+        self.assertEqual(code, 4)
         captured: list[list[str]] = []
         with patch.object(sentinel_mcp, "run_cli", lambda arguments: captured.append(arguments) or {"exit_code": 0}):
             _tools()["sentinel_backlog"](project_id="BORR", change=self.cid)

@@ -147,6 +147,100 @@ class ReleaseUnitsTest(ChangeReleaseCase):
             self.assertIn(f"--release con --change existe para /specs y /backlog; para el resto corré /{command} {PID} --change {CID}", out)
 
 
+def _story_files(folder: Path) -> dict[str, str]:
+    return {p.stem: p.read_text(encoding="utf-8") for p in sorted(folder.glob("US-*.md"))}
+
+
+def _sha_tree(base: Path, folder: str, pattern: str) -> dict[str, str]:
+    import hashlib
+
+    return {p.relative_to(base).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
+            for p in sorted((base / folder).glob(pattern)) if p.is_file()}
+
+
+class ReleaseBacklogTest(ChangeReleaseCase):
+    def _derive_specs(self) -> None:
+        for rid in ("r1", "r2"):
+            run_ok(["specs", PID, "--change", CID, "--release", rid])
+
+    def test_backlog_release_change(self) -> None:
+        from sentinel.change_release import release_units
+
+        self._derive_specs()
+        owned = release_units(PID, CID)
+        first = json.loads(run_ok(["backlog", PID, "--change", CID, "--release", "r1"]))
+        second = json.loads(run_ok(["backlog", PID, "--change", CID, "--release", "r2"]))
+        self.assertEqual(first["release"], "r1")
+        folder = self.base() / "04_backlog" / CID
+        mine = {}
+        for rid in ("r1", "r2"):
+            mine[rid] = _story_files(folder / rid)
+            self.assertTrue(mine[rid], rid)
+            self.assertTrue((folder / rid / "SLICE-PLAN.md").is_file())
+            other = [u for r, ids in owned.items() if r != rid for u in ids]
+            for sid, text in mine[rid].items():
+                for uid in other:
+                    self.assertNotIn(uid, text, f"{sid} in {rid} cites {uid}")
+            cited = {u for t in mine[rid].values() for u in re.findall(r"SPEC-U-\d+", t)}
+            self.assertTrue(cited and cited <= set(owned[rid]), (rid, cited))
+        self.assertEqual(sorted(first["stories"]), sorted(mine["r1"]))
+        self.assertEqual(sorted(second["stories"]), sorted(mine["r2"]))
+        self.assertFalse(set(mine["r1"]) & set(mine["r2"]))
+
+    def test_backlog_release_needs_specs(self) -> None:
+        run_ok(["specs", PID, "--change", CID, "--release", "r1"])
+        code, out = cli(["backlog", PID, "--change", CID, "--release", "r2"])
+        self.assertNotEqual(code, 0, out)
+        self.assertIn(f"/specs {PID} --change {CID} --release r2", out)
+        self.assertFalse((self.base() / "04_backlog" / CID / "r2").exists())
+
+    def test_rerun_keeps_other_release(self) -> None:
+        self._derive_specs()
+        run_ok(["backlog", PID, "--change", CID, "--release", "r1"])
+        run_ok(["backlog", PID, "--change", CID, "--release", "r2"])
+        before = {rid: _story_files(self.base() / "04_backlog" / CID / rid) for rid in ("r1", "r2")}
+        run_ok(["backlog", PID, "--change", CID, "--release", "r2"])
+        after = {rid: _story_files(self.base() / "04_backlog" / CID / rid) for rid in ("r1", "r2")}
+        self.assertEqual(sorted(before["r1"]), sorted(after["r1"]))
+        self.assertEqual(sorted(before["r2"]), sorted(after["r2"]))
+        for sid in before["r1"]:
+            self.assertTrue((self.base() / "04_backlog" / f"{sid}.md").is_file())
+
+    def test_release_derivation_isolated(self) -> None:
+        """RF 3: deriving CHG-001's releases touches nothing of the project or of another change."""
+        Path("otro.md").write_text("Pedido: sumar un reporte de compras mensual para la jefatura.\n", encoding="utf-8")
+        run_ok(["ingest", PID, "--source", "otro.md", "--change"])
+        base = self.base()
+        before_project = _sha_tree(base, "04_backlog", "US-*.md")
+        before_other = _sha_tree(base, "03_specs/CHG-002", "**/*")
+        before_req = _sha_tree(base, "02_requirements/CHG-002", "**/*")
+        self._derive_specs()
+        for rid in ("r1", "r2"):
+            run_ok(["backlog", PID, "--change", CID, "--release", rid])
+        self.assertFalse((base / "03_specs" / "r1").exists())
+        self.assertFalse((base / "04_backlog" / "r1").exists())
+        self.assertFalse((base / ".series_work").exists())
+        after = _sha_tree(base, "04_backlog", "US-*.md")
+        own = {k for k in after if f"change: {CID}" not in (base / k).read_text(encoding="utf-8")}
+        self.assertEqual({k: after[k] for k in own}, {k: before_project[k] for k in own})
+        self.assertEqual(_sha_tree(base, "03_specs/CHG-002", "**/*"), before_other)
+        self.assertEqual(_sha_tree(base, "02_requirements/CHG-002", "**/*"), before_req)
+
+    def test_change_backlog_without_release_unchanged(self) -> None:
+        run_ok(["specs", PID, "--change", CID])
+        run_ok(["backlog", PID, "--change", CID])
+        base = self.base()
+        stories = _story_files(base / "04_backlog")
+        mine = {sid for sid, t in stories.items() if f"change: {CID}" in t}
+        self.assertTrue(mine)
+        self.assertTrue((base / "04_backlog" / CID / "SLICE-PLAN.md").is_file())
+        self.assertFalse((base / "04_backlog" / CID / "r1").exists())
+        first = {sid: stories[sid] for sid in mine}
+        run_ok(["backlog", PID, "--change", CID])
+        again = _story_files(base / "04_backlog")
+        self.assertEqual({sid: again[sid] for sid in mine}, first)
+
+
 class ProjectReleaseBytesTest(unittest.TestCase):
     def test_project_release_bytes_unchanged(self) -> None:
         """RF 4: the project's specs/backlog/close/move write the bytes recorded before this increment."""

@@ -85,7 +85,17 @@ def _gate(project_id: str, change_id: str) -> tuple[dict, list[dict]]:
     return change, rows
 
 
-def compile_change_specs(project_id: str, change_id: str) -> dict[str, Any]:
+def compile_change_specs(project_id: str, change_id: str, release: str | None = None) -> dict[str, Any]:
+    """The change's units; with `release` also that release's share under `03_specs/CHG-nnn/rN/` (IMP-429)."""
+    whole = _compile_change_specs(project_id, change_id)
+    if release is None:
+        return whole
+    from ..change_release import derive_release_specs
+
+    return derive_release_specs(project_id, change_id, release, whole)
+
+
+def _compile_change_specs(project_id: str, change_id: str) -> dict[str, Any]:
     change, rows = _gate(project_id, change_id)
     base = workspace_path(project_id)
     language = change_language(project_id, change)

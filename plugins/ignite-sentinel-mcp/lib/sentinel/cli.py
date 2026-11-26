@@ -94,7 +94,7 @@ def check_source_exists(args) -> None:
 
 
 def run_command(args, argv: list[str]) -> int:
-    if args.command in {"specs", "backlog", "validate", "next", "status"} and getattr(args, "release", None) and getattr(args, "change", None):
+    if args.command in {"validate", "next", "status"} and getattr(args, "release", None) and getattr(args, "change", None):
         from .changes import change_language, get_change
         from .errors import InputError
 
@@ -102,14 +102,15 @@ def run_command(args, argv: list[str]) -> int:
             language = change_language(args.project_id, get_change(args.project_id, args.change))
         except Exception:  # an unknown change or workspace is reported by the command itself
             language = "es"
+        again = f"/{args.command} {args.project_id} --change {args.change}"
         if language == "en":
-            message = f"/{args.command} --change cannot be combined with --release: a change does not belong to a release series."
-            next_step = f"Run /{args.command} {args.project_id} --change {args.change} without --release."
+            message = f"--release with --change exists for /specs and /backlog; for the rest run {again}"
+            next_step = f"Run {again}."
         else:
-            message = f"/{args.command} --change no se combina con --release: un cambio no pertenece a una serie de releases."
-            next_step = f"Corré /{args.command} {args.project_id} --change {args.change} sin --release."
+            message = f"--release con --change existe para /specs y /backlog; para el resto corré {again}"
+            next_step = f"Corré {again}."
         return report_error(InputError(message, next_step=next_step))
-    if getattr(args, "release", None):
+    if getattr(args, "release", None) and not (args.command in {"specs", "backlog"} and getattr(args, "change", None)):
         try:
             from .core.paths import validate_project_id
             from .release_scope import run_release_command, scoped_argv
@@ -707,7 +708,7 @@ def _run_project_command(args) -> int:
                 from .compilers.change_specs import compile_change_specs
 
                 get_change(args.project_id, args.change)
-                result = compile_change_specs(args.project_id, args.change)
+                result = compile_change_specs(args.project_id, args.change, release=getattr(args, "release", None))
             else:
                 from .generation import generate_specs
 
@@ -722,6 +723,7 @@ def _run_project_command(args) -> int:
                 result = compile_change_backlog(
                     args.project_id, args.change,
                     story_format=args.story_format, with_task_seeds=bool(args.with_task_seeds),
+                    release=getattr(args, "release", None),
                 )
             else:
                 from .generation import generate_backlog

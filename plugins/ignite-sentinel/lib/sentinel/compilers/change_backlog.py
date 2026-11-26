@@ -28,6 +28,7 @@ TEXT = {
     "es": {
         "no_specs": "{cid} no tiene especificación: /backlog --change parte de {path}",
         "no_units": "{cid} no tiene unidades en {path}: no hay historias que derivar",
+        "no_release_specs": "{cid} no tiene la especificación de {rid} ({path}): /backlog --release parte de las unidades de esa release",
         "blocking": "{cid} tiene {n} gap(s) bloqueante(s) abierto(s): las historias saldrían de unidades desactualizadas",
         "stale_specs": "La especificación de {cid} no está al día con sus filas REQ-EARS (cambiaron desde /specs --change)",
         "old_specs": "La especificación de {cid} fue escrita por una versión anterior: volvé a correr /specs --change",
@@ -49,6 +50,7 @@ TEXT = {
     "en": {
         "no_specs": "{cid} has no specification: /backlog --change starts from {path}",
         "no_units": "{cid} has no units in {path}: there are no stories to derive",
+        "no_release_specs": "{cid} has no specification for {rid} ({path}): /backlog --release starts from the units of that release",
         "blocking": "{cid} has {n} blocking gap(s) open: the stories would come from stale units",
         "stale_specs": "The specification of {cid} is not current with its REQ-EARS rows (they changed since /specs --change)",
         "old_specs": "The specification of {cid} was written by an older version: rerun /specs --change",
@@ -74,18 +76,18 @@ def _specs_path(change_id: str) -> str:
     return f"03_specs/{change_id}/specs.md"
 
 
-def _units_path(change_id: str) -> str:
-    return f"03_specs/{change_id}/units"
+def _units_path(change_id: str, release: str | None = None) -> str:
+    return f"03_specs/{change_id}/{release}/units" if release else f"03_specs/{change_id}/units"
 
 
 def epic_id_for(change_id: str) -> str:
     return f"EPIC-{change_id}"
 
 
-def read_change_units(project_id: str, change_id: str) -> list[dict[str, Any]]:
+def read_change_units(project_id: str, change_id: str, release: str | None = None) -> list[dict[str, Any]]:
     base = workspace_path(project_id)
     units: list[dict[str, Any]] = []
-    for path in sorted((base / _units_path(change_id)).glob("SPEC-U-*.md")):
+    for path in sorted((base / _units_path(change_id, release)).glob("SPEC-U-*.md")):
         text = path.read_text(encoding="utf-8")
         front = parse_frontmatter(text)
         unit_id = str(front.get("id", path.stem)).strip() or path.stem
@@ -206,16 +208,21 @@ def _prd_behind(project_id: str, change_id: str, report: dict) -> bool:
     return False
 
 
-def _gate(project_id: str, change_id: str) -> tuple[dict, dict[str, Any], list[dict[str, Any]]]:
+def _gate(project_id: str, change_id: str, release: str | None = None) -> tuple[dict, dict[str, Any], list[dict[str, Any]]]:
     change = get_change(project_id, change_id)
     base = workspace_path(project_id)
     text = TEXT.get(change_language(project_id, change), TEXT["es"])
     next_step = f"/specs {project_id} --change {change_id}"
     if not (base / _specs_path(change_id)).is_file():
         raise GateRefusal(text["no_specs"].format(cid=change_id, path=_specs_path(change_id)), next_step=next_step)
-    units = read_change_units(project_id, change_id)
+    if release:  # IMP-429: a release backlog starts from the units /specs --release wrote for it
+        release_specs = f"03_specs/{change_id}/{release}/specs.md"
+        if not (base / release_specs).is_file():
+            raise GateRefusal(text["no_release_specs"].format(cid=change_id, rid=release, path=release_specs),
+                              next_step=f"{next_step} --release {release}")
+    units = read_change_units(project_id, change_id, release)
     if not units:
-        raise GateRefusal(text["no_units"].format(cid=change_id, path=_units_path(change_id)), next_step=next_step)
+        raise GateRefusal(text["no_units"].format(cid=change_id, path=_units_path(change_id, release)), next_step=next_step)
     blocking = int((change.get("gap_counts") or {}).get("blocking_open", 0) or 0)
     if blocking > 0:
         raise GateRefusal(
@@ -379,7 +386,7 @@ def _readiness_summary(items: list[dict[str, Any]]) -> tuple[str, dict[str, Any]
 
 
 def compile_change_backlog(project_id: str, change_id: str, story_format: str | None = None,
-                           with_task_seeds: bool = False) -> dict[str, Any]:
+                           with_task_seeds: bool = False, release: str | None = None) -> dict[str, Any]:
     """The change's stories. Memory rows of the change's own derived files are dropped while building (so a rerun
     does not retrieve its previous output) and indexed again from disk on every exit path, refusals included."""
     if with_task_seeds:
@@ -389,7 +396,7 @@ def compile_change_backlog(project_id: str, change_id: str, story_format: str | 
 
     with shared_brokers():  # IMP-345/416: one broker for the whole run, as /backlog does for the project
         try:
-            return _compile_change_backlog(project_id, change_id, story_format)
+            return _compile_change_backlog(project_id, change_id, story_format, release)
         finally:
             _reindex_change_artifacts(project_id, change_id)
 
@@ -425,12 +432,24 @@ def _reindex_change_artifacts(project_id: str, change_id: str) -> None:
             suffix = "-JSON" if plan_path.suffix == ".json" else ""
             broker.index_artifact(f"{change_id}-SLICE-PLAN{suffix}", "slice_plan", plan_path, plan_path.read_text(encoding="utf-8"),
                                   domain="delivery", trace_ids=[change_id, *story_ids])
+    for plan_path in sorted((base / "04_backlog" / change_id).glob("r*/SLICE-PLAN.md")):  # IMP-429: one plan per release
+        rid = plan_path.parent.name
+        broker.index_artifact(f"{change_id}-{rid}-SLICE-PLAN", "slice_plan", plan_path, plan_path.read_text(encoding="utf-8"),
+                              domain="delivery", trace_ids=[change_id, *story_ids])
     if pack_path.is_file():
         broker.index_artifact("IMPL-READINESS", "implementation_readiness", pack_path, pack_path.read_text(encoding="utf-8"),
                               domain="delivery", trace_ids=list(items) or ["IMPL-READINESS"])
 
 
-def _compile_change_backlog(project_id: str, change_id: str, story_format: str | None = None) -> dict[str, Any]:
+def _release_story_ids(base: Path, change_id: str, release: str | None) -> set[str]:
+    """The stories a release of the change has in `04_backlog/CHG-nnn/rN/` (all releases with `release=None`)."""
+    folder = base / "04_backlog" / change_id
+    folders = [folder / release] if release else [p for p in sorted(folder.glob("r*")) if p.is_dir()]
+    return {path.stem for one in folders for path in one.glob("US-*.md")}
+
+
+def _compile_change_backlog(project_id: str, change_id: str, story_format: str | None = None,
+                            release: str | None = None) -> dict[str, Any]:
     from ..backlog.gates import evaluate_story_gates, update_story_gate_state
     from ..backlog.hooks import assert_backlog_privacy_clean, pre_handoff_gate
     from ..backlog.rollup import backlog_status
@@ -444,7 +463,13 @@ def _compile_change_backlog(project_id: str, change_id: str, story_format: str |
     from .change_slices import plan_change_slices
     from .slicing import build_cross_cutting_enabler_specs, build_slice_story_specs
 
-    change, text, units = _gate(project_id, change_id)
+    if release:  # a release the series does not have, or a unit with no owner, refuses before anything is read
+        from ..change_release import ChangeReleaseError, _series, release_units
+
+        if release not in release_units(project_id, change_id):
+            raise ChangeReleaseError(f"{release} is not a release of the series of {change_id} "
+                                     f"({', '.join(_series(project_id, change_id)[0])})")
+    change, text, units = _gate(project_id, change_id, release)
     story_format = normalize_story_format(story_format or load_config(project_id).get("story_format"))
     base = workspace_path(project_id)
     language = change_language(project_id, change)
@@ -462,11 +487,14 @@ def _compile_change_backlog(project_id: str, change_id: str, story_format: str |
     slicing_model = load_slicing_model()
     size = story_size(slicing_model)
     funs = change_functionalities(project_id, change_id, rows)
-    previous_ids = set(_change_story_ids(base, change_id))
+    previous_ids = _release_story_ids(base, change_id, release) if release else set(_change_story_ids(base, change_id))
+    other_releases = _release_story_ids(base, change_id, None) - previous_ids if release else set()
+    scope = f"{change_id}|{release}" if release else change_id  # slice keys: two releases never share a story id
+    release_rel = f"{change_id}/{release}" if release else change_id
     # A story already past backlog/ready keeps its id and the units it still has; only the rest regroup.
     locked = _locked_pieces(project_id, base, change_id, sorted(previous_ids), units, funs, unit_of, size, slicing_model)
     locked_units = {uid for piece in locked for uid in piece["units"]}
-    slices = plan_change_slices(change_id, [unit for unit in units if unit["id"] not in locked_units], funs, unit_of, size,
+    slices = plan_change_slices(scope, [unit for unit in units if unit["id"] not in locked_units], funs, unit_of, size,
                                 slicing_model)
     ids = id_registry.assign_ids(project_id, "US", [item["key"] for item in slices])
     locked_ids = {piece["locked_id"] for piece in locked}
@@ -490,11 +518,11 @@ def _compile_change_backlog(project_id: str, change_id: str, story_format: str |
     epic_path = base / "04_backlog" / f"{epic_id_for(change_id)}.md"
     shared_broker(project_id).forget_sources({
         memory_key(project_id, path)
-        for path in (epic_path, pack_path, base / "04_backlog" / change_id / "SLICE-PLAN.md",
-                     base / "08_context_packs" / change_id / "slice_plan.json",
+        for path in (epic_path, pack_path, base / "04_backlog" / release_rel / "SLICE-PLAN.md",
+                     base / "08_context_packs" / release_rel / "slice_plan.json",
                      *(base / "04_backlog" / f"{sid}.md" for sid in previous_ids))
     })
-    specs_text = (base / _specs_path(change_id)).read_text(encoding="utf-8")
+    specs_text = (base / (f"03_specs/{release_rel}/specs.md" if release else _specs_path(change_id))).read_text(encoding="utf-8")
     backlog_context = build_backlog_generation_context(project_id, specs_text, "")
     stories = build_slice_story_specs(project_id, backlog_context, language, slices,
                                       {unit["id"]: unit for unit in units}, ids, preserved)
@@ -507,8 +535,8 @@ def _compile_change_backlog(project_id: str, change_id: str, story_format: str |
     new_surfaces = [item for item in change.get("border") or [] if item.get("origin") == "cross" and item.get("zone") == "nuevo"]
     enablers = build_cross_cutting_enabler_specs(project_id, stories, backlog_context, language, True,
                                                  surfaces=new_surfaces, trace_ids=[change_id], preserved=preserved)
-    stories.extend(enablers)
-    pack_rel = f"08_context_packs/{change_id}/backlog_generation.json"
+    stories.extend(e for e in enablers if e["id"] not in other_releases)  # a shared enabler stays with the first release
+    pack_rel = f"08_context_packs/{release_rel}/backlog_generation.json"
     epic_id = epic_id_for(change_id)
     lifecycle = read_state(project_id).get("story_lifecycle", {})
     lifecycle = dict(lifecycle) if isinstance(lifecycle, dict) else {}
@@ -543,14 +571,19 @@ def _compile_change_backlog(project_id: str, change_id: str, story_format: str |
     removed = sorted(previous_ids - current_ids)
     write_json(base / pack_rel, backlog_context)
     title = _note_title(base, change)
-    write_text(epic_path, _render_epic(project_id, change_id, title, stories, preserved, text, pack_rel))
+    if not (release and epic_path.is_file()):  # the epic of the change is written by its first derivation; a release keeps it
+        write_text(epic_path, _render_epic(project_id, change_id, title, stories, preserved, text, pack_rel))
     story_paths: list[Path] = []
     for story in stories:
         path = base / "04_backlog" / f"{story['id']}.md"
         write_text(path, carry_modificada_por(path, render_story(project_id, epic_id, story, story_format)))
         story_paths.append(path)
+        if release:  # the folder of the release holds a copy of each of its stories
+            write_text(base / "04_backlog" / release_rel / f"{story['id']}.md", path.read_text(encoding="utf-8"))
     for story_id in removed:
         remove(base / "04_backlog" / f"{story_id}.md")
+        if release:
+            remove(base / "04_backlog" / release_rel / f"{story_id}.md")
 
     # Graph: ids equal the registry ids (upsert, never add_node).
     upsert_node(project_id, epic_id, "epic", epic_path, title, domain="product")
@@ -594,11 +627,11 @@ def _compile_change_backlog(project_id: str, change_id: str, story_format: str |
     # IMP-416: the change's own slice plan (waves, enablers first), from the pack filtered to its stories; the project's plan stays.
     from ..slice_plan import generate_slice_plan
 
-    plan_md = f"04_backlog/{change_id}/SLICE-PLAN.md"
+    plan_md = f"04_backlog/{release_rel}/SLICE-PLAN.md"
     generate_slice_plan(
         project_id, stories, {**pack, "stories": [i for i in all_items if str(i.get("story_id", "")) in current_ids]},
-        md_rel=plan_md, json_rel=f"08_context_packs/{change_id}/slice_plan.json",
-        memory_id=f"{change_id}-SLICE-PLAN", enabler_group=epic_id,
+        md_rel=plan_md, json_rel=f"08_context_packs/{release_rel}/slice_plan.json",
+        memory_id=f"{change_id}-{release}-SLICE-PLAN" if release else f"{change_id}-SLICE-PLAN", enabler_group=epic_id,
         title=text["plan_title"].format(cid=change_id), intro=text["plan_intro"].format(cid=change_id, epic=epic_id))
 
     # Lifecycle: new stories start Draft, existing entries stay, removed stories leave.
@@ -627,10 +660,14 @@ def _compile_change_backlog(project_id: str, change_id: str, story_format: str |
                 add_edge(project_id, story["id"], original, "modifies")
     stale_now = mark_stories_stale(project_id, affected["to_stale"], text["stale_reason"].format(cid=change_id), change_id)
     stale = affected["all_stale"]
-    changes[change_id]["backlog"] = {
+    record = {
         "stories": story_ids, "change_requests": change_requests, "stale": stale, "generated_at": utc_now(),
         "dropped_units": sorted(skipped),  # IMP-396: units deliberately left without a story
     }
+    if release:  # the record of a release does not stand for the whole backlog of the change
+        changes[change_id].setdefault("backlog_releases", {})[release] = record
+    else:
+        changes[change_id]["backlog"] = record
     update_state(project_id, changes=changes)
 
     assert_backlog_privacy_clean(project_id)
@@ -647,8 +684,9 @@ def _compile_change_backlog(project_id: str, change_id: str, story_format: str |
         "change_requests": change_requests, "stale": stale_now, "warnings": affected["warnings"],
         "slices": slices_out, "slice_plan": plan_md,
     }
-    write_json(base / "08_context_packs" / change_id / "backlog_report.json", report)
+    write_json(base / "08_context_packs" / release_rel / "backlog_report.json", report)
     return {
+        **({"release": release} if release else {}),
         "project_id": project_id,
         "change_id": change_id,
         "epic": epic_id,
