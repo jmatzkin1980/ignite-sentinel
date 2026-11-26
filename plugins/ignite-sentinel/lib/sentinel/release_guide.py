@@ -24,7 +24,7 @@ from pathlib import Path
 from typing import Any
 
 from .release_split import PARTITION_FILE, ReleaseSplitError, _dicts, _s
-from .split_proposal import PROPOSAL_DIR, PROPOSAL_FILE, release_order
+from .split_proposal import PROPOSAL_FILE, release_order
 
 GUIDE_FILE = "release-guide.md"
 WORK_DIR = ".series_work"
@@ -62,10 +62,11 @@ COPY = {
 FAMILY_LABELS = {"scope_6_1": "§6.1", "build_items": "§9 C-NN", "screens": "P-N"}
 
 
-def _series(base: Path) -> tuple[dict[str, Any], dict[str, Any]]:
+def _series(base: Path, change_id: str | None = None) -> tuple[dict[str, Any], dict[str, Any]]:
     from .core.io import read_json
+    from .series_scope import series_dir
 
-    series = base.joinpath(*PROPOSAL_DIR)
+    series = series_dir(base, change_id)
     partition = read_json(series / PARTITION_FILE, None)
     if not isinstance(partition, dict) or partition.get("status") != "confirmed":
         raise ReleaseSplitError("this needs a confirmed release series; run /split --confirm first", gate=True)
@@ -105,7 +106,8 @@ def release_stories(base: Path, project_id: str, rid: str) -> dict[str, str]:
     return {sid: str((lifecycle.get(sid) or {}).get("status", "Draft")) for sid in stories}
 
 
-def close_release(project_id: str, rid: str, evidence: str, ba: str, tech: str, today: str | None = None) -> dict[str, Any]:
+def close_release(project_id: str, rid: str, evidence: str, ba: str, tech: str, today: str | None = None,
+                  change_id: str | None = None) -> dict[str, Any]:
     """Close a release: every story Done and the evidence of its closing check. Nothing changes on a refusal."""
     from .core.io import write_text
     from .core.paths import workspace_path
@@ -113,8 +115,10 @@ def close_release(project_id: str, rid: str, evidence: str, ba: str, tech: str, 
 
     if not _s(ba) or not _s(tech):
         raise ReleaseSplitError("/split --close records who closes: --ba NAME and --tech NAME are both required")
+    from .series_scope import series_dir
+
     base = workspace_path(project_id)
-    partition, payload = _series(base)
+    partition, payload = _series(base, change_id)
     if rid not in (partition.get("releases") or []):
         raise ReleaseSplitError(f"{rid} is not a release of the confirmed series")
     closed = dict(partition.get("closed") or {})
@@ -133,14 +137,14 @@ def close_release(project_id: str, rid: str, evidence: str, ba: str, tech: str, 
                    "evidence_sha256": hashlib.sha256(proof.read_bytes()).hexdigest(),
                    "closed_by": {"ba": _s(ba), "technical_team": _s(tech)}, "stories": sorted(stories)}
     partition["closed"] = dict(sorted(closed.items(), key=lambda kv: release_order(kv[0])))
-    target = base.joinpath(*PROPOSAL_DIR, PARTITION_FILE)
+    target = series_dir(base, change_id) / PARTITION_FILE
     write_text(target, json.dumps(partition, ensure_ascii=False, indent=2) + "\n")
-    write_release_guide(project_id)
+    write_release_guide(project_id, change_id)
     unblocked = sorted((_s(r.get("id")) for r in _dicts(payload.get("releases"))
                         if rid in hard_dependencies(payload, _s(r.get("id")))
                         and not inherited_blockers(base, _s(r.get("id")))), key=release_order)
     return {"status": "closed", "release": rid, "closed": closed[rid], "unblocked": unblocked,
-            "guide": base.joinpath(*PROPOSAL_DIR, GUIDE_FILE).as_posix()}
+            "guide": (series_dir(base, change_id) / GUIDE_FILE).as_posix()}
 
 
 def release_status(base: Path, project_id: str, payload: dict[str, Any], partition: dict[str, Any], rid: str) -> dict[str, Any]:
@@ -202,16 +206,16 @@ def render_release_guide(project_id: str, partition: dict[str, Any], payload: di
     return "\n".join(out).rstrip() + "\n"
 
 
-def write_release_guide(project_id: str) -> Path:
+def write_release_guide(project_id: str, change_id: str | None = None) -> Path:
     from .brief_model import parse_brief
     from .core.io import write_text
-    from .core.paths import workspace_path
-    from .core.text import project_language
     from .release_series import _plain, assign_owners
+    from .series_scope import series_scope
 
-    base = workspace_path(project_id)
-    partition, payload = _series(base)
-    text = (base / "02_requirements" / "project-brief.md").read_text(encoding="utf-8")
+    scope = series_scope(project_id, change_id)
+    base = scope.base
+    partition, payload = _series(base, change_id)
+    text = scope.brief_text
     assignment = assign_owners(text, payload)
     lines = text.splitlines()
     families: dict[str, list[dict[str, Any]]] = {}
@@ -226,8 +230,8 @@ def write_release_guide(project_id: str) -> Path:
     absent = out_of_scope + sum(len(_dicts(s.get("contains"))) for s in _dicts(payload.get("sketches")))
     statuses = {rid: release_status(base, project_id, payload, partition, rid) for rid in partition.get("releases") or []}
     partition = {**partition, "unresolved": len(assignment["unresolved"])}
-    target = base.joinpath(*PROPOSAL_DIR, GUIDE_FILE)
-    write_text(target, render_release_guide(project_id, partition, payload, statuses, families, absent, project_language(project_id)))
+    target = scope.series_dir / GUIDE_FILE
+    write_text(target, render_release_guide(project_id, partition, payload, statuses, families, absent, scope.language))
     return target
 
 

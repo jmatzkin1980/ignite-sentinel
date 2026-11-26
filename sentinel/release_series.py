@@ -38,7 +38,7 @@ from typing import Any
 
 from .brief_model import parse_brief
 from .release_split import CLIENT_GAP_ID, PARTITION_FILE, ReleaseSplitError, _dicts, _s
-from .split_proposal import PROPOSAL_DIR, PROPOSAL_FILE, _norm, release_order
+from .split_proposal import PROPOSAL_FILE, _norm, release_order
 
 INDEX_FILE = "index.md"
 MAP_FILE = "series_map.json"
@@ -356,16 +356,15 @@ def render_index(project_id: str, payload: dict[str, Any], partition: dict[str, 
     return "\n".join(out).rstrip() + "\n"
 
 
-def compile_series(project_id: str) -> dict[str, Any]:
+def compile_series(project_id: str, change_id: str | None = None) -> dict[str, Any]:
     """Compile the index and every release brief from the brief v2 and the confirmed partition."""
     from .brief_integrity import _gap_rows
     from .core.io import read_json, write_text
-    from .core.paths import workspace_path
-    from .core.text import project_language
-    from .split import brief_hash
+    from .series_scope import series_scope
 
-    base = workspace_path(project_id)
-    series = base.joinpath(*PROPOSAL_DIR)
+    scope = series_scope(project_id, change_id)
+    base = scope.base
+    series = scope.series_dir
     partition = read_json(series / PARTITION_FILE, None)
     if not isinstance(partition, dict) or partition.get("status") != "confirmed":
         raise ReleaseSplitError("the series compiles only from a confirmed partition; run /split --confirm", gate=True)
@@ -373,12 +372,11 @@ def compile_series(project_id: str) -> dict[str, Any]:
     payload = stored.get("proposal") if isinstance(stored, dict) else None
     if not isinstance(payload, dict) or stored.get("proposal_sha256") != partition.get("proposal_sha256"):
         raise ReleaseSplitError("the stored proposal is not the one confirmed; run /split --confirm again", gate=True)
-    brief_path = base / "02_requirements" / "project-brief.md"
-    text = brief_path.read_text(encoding="utf-8")
+    text = scope.brief_text
     if parse_brief(text).version != 2:
         raise ReleaseSplitError("a series does not mix v1 and v2 [A43]: the brief is v1; recompile it as v2", gate=True)
-    language = project_language(project_id)
-    sha = brief_hash(brief_path)
+    language = scope.language
+    sha = scope.brief_sha256
     assignment = assign_owners(text, payload)
     lines = text.splitlines()
     previous = read_json(series / MAP_FILE, None)
@@ -406,7 +404,7 @@ def compile_series(project_id: str) -> dict[str, Any]:
         found = _integrity(brief, gaps, registry)
         if found:
             integrity[rid] = found
-        target = base / "02_requirements" / rid / "project-brief.md"
+        target = scope.release_brief(rid)
         write_text(target, brief)
         paths.append(target.as_posix())
     # a release the confirmed partition no longer has keeps its file (never deleted) and is listed as retired
@@ -421,17 +419,18 @@ def compile_series(project_id: str) -> dict[str, Any]:
     write_text(series / REPORT_FILE, json.dumps(report, ensure_ascii=False, indent=2) + "\n")
     from .release_guide import write_release_guide  # IMP-269: the guide recompiles with the series
 
-    write_release_guide(project_id)
+    write_release_guide(project_id, change_id)
     return {"status": "compiled", "index": (series / INDEX_FILE).as_posix(), "releases": paths,
             "findings": len(sync["unresolved"]) + len(sync["unrouted"]) + sum(len(v) for v in integrity.values()),
             "reattributions": len(reattributions)}
 
 
-def series_validation_findings(base: Path) -> list[str]:
+def series_validation_findings(base: Path, change_id: str | None = None) -> list[str]:
     """What /validate reports for a compiled series: a block, units out of sync, release integrity."""
     from .core.io import read_json
+    from .series_scope import series_dir
 
-    report = read_json(base.joinpath(*PROPOSAL_DIR, REPORT_FILE), None)
+    report = read_json(series_dir(base, change_id) / REPORT_FILE, None)
     if not isinstance(report, dict):
         return []
     if report.get("status") == "blocked":
@@ -445,23 +444,21 @@ def series_validation_findings(base: Path) -> list[str]:
     return findings
 
 
-def refresh_series_if_stale(project_id: str) -> dict[str, Any] | None:
+def refresh_series_if_stale(project_id: str, change_id: str | None = None) -> dict[str, Any] | None:
     """Recompile an existing series when the brief changed. No confirmed partition, nothing happens."""
     from .core.io import read_json, write_text
-    from .core.paths import workspace_path
-    from .split import brief_hash
+    from .series_scope import series_scope
 
-    base = workspace_path(project_id)
-    series = base.joinpath(*PROPOSAL_DIR)
+    scope = series_scope(project_id, change_id)
+    series = scope.series_dir
     partition = read_json(series / PARTITION_FILE, None)
-    brief_path = base / "02_requirements" / "project-brief.md"
-    if not isinstance(partition, dict) or partition.get("status") != "confirmed" or not brief_path.is_file():
+    if not isinstance(partition, dict) or partition.get("status") != "confirmed" or not scope.brief_text:
         return None
     current = read_json(series / MAP_FILE, None)
-    if isinstance(current, dict) and current.get("brief_sha256") == brief_hash(brief_path):
+    if isinstance(current, dict) and current.get("brief_sha256") == scope.brief_sha256:
         return None
     try:
-        return compile_series(project_id)
+        return compile_series(project_id, change_id)
     except ReleaseSplitError as exc:
         write_text(series / REPORT_FILE, json.dumps({"status": "blocked", "reason": str(exc)}, ensure_ascii=False, indent=2) + "\n")
         return {"status": "blocked", "reason": str(exc)}

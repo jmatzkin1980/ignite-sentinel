@@ -1,0 +1,13 @@
+{
+  "01_discovery/split_assessment.json": "a80590578cceccc08558ce878cc15a256f5080bae972010a28c8473c271af751",
+  "01_discovery/split_assessment.md": "c9c73478ba3bd0c6f942b2cc1814dfc57fd91f40513cd0efc8916c82cec575ca",
+  "02_requirements/r1/project-brief.md": "44b04e93e07d01f6139aafe2d96c6a7b707765fb017479dc219c28820f2500ab",
+  "02_requirements/r2/project-brief.md": "e49d71a6af29910c8f0162fec9cf154ed6991b0e98120067841871fbd4bc5e40",
+  "02_requirements/r3/project-brief.md": "c6942856913ab93a2474ab663ce301be19f07cf0e58dd671e43467f279d7bb1e",
+  "02_requirements/series/index.md": "46ef7148d9fd218a0bc2d402f4a3a2d817e0de3f47a17e29426e59fe02eb57ec",
+  "02_requirements/series/partition.json": "036e6d61a0f2136259f3c46d6b4087142d741725d2a01c68c3fd3781e159ae36",
+  "02_requirements/series/proposal.json": "b5780050e1bdfe4670df3c1dc6873a27c555733ed09af4f37e618e6431fd96d3",
+  "02_requirements/series/release-guide.md": "8d7cfd75dc879aeef6cfdc9c14980138b52492b5c3185b9a0dbd211a0ae9f45d",
+  "02_requirements/series/series_map.json": "62720e8d9a595cd14fb2738af654b932cd9aa2b2821c0e803ca1a01401d5877c",
+  "02_requirements/series/series_report.json": "c607b1142c03743be36c19cd7e8c1319556239eeec95cb064ba45f2e740770f5"
+}

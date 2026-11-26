@@ -279,51 +279,51 @@ def _summary(payload: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def apply_proposal(project_id: str, source: Path) -> dict[str, Any]:
+def apply_proposal(project_id: str, source: Path, change_id: str | None = None) -> dict[str, Any]:
     """Validate and store a proposal. Every finding is reported; nothing is stored on a finding."""
     from .core.io import read_json, write_text
-    from .core.paths import workspace_path
-    from .split import ASSESSMENT_JSON, brief_hash, refresh_if_stale, run_assess
+    from .series_scope import series_scope
+    from .split import ASSESSMENT_JSON, refresh_if_stale, run_assess
 
-    base = workspace_path(project_id)
-    brief_path = base / "02_requirements" / "project-brief.md"
-    if not brief_path.is_file():
+    scope = series_scope(project_id, change_id)
+    series = scope.series_dir
+    if not scope.brief_text:
         raise SplitProposalError(f"/split --propose needs a compiled brief v2; run /brief {project_id} --profile ... --genesis ... first", gate=True)
     payload = read_json(Path(source), None)
     if not isinstance(payload, dict):
         raise SplitProposalError("the proposal must be a JSON object")
-    gaps_path = base / "01_discovery" / "gaps.md"
+    gaps_path = scope.gaps_path
     rows = parse_gap_rows(gaps_path.read_text(encoding="utf-8")) if gaps_path.is_file() else []
     open_gaps = {str(g.get("id", "")).strip("`") for g in rows if str(g.get("status", "")).upper() != "CLOSED"}
-    result = validate_proposal(brief_path.read_text(encoding="utf-8"), payload, open_gaps)
+    result = validate_proposal(scope.brief_text, payload, open_gaps)
     if result["findings"]:
         reasons = "; ".join(f"[{f['code']}] {f['where']}: {f['reason']}" for f in result["findings"])
         raise SplitProposalError(f"the proposal was refused ({len(result['findings'])} finding(s)): {reasons}")
-    assessment_path = base / "01_discovery" / ASSESSMENT_JSON
-    refreshed = refresh_if_stale(project_id)
+    assessment_path = scope.assessment_dir / ASSESSMENT_JSON
+    refreshed = refresh_if_stale(project_id, change_id)
     if refreshed:
         assessment = refreshed["recommendation"]
     elif assessment_path.is_file():
         assessment = (read_json(assessment_path, {}) or {}).get("recommendation", {}).get("value")
     else:
-        assessment = run_assess(project_id)["recommendation"]  # evaluate before proposing
+        assessment = run_assess(project_id, change_id)["recommendation"]  # evaluate before proposing
     stored = {
         "status": "proposal",
         "project_id": project_id,
-        "brief_sha256": brief_hash(brief_path),
+        "brief_sha256": scope.brief_sha256,
         "assessment": assessment,
         "proposal_sha256": hashlib.sha256(json.dumps(payload, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest(),
         "summary": _summary(payload),
         "proposal": payload,
     }
-    target = base.joinpath(*PROPOSAL_DIR, PROPOSAL_FILE)
+    target = series / PROPOSAL_FILE
     write_text(target, json.dumps(stored, ensure_ascii=False, indent=2) + "\n")
     out = {"status": "proposal", "path": target.as_posix(), "assessment": assessment, **stored["summary"]}
     from .release_split import PARTITION_FILE, validate_partition  # IMP-266: what --confirm will ask for
 
-    previous = read_json(base.joinpath(*PROPOSAL_DIR, PARTITION_FILE), None)
+    previous = read_json(series / PARTITION_FILE, None)
     frozen = previous.get("contracts_frozen") if isinstance(previous, dict) else None
-    preview = validate_partition(brief_path.read_text(encoding="utf-8"), payload, open_gaps, frozen or {})
+    preview = validate_partition(scope.brief_text, payload, open_gaps, frozen or {})
     out["partition_preview"] = {"valid": preview["valid"], "codes": sorted({f["code"] for f in preview["findings"]})}
     if assessment != "split":
         out["warning"] = f"the assessment says {assessment}: the BA decides whether a series is worth it"
