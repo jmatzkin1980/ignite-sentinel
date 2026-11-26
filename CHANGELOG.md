@@ -6,6 +6,18 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+### Added
+
+- **`/quality PROJECT_ID --change CHG-NNN` and the `quality` step of `/next --change` (IMP-431, H27 inc 8a).** The stories of a change have their own quality audit: test cases and the readiness audit in `05_quality/CHG-nnn/` (in the change's language, over every derived release of a series), a verdict kept in the change's record (never the project's phase or health), current until a story of the change is edited. `/next --change` asks for it between the backlog and the validation, and asks again after an edit; `/status --change` shows the verdict.
+
+### Changed
+
+- `/quality` of the project audits only the stories no change wrote; in a workspace that only holds changes it refuses and names `/quality P --change CHG-001`.
+
+### Fixed
+
+- `/maturity` in a workspace that only holds changes refuses without writing a BLOCKED report or marking the project DIRTY (IMP-431).
+
 ## [0.38.0] — 2026-11-26
 
 ### Added

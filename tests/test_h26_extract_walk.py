@@ -177,7 +177,9 @@ class ExtractionWalk(unittest.TestCase):
         self.assertIn("EXT:RN-01", requirements)
         self.assertIn("EXT:SEC-se-preserva", requirements)
 
-        # 13. done
+        # 13. quality (IMP-431: the audit of the change stories comes before the close), then done
+        self.assertEqual(next_step()["key"], "quality")
+        run_ok(["quality", PID, "--change", CID])
         step = next_step()
         self.assertEqual(step["key"], "done")
         self.assertIn("22 de 22", step["text"])

@@ -123,7 +123,7 @@ Seven skills share one shape, the proposal channel: `sentinel-annotate`, `sentin
 
 - **Use it when** you ask "is this ready for specs?" or a downstream command was blocked by maturity.
 - **What it does** runs the check and reads the report: gap closure rate, maturity score and trend, requirement quality, where maturation stalls, and the development readiness matrix (16 areas and a per-unit table of what is confirmed, deferred to a domain pack, or open). It offers the next move as options, not one directive: chase blocking gaps, raise a context request, validate an assumption first, or proceed.
-- **Commands it drives** `/maturity`, with `/resolve-gaps` and `/context-request` as remedies.
+- **Commands it drives** `/maturity`, with `/resolve-gaps` and `/context-request` as remedies. In a workspace that only holds changes it refuses, writes nothing and points to `/status --change` and `/next --change`.
 - **Human-only** no.
 
 ### `sentinel-project-brief`
@@ -204,7 +204,7 @@ Seven skills share one shape, the proposal channel: `sentinel-annotate`, `sentin
 
 - **Use it when** the backlog exists and you want test cases and a readiness audit.
 - **What it does** generates test cases traced to stories and the backlog readiness audit (INVEST, slicing, acceptance coverage, dependencies). Findings are Definition-of-Ready warnings by default; strict gates are an opt-in.
-- **Commands it drives** `/quality` (and `--override` with cited decisions when you proceed on purpose), `/trace`, `/health`.
+- **Commands it drives** `/quality` (and `--override` with cited decisions when you proceed on purpose), `/quality --change CHG-NNN` for the stories of one change (its own folder and verdict), `/trace`, `/health`.
 - **Human-only** no.
 
 ### `sentinel-handoff-datasets`

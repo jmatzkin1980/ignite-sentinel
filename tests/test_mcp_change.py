@@ -31,6 +31,13 @@ class McpForwardsChange(unittest.TestCase):
             _argv("sentinel_ingest", project_id="P", source="n.md", change=True),
         )
 
+    def test_quality_passes_change(self) -> None:
+        self.assertEqual(
+            ["quality", "P", "--change", "CHG-001"],
+            _argv("sentinel_quality", project_id="P", change="CHG-001"),
+        )
+        self.assertEqual(["quality", "P"], _argv("sentinel_quality", project_id="P"))
+
     def test_without_change_no_flag(self) -> None:
         self.assertEqual(["gaps", "P"], _argv("sentinel_gaps", project_id="P"))
 

@@ -7,6 +7,8 @@ criterion of every story, so the validation contract lists the behavior the chan
 """
 from __future__ import annotations
 
+import hashlib
+import re
 from pathlib import Path
 from typing import Any
 
@@ -125,6 +127,49 @@ def _change_story_ids(base: Path, change_id: str) -> list[str]:
         if str(front.get("change", "")).strip() == change_id:
             found.append(path.stem)
     return found
+
+
+_GATE_LINE = re.compile(r"- \[[ x]\] |\*\*(?:DoR|DoD) Gate")
+
+
+def _audited_story_text(text: str) -> str:
+    """IMP-431: the story without what `/story-status` rewrites: the frontmatter `status:` and `owner:`, the Status and Owner
+    lines of `## Lifecycle`, and the checkbox and gate lines of the two checklist sections (they follow the owner and the status).
+    Everything else, appended text included, still counts: moving a story does not change what the audit measured."""
+    from ..core.markdown import update_frontmatter_keys
+
+    blanked = update_frontmatter_keys(text, {"status": "", "owner": ""})
+    text = text if blanked is None else blanked
+    kept: list[str] = []
+    section = ""
+    skipping_missing = False
+    for line in text.split("\n"):
+        if line.startswith("## "):
+            section, skipping_missing = line, False
+        elif section == "## Lifecycle" and line.startswith(("- Status: ", "- Owner: ")):
+            continue
+        elif section in ("## Readiness Checklist", "## Done Checklist"):
+            if not line.strip():  # the spacing around the blocks changes with them
+                continue
+            if _GATE_LINE.match(line):
+                skipping_missing = line.startswith("**")
+                continue
+            if skipping_missing and line.startswith("- "):  # the missing items under `**DoR Gate Missing Items:**`
+                continue
+            skipping_missing = False
+        kept.append(line)
+    return "\n".join(kept).rstrip("\n")
+
+
+def change_backlog_digest(project_id: str, change_id: str) -> str:
+    """IMP-431: sha256 of the change's story files (id + bytes, in id order): editing a story changes it, regenerating nothing does not.
+    The lifecycle a `/story-status` move rewrites is left out (`_audited_story_text`)."""
+    base = workspace_path(project_id)
+    digest = hashlib.sha256()
+    for story_id in sorted(_change_story_ids(base, change_id)):
+        text = (base / "04_backlog" / f"{story_id}.md").read_text(encoding="utf-8")
+        digest.update(story_id.encode("utf-8") + b"\n" + _audited_story_text(text).encode("utf-8"))
+    return digest.hexdigest()
 
 
 def _story_units(story: dict[str, Any]) -> list[str]:

@@ -15,6 +15,7 @@ from helpers import (  # noqa: E402
     waive_crosses,
 )
 from sentinel import mcp as sentinel_mcp  # noqa: E402
+from sentinel.compilers.change_backlog import _change_story_ids  # noqa: E402
 from sentinel.readiness_verdict import changes_overview, change_next_step  # noqa: E402
 from sentinel.workspace import read_json, update_state, workspace_path  # noqa: E402
 from test_change_flow import SCOPE_ANSWER  # noqa: E402
@@ -111,6 +112,11 @@ class ChangeNextSequence(SnapshotWorkspaceCase):
 
         run_ok(["backlog", "BORR", "--change", CID])
         s = step()
+        self.assertEqual((s["key"], s["command"]), ("quality", f"/quality BORR --change {CID}"))
+        self.assertEqual(s["title"], "Auditar la calidad de las historias del cambio")
+
+        run_ok(["quality", "BORR", "--change", CID])
+        s = step()
         self.assertEqual(s["key"], "done")
         self.assertEqual(s["command"], "")
         self.assertNotIn("prd", " ".join(s.values()).lower())
@@ -164,6 +170,19 @@ class ChangeNextSequence(SnapshotWorkspaceCase):
         run_ok(["specs", "BORR", "--change", CID])
         self.assertEqual(step()["key"], "backlog")
         run_ok(["backlog", "BORR", "--change", CID])
+        self.assertEqual(step()["key"], "quality")  # RF 3: the backlog was regenerated, the audit is old
+        run_ok(["quality", "BORR", "--change", CID])
+        self.assertEqual(step()["key"], "done")
+
+    def test_quality_stale_after_story_edit(self):
+        """RF 3: editing a story of the change (no regeneration) makes the audit old; auditing again clears it."""
+        self.test_each_row_of_the_table_in_order()
+        self.assertEqual(step()["key"], "done")
+        base = workspace_path("BORR")
+        story = base / "04_backlog" / f"{_change_story_ids(base, CID)[0]}.md"
+        story.write_text(story.read_text(encoding="utf-8") + "\nNota del equipo.\n", encoding="utf-8")
+        self.assertEqual(step()["key"], "quality")
+        run_ok(["quality", "BORR", "--change", CID])
         self.assertEqual(step()["key"], "done")
 
     def test_validate_when_the_change_is_not_valid(self):
@@ -172,6 +191,8 @@ class ChangeNextSequence(SnapshotWorkspaceCase):
         lines = [ln.replace("pass-to-pass", "regression") if ln.startswith("| AC-002-06 |") else ln
                  for ln in story.read_text(encoding="utf-8").splitlines()]
         story.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        self.assertEqual(step()["key"], "quality")  # the edited story has no current audit yet
+        run_ok(["quality", "BORR", "--change", CID])
         s = step()
         self.assertEqual((s["key"], s["command"]), ("validate", f"/validate BORR --change {CID}"))
 
@@ -338,9 +359,9 @@ class ChangeNextRemovedUnit(SnapshotWorkspaceCase):
         run_ok(["backlog", "MIX", "--change", self.cid])
         backlog = read_json(workspace_path("MIX") / "state.json", {})["changes"][self.cid]["backlog"]
         self.assertEqual(len(backlog["dropped_units"]), 1)
-        self.assertIn(change_next_step("MIX", self.cid)["key"], ("validate", "done"))
-        self.assertIn(cli_json(["next", "MIX", "--change", self.cid])["key"], ("validate", "done"))
-        self.assertIn(cli_json(["status", "MIX", "--change", self.cid])["next_action"]["key"], ("validate", "done"))
+        self.assertIn(change_next_step("MIX", self.cid)["key"], ("quality", "validate", "done"))
+        self.assertIn(cli_json(["next", "MIX", "--change", self.cid])["key"], ("quality", "validate", "done"))
+        self.assertIn(cli_json(["status", "MIX", "--change", self.cid])["next_action"]["key"], ("quality", "validate", "done"))
 
     def test_dropped_unit_gone_from_the_specs_is_ignored(self):
         run_ok(["backlog", "MIX", "--change", self.cid])

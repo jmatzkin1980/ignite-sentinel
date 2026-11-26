@@ -249,7 +249,9 @@ def register_gate_override(
     *,
     verdict: str,
     findings: list[str],
+    change_id: str | None = None,
 ) -> dict[str, object]:
+    """`change_id` (IMP-431): the override belongs to that change (`/quality --change`), not to the project."""
     base = workspace_path(project_id)
     if verdict in {"PASS", "VALID"} and not findings:
         raise InputError(f"/{gate} has no failing or warning gate state to override.")
@@ -262,12 +264,13 @@ def register_gate_override(
 
     override_dir = base / "06_traceability" / "gate_overrides"
     override_dir.mkdir(parents=True, exist_ok=True)
-    stored_source = unique_path(override_dir / f"{gate}-{source.stem}.json")
+    scope = f"{gate}-{change_id}" if change_id else gate
+    stored_source = unique_path(override_dir / f"{scope}-{source.stem}.json")
     archive_payload(base, source, stored_source)
-    report_path = unique_path(override_dir / f"{gate}-override-report.md")
+    report_path = unique_path(override_dir / f"{scope}-override-report.md")
     timestamp = utc_now()
 
-    write_text(report_path, render_gate_override_report(project_id, gate, source.stem, verdict, findings, decisions, timestamp))
+    write_text(report_path, render_gate_override_report(project_id, gate, source.stem, verdict, findings, decisions, timestamp, change_id))
 
     state = read_json(state_path(project_id), {})
     existing_entries = state.get("gate_override_decisions", [])
@@ -279,6 +282,7 @@ def register_gate_override(
             "recorded_at": timestamp,
             "source": stored_source.relative_to(base).as_posix(),
             "findings": [str(item) for item in findings],
+            **({"change": change_id} if change_id else {}),
             **decision,
         }
         for decision in decisions
@@ -335,6 +339,7 @@ def register_gate_override(
     update_state(project_id, gate_override_decisions=register_entries, last_gate_override_id=report_id)
     return {
         "gate": gate,
+        **({"change_id": change_id} if change_id else {}),
         "verdict": verdict,
         "recorded_at": timestamp,
         "report": str(report_path.as_posix()),
@@ -354,7 +359,9 @@ def render_gate_override_report(
     findings: list[str],
     decisions: list[dict[str, str]],
     timestamp: str,
+    change_id: str | None = None,
 ) -> str:
+    change_line = f"- Change: `{change_id}`" + chr(10) if change_id else ""
     findings_block = "\n".join(f"- {item}" for item in findings) or "- No explicit gate findings were captured."
     decision_rows = "\n".join(
         f"| `{item['id']}` | {item['risk']} | {item['reversibility']} | {item['decision']} | {item['evidence']} |"
@@ -363,7 +370,7 @@ def render_gate_override_report(
     return f"""# Gate Override Report - {project_id}
 
 - Gate: `/{gate}`
-- Recorded at: `{timestamp}`
+{change_line}- Recorded at: `{timestamp}`
 - Source: `{label}`
 - Underlying verdict: `{verdict}`
 
@@ -381,6 +388,10 @@ This report records a cited human rationale for proceeding despite the gate resu
 """
 
 
+def render_change_suffix(item: dict[str, Any]) -> str:
+    return f" (change `{item['change']}`)" if item.get("change") else ""
+
+
 def render_gate_override_register(project_id: str, entries: list[dict[str, Any]]) -> str:
     blocks: list[str] = []
     for item in entries:
@@ -388,7 +399,7 @@ def render_gate_override_register(project_id: str, entries: list[dict[str, Any]]
         blocks.append(
             f"""## {item['id']} - {item['title']}
 
-- Gate: `/{item.get('gate', 'unknown')}`
+- Gate: `/{item.get('gate', 'unknown')}`{render_change_suffix(item)}
 - Recorded at: `{item.get('recorded_at', 'unknown')}`
 - Underlying verdict: `{item.get('verdict', 'unknown')}`
 - Lens: `{item.get('lens', 'product')}`

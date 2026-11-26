@@ -148,6 +148,8 @@ class ChangeFlow(SnapshotWorkspaceCase):
             "unit_citations": "PASS", "preserved_pass_to_pass": "PASS",
             "rows_have_surfaces": "PASS", "stories_inside_border": "PASS"})
         self.assertEqual(validate_out["warnings"], [])
+        self.assertEqual(json.loads(run_ok(["next", "BORR", "--change", cid]))["key"], "quality")  # IMP-431
+        run_ok(["quality", "BORR", "--change", cid])
         next_out = json.loads(run_ok(["next", "BORR", "--change", cid]))
         # IMP-402: `done` says how much of the request the extraction covers and that each preserved surface has its row.
         self.assertEqual(next_out["key"], "done")

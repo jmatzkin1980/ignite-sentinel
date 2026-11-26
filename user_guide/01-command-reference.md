@@ -101,7 +101,7 @@ Before running, Sentinel checks the workspace:
 
 1. The workspace exists; otherwise exit 4 with `Run /init PROJECT_ID first`. Its `state.json` exists and parses; otherwise exit 3 naming the file and the fix (see [exit codes](#exit-codes)).
 2. `/specs` and `/backlog` need discovery: in phase `initialized` (nothing ingested) they exit 4.
-3. `/backlog`, `/quality` and `/refine-backlog` refuse while project health is `DIRTY` (exit 4), and also while a knowledge change or a semantic change still waits for its downstream artifacts to be regenerated, even if `state.json` reads `CLEAN` (for example right after `/resolve-gaps` recompiled the brief: the specs are older than the brief). A new workspace starts `DIRTY`; `/maturity` sets health to `CLEAN` when readiness is `READY_FOR_SPECS`, and `/health` sets it from its own verdict. The gate re-runs the `/health` checks without writing. The message lists each finding with the command that fixes it, in the order to run them (one finding: on one line; several: numbered, ending "Run /backlog again."), and the `next step:` line chains the same commands. `/next` gives the same list. One exception: when the only finding is that knowledge changed after the backlog was generated (the brief and specs are already regenerated, so only `04_backlog/BACKLOG.md` and `08_context_packs/implementation_readiness.json` are stale), `/backlog` runs, because regenerating them is the fix. `/quality` and `/refine-backlog` still refuse until `/backlog` has run. If the brief or specs are stale too, the message lists the commands to run in order, for example `Run /brief, then /specs, then /backlog.`
+3. `/backlog`, `/quality` and `/refine-backlog` refuse while project health is `DIRTY` (exit 4), and also while a knowledge change or a semantic change still waits for its downstream artifacts to be regenerated, even if `state.json` reads `CLEAN` (for example right after `/resolve-gaps` recompiled the brief: the specs are older than the brief). A new workspace starts `DIRTY`; `/maturity` sets health to `CLEAN` when readiness is `READY_FOR_SPECS`, and `/health` sets it from its own verdict. The gate re-runs the `/health` checks without writing. The message lists each finding with the command that fixes it, in the order to run them (one finding: on one line; several: numbered, ending "Run /backlog again."), and the `next step:` line chains the same commands. `/next` gives the same list. One exception: when the only finding is that knowledge changed after the backlog was generated (the brief and specs are already regenerated, so only `04_backlog/BACKLOG.md` and `08_context_packs/implementation_readiness.json` are stale), `/backlog` runs, because regenerating them is the fix. `/quality` and `/refine-backlog` still refuse until `/backlog` has run. `/quality --change` is outside this gate: it answers to the change's own backlog. If the brief or specs are stale too, the message lists the commands to run in order, for example `Run /brief, then /specs, then /backlog.`
 4. `/backlog`, `/backlog-status`, `/quality`, `/refine-backlog`, `/implementation-feedback` and `/story-status` run the backlog privacy scan. It warns by default; with `privacy_scan.mode: block` in `sentinel.config.yaml` a finding stops the command (exit 4).
 5. `/quality` needs user stories in the traceability graph (exit 4).
 
@@ -1096,7 +1096,7 @@ python -m sentinel /maturity ACME_PORTAL
 
 **Writes.** `01_discovery/requirement_maturity_report.md`, `01_discovery/development_readiness.json`, and `02_requirements/project-brief.md` when ready. Sets phase `maturity_evaluated` and health `CLEAN` (ready) or `DIRTY` (blocked).
 
-**Refuses when.** Only the common gates. A `BLOCKED` readiness is a result, not a refusal: the command exits 0, and `/specs` and `/backlog` are the ones that refuse.
+**Refuses when.** The common gates, and a workspace that only holds changes: it has no project brief to measure, so it writes no report and leaves phase, health and metrics as they were, and names `/status PROJECT --change CHG-001` and `/next PROJECT --change CHG-001`. A `BLOCKED` readiness is a result, not a refusal: the command exits 0, and `/specs` and `/backlog` are the ones that refuse.
 
 **You get.** `readiness`, `blocking_gaps`, `metrics` (gap closure, requirement quality, brief and PRD section readiness, maturation telemetry, development readiness, `maturity_score`, trend) and the brief path.
 
@@ -1866,6 +1866,7 @@ python -m sentinel /implementation-feedback ACME_PORTAL --source feedback.json
 ```text
 /quality ACME_PORTAL
 /quality ACME_PORTAL --release r1
+/quality ACME_PORTAL --change CHG-001
 /quality ACME_PORTAL --override override.json
 ```
 
@@ -1876,16 +1877,17 @@ python -m sentinel /implementation-feedback ACME_PORTAL --source feedback.json
 | `PROJECT_ID` | id | required | The workspace. |
 | `--override` | a JSON file | none | Cited `DEC-*` decisions to proceed despite the audit's warnings. Recorded under `06_traceability/gate_overrides/`. |
 | `--release` | `r<N>` or `r<N>.<M>` | none | One release of a confirmed series. |
+| `--change` | `CHG-NNN` | none | Audit only the stories of that change. Does not combine with `--release`. |
 
-**Reads.** The stories and the traceability graph.
+**Reads.** The stories and the traceability graph. Without `--change` it audits only the stories that no change wrote; with it, only that change's stories (every derived release, when the change has a confirmed series).
 
-**Writes.** `05_quality/TC-NNN.md`, `05_quality/backlog_readiness_audit.md`, `story_quality` and `story_gates` in `state.json`. With `--release`, under `05_quality/rN/`.
+**Writes.** `05_quality/TC-NNN.md`, `05_quality/backlog_readiness_audit.md`, `story_quality` and `story_gates` in `state.json`. With `--release`, under `05_quality/rN/`. With `--change`, `05_quality/CHG-nnn/` (in the change's language) and the verdict in the change's record, never the project's phase or health.
 
-**Refuses when.** Health `DIRTY`, no user stories, or privacy scan in `block` mode → exit 4. `--override` with nothing to override → exit 3.
+**Refuses when.** Health `DIRTY`, no user stories, or privacy scan in `block` mode → exit 4 (`--change` answers to its own gates, not to the project's health). A workspace that only holds changes refuses `/quality` without `--change` and names `/quality PROJECT --change CHG-001`. `--change` refuses when the change's backlog is missing or old. `--override` with nothing to override → exit 3.
 
 **You get.** The test cases, per-story score, status and verdict.
 
-**Next step.** `/validate`, then `/status`.
+**Next step.** `/validate`, then `/status`. For a change, `/next PROJECT --change CHG-NNN` asks for the quality check between the backlog and the validation, and asks again if a story of the change is edited afterwards.
 
 **See also.** skill `sentinel-quality`.
 

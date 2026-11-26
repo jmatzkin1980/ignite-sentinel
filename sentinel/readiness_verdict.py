@@ -673,6 +673,8 @@ CHANGE_TEXT = {
                          "(veredicto {verdict}, cobertura {coverage}, {deferred} pendiente(s) diferido(s)). Después siguen las specs."),
         "specs": ("Preparar las specs del cambio", "Corré /specs --change {cid}: faltan o no están al día con sus filas EARS."),
         "backlog": ("Preparar el backlog del cambio", "Corré /backlog --change {cid}: falta o está atrasado respecto de las specs."),
+        "quality": ("Auditar la calidad de las historias del cambio",
+                    "Corré /quality --change {cid}: las historias del cambio no tienen una auditoría vigente."),
         "validate": ("Validar el cambio", "Corré /validate --change {cid}: hay hallazgos por corregir."),
         "done": ("Cambio al día: pedido cubierto",
                  "Las piezas de {cid} están al día. La extracción cubre {coverage} y cada superficie preservada tiene su fila UNCHANGED."),
@@ -782,6 +784,8 @@ CHANGE_TEXT = {
                          "(verdict {verdict}, coverage {coverage}, {deferred} deferred item(s)). The specs follow."),
         "specs": ("Prepare the change specs", "Run /specs --change {cid}: they are missing or not current with its EARS rows."),
         "backlog": ("Prepare the change backlog", "Run /backlog --change {cid}: it is missing or behind the specs."),
+        "quality": ("Check the change stories",
+                    "Run /quality --change {cid}: the change stories have no current audit."),
         "validate": ("Validate the change", "Run /validate --change {cid}: there are findings to fix."),
         "done": ("Change up to date: request covered",
                  "The pieces of {cid} are up to date. The extraction covers {coverage} and each preserved surface has its UNCHANGED row."),
@@ -815,6 +819,7 @@ CHANGE_COMMANDS = {
     "extract_verify_result": "/extract {pid} --change {cid} --verify-result PATH",
     "specs": "/specs {pid} --change {cid}",
     "backlog": "/backlog {pid} --change {cid}",
+    "quality": "/quality {pid} --change {cid}",
     "validate": "/validate {pid} --change {cid}",
     "done": "",
 }
@@ -891,6 +896,8 @@ def _change_build_key(project_id: str, change_id: str, change: dict[str, Any]) -
     if walking is not None:
         if walking["key"]:
             return walking["key"]
+        if _change_quality_old(project_id, change_id, change):  # IMP-431: once every release closed, before the validation
+            return "quality"
         return "validate" if validate_change(project_id, change_id)["verdict"] != "VALID" else "done"
     if (not change.get("specs") or not (base / "03_specs" / change_id / "specs.md").is_file()
             or specs_currency(project_id, change_id) != "current"):
@@ -898,9 +905,21 @@ def _change_build_key(project_id: str, change_id: str, change: dict[str, Any]) -
     if not change.get("backlog") or _backlog_behind(
             base, change_id, read_change_units(project_id, change_id), list(change["backlog"].get("dropped_units") or [])):
         return "backlog"
+    if _change_quality_old(project_id, change_id, change):
+        return "quality"
     if validate_change(project_id, change_id)["verdict"] != "VALID":
         return "validate"
     return "done"
+
+
+def _change_quality_old(project_id: str, change_id: str, change: dict[str, Any]) -> bool:
+    """IMP-431: the change has stories and its audit is missing or was made on other story files (any verdict is current)."""
+    from .compilers.change_backlog import _change_story_ids, change_backlog_digest
+
+    if not _change_story_ids(workspace_path(project_id), change_id):
+        return False
+    audit = change.get("quality")
+    return not audit or audit.get("backlog_digest") != change_backlog_digest(project_id, change_id)
 
 
 def _brief_state(base: Path, change_id: str, change: dict[str, Any]) -> str:

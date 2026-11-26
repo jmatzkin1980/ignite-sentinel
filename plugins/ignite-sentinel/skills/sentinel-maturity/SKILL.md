@@ -48,3 +48,7 @@ When the BA asks "what now?" after reading the report, don't hand down a single 
 4. **Proceed to specs/backlog** — use this when readiness is `READY_FOR_SPECS` and no blocking gaps remain. Continue with `sentinel-specs` or `sentinel-backlog`. Why: the gate is a floor, not a sign-off — proceeding is right once it clears, not before.
 
 Name the rung you'd pick and why, but leave the choice to the BA; a flat or negative `trend_vs_previous_run` is itself a signal to stay on rung 1.
+
+## Change
+
+`/maturity` has no `--change` (IMP-431). In a workspace that only holds changes there is no project brief to measure: the command refuses, writes no `requirement_maturity_report.md` and leaves the project's phase, health and metrics as they were. Tell the BA that a change's readiness is shown by `/status PROJECT_ID --change CHG-NNN` and `/next PROJECT_ID --change CHG-NNN`, and run those. A workspace with a project and a change measures the project as always.

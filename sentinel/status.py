@@ -115,6 +115,9 @@ def change_status(project_id: str, change_id: str) -> dict[str, object]:
     from .consolidation_control import consolidation_control
 
     control = consolidation_control(project_id, change_id)  # IMP-414: only a change with an inventory has the key
+    from .readiness_verdict import _change_quality_old
+
+    audit = change.get("quality")  # IMP-431: only a change with a quality audit has the key
     return {
         "project_id": project_id,
         "change_id": change_id,
@@ -129,6 +132,8 @@ def change_status(project_id: str, change_id: str) -> dict[str, object]:
         **({"a_confirmar": to_confirm} if to_confirm else {}),
         **({"consolidation": {**control["counts"], "unconfirmed": control["unconfirmed"]}}
            if control["state"] != "missing" else {}),
+        **({"quality": {"verdict": audit.get("verdict"), "counts": audit.get("counts", {}), "audit": audit.get("audit"),
+                        "current": not _change_quality_old(project_id, change_id, change)}} if audit else {}),
         "verdict": build_change_verdict(project_id, change_id),
         "final_export": change.get("final_export"),
         "final_export_current": _final_export_current(workspace_path(project_id), change_id, change),

@@ -1544,6 +1544,15 @@ The file has one block per element: `### RN-02`, `Decisión: GAP-…`, `Líneas:
 
 **The specification and the stories of the change.** Say "Give me the change specs an AI can build from" and the assistant runs `/specs --change CHG-001`: `03_specs/CHG-001/specs.md` has one section per functionality (the surface of the border the requirements act on), each with eight blocks (objective, as-is, to-be, interfaces it touches, no regression, decisions that affect it, assumptions and open items, order and dependencies). Every block quotes what is registered, with the line it comes from, and says `sin dato registrado` when there is nothing: it never invents. Then say "Slice the change into stories" (`/backlog --change CHG-001`): the units of one functionality and one Delta become one story, a group of more than 5 units is split by SPIDR, a new surface that stories use becomes an enabler that goes first, and the change has its own plan, `04_backlog/CHG-001/SLICE-PLAN.md`. Specs or backlog from a version before 0.32 are read as `old`, and `/next --change` asks to generate them again. A change split into releases (`/split --change`) is derived one release at a time with `--release rN`.
 
+**The quality of the change's stories.** Say "Check the quality of this change's stories" and the assistant runs `/quality --change CHG-001`: it audits only the stories of the change, writes `05_quality/CHG-001/` (test cases and the readiness audit, in the change's language) and keeps the verdict in the change, so `/status --change CHG-001` shows it and the project's own `/quality` is untouched. `/next --change CHG-001` asks for it between the backlog and the validation; if you edit a story afterwards it asks again. In a workspace that only holds changes, "check the project quality" is refused and points to the same command with `--change`; so is `/maturity`, which measures a project brief that does not exist (see the change's readiness with `/next --change`).
+
+<details><summary>In a terminal</summary>
+
+```text
+/quality ACME_PORTAL --change CHG-001
+```
+</details>
+
 **The PRD of the change.** With the final brief current, "Generate the change PRD for CHG-001" runs `/specs --change CHG-001`, which writes `03_specs/CHG-001/prd.md` in the format of the project PRD, built from the consolidated final text, next to the specs. If the final brief is missing or stale it says the PRD is pending and tells you to export first. When the final brief changes, the PRD and the specs are out of date and `/next --change` asks for them again.
 
 <details><summary>In a terminal</summary>

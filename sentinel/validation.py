@@ -100,6 +100,21 @@ def resolve_path(base: Path, path_value: str) -> Path:
     return base / path
 
 
+def _project_has_stories(project_id: str, base: Path, graph: dict) -> bool:
+    """IMP-431: the project's own stories; the ones a change wrote are audited by `/quality --change`."""
+    from .changes import list_changes
+    from .compilers.change_backlog import _change_story_ids
+
+    theirs = {sid for change_id in list_changes(project_id) for sid in _change_story_ids(base, change_id)}
+    return any(node.get("type") == "user_story" and node.get("id") not in theirs for node in graph.get("nodes", []))
+
+
+def _project_has_audit(base: Path, graph: dict) -> bool:
+    """IMP-431: the audit of the project lives in `05_quality/`; the ones of a change in `05_quality/CHG-nnn/` do not count."""
+    return any(node.get("type") == "backlog_readiness_audit" and Path(str(node.get("path", ""))).parent.name == "05_quality"
+               for node in graph.get("nodes", []))
+
+
 def validate_semantic_artifacts(project_id: str, base: Path, graph: dict) -> list[str]:
     findings: list[str] = []
     node_types = {node.get("type") for node in graph.get("nodes", [])}
@@ -149,7 +164,7 @@ def validate_semantic_artifacts(project_id: str, base: Path, graph: dict) -> lis
         if not parents_of(project_id, story["id"]):
             findings.append(f"{story['id']} has no upstream parent.")
 
-    if "user_story" in node_types and "backlog_readiness_audit" not in node_types:
+    if _project_has_stories(project_id, base, graph) and not _project_has_audit(base, graph):
         findings.append("Backlog exists without backlog_readiness_audit.")
     if "user_story" in node_types and not (base / "08_context_packs" / "implementation_readiness.json").exists():
         findings.append("Backlog exists without implementation_readiness context pack.")

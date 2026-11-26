@@ -21,3 +21,11 @@ Use this skill after backlog generation.
 - The backlog readiness audit scores only the governed Ignite model: INVEST, vertical slicing, SPIDR/Lawrence, concrete enabler boundary, AC coverage, traceability, and explicit dependencies.
 - Treat story quality findings as DoR warnings by default. Strict backlog gates are opt-in; do not harden them without explicit project configuration.
 - Keep automation notes practical and implementation-agnostic.
+
+## Change (`--change CHG-NNN`)
+
+`sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /quality PROJECT_ID --change CHG-NNN` (IMP-431) audits only the stories that change wrote (`04_backlog/US-*.md` with `change: CHG-NNN`) and writes `05_quality/CHG-NNN/` (`TC-nnn.md`, `backlog_readiness_audit.md`) in the change's language.
+
+- It needs the change's backlog to be current: `/backlog PROJECT_ID --change CHG-NNN` first. A change with a confirmed series audits the stories of every release already derived.
+- The verdict (`PASS` / `PARTIAL` / `ATTENTION`) lives in `state.changes[CHG-NNN].quality`, never in the project's `phase` or `health`; it stays current until a story of the change is edited or regenerated, then `/next --change` asks for `/quality --change` again.
+- It does not combine with `--release`, and the project's `/quality` skips the change's stories. A workspace that only has changes refuses the project form.

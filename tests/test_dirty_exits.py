@@ -183,6 +183,18 @@ class DirtyExitTests(SnapshotWorkspaceCase):
         self.assertEqual(code, 4, err)
         self.assertIn("Run /specs, then /backlog.", err)
 
+    def test_quality_without_change_still_refuses_a_dirty_project(self) -> None:
+        """IMP-431: only `--change` leaves the project's DIRTY gate; the project's /quality keeps today's refusal."""
+        state = self.state()
+        state["story_lifecycle"]["US-001"] = {"status": "Stale", "owner": ""}
+        state["health"] = "DIRTY"
+        self.write_state(state)
+        with mock.patch("sentinel.health.has_blocking_open_gap", return_value=True):
+            code, _, err = run(["quality", PROJECT])
+        self.assertEqual(code, 4, err)
+        self.assertIn("1. Blocking gaps remain open.", err)
+        self.assertIn("Run /quality again.", err)
+
     def test_next_names_reindex_when_a_node_is_not_indexed(self) -> None:
         with mock.patch("sentinel.health.collect_health") as collect:
             collect.return_value = {"findings": ["CHG-042 is not indexed in memory."], "knowledge_staleness": [],
