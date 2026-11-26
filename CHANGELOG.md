@@ -6,6 +6,8 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+## [0.35.0] — 2026-11-26
+
 ### Added
 
 - **Derived sources, partial baselines and the deliverables of a change's prototype (IMP-423, H27 inc 7a).** `/sources --load FILE --role diseno_nuevo --change CHG-nnn --derived-from F-NN` loads a readable render or transcript of a prototype with no visible text as a derived source: citations verify word for word against it, and `crosses.md` and the brief of the change show `(derived from F-NN)`. `/sources --load FILE --role linea_de_base --reliability documental|codigo|mixta` declares how complete the baseline is: against a partial one a NOT FOUND reads "not found in a partial baseline: confirm" and is asked once. `/prototype PROJECT_ID --change CHG-nnn --inventory|--manual|--trace` works the prototype of one change (files under `02_requirements/CHG-nnn/prototype/`), and `/view PROJECT_ID --change CHG-nnn --artifact diagrams|prototype|prototype-manual|prototype-trace` shows it (`CHG-nnn-diagrams.html`: the to-be with the as-is, a component's status only from the notation of section 5.1, else `sin dato registrado`). Skills, commands and the guide say so, and the flow matrix rows D and F no longer promise inc 7.
