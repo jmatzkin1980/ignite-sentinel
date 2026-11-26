@@ -108,7 +108,7 @@ class ChangeConfirmTest(ChangeSplitCase):
         self.assertTrue(guide.startswith("# Guía de la serie — CSPL · CHG-001"))
         self.assertIn("r1 Alta de proveedor", guide)
         self.assertIn("r2 Aprobación de jefatura", guide)
-        self.assertIn("abierto; las sub-releases de un cambio todavía no se derivan", guide)
+        self.assertIn(f"abierto; todavía sin derivar (`/specs {PID} --change {CID} --release r1`)", guide)
         self.assertNotIn("/specs --release", guide)
         lines = {_plain(line)[:90] for line in series_scope(PID, CID).brief_text.splitlines()}
         matrix = guide.split("| Familia | Unidad | Dueño |")[1].split("##")[0]
@@ -243,11 +243,10 @@ class ChangeRefusalsTest(ChangeSplitCase):
         self.propose()
         run_ok(["split", PID, "--confirm", "--ba", "Ana", "--tech", "Equipo", "--change", CID])
         before = self.partition_sha()
-        message = ("/split --close y --move con --change llegan con las sub-releases de un cambio; "
-                   "hoy: --assess, --propose o --confirm")
-        for argv in (["split", PID, "--close", "r1", "--change", CID, "--evidence", "x", "--ba", "Ana", "--tech", "Equipo"],
-                     ["split", PID, "--move", "--unit", "U", "--from", "r1", "--to", "r2", "--reason", "x", "--ba", "Ana",
-                      "--tech", "Equipo", "--change", CID]):
+        message = ("/split --move con --change llega con las sub-releases de un cambio; "
+                   "hoy: --assess, --propose, --confirm o --close")
+        for argv in (["split", PID, "--move", "--unit", "U", "--from", "r1", "--to", "r2", "--reason", "x", "--ba", "Ana",
+                      "--tech", "Equipo", "--change", CID],):
             code, out = self.cli(argv)
             self.assertNotEqual(code, 0)
             self.assertIn(message, out)

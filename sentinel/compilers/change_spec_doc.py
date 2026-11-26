@@ -36,6 +36,7 @@ COPY = {
         "preserved": "## Comportamiento preservado",
         "preserved_header": ["REQ-EARS", "Enunciado"],
         "no_preserved": "_Sin filas UNCHANGED._",
+        "delivered": "entregado en {rid}",
         "note": "Las historias del cambio salen de estas unidades con /backlog --change.",
         "criteria": "Criterios de aceptación:",
         "build": "a construir", "existing": "existente", "kept": "preservado",
@@ -51,6 +52,7 @@ COPY = {
         "preserved": "## Preserved behavior",
         "preserved_header": ["REQ-EARS", "Statement"],
         "no_preserved": "_No UNCHANGED rows._",
+        "delivered": "delivered in {rid}",
         "note": "The stories of the change come from these units with /backlog --change.",
         "criteria": "Acceptance criteria:",
         "build": "to build", "existing": "existing", "kept": "preserved",
@@ -111,7 +113,9 @@ def _quote(text: str, cite: str, element_id: str = "") -> str | None:
     return f"> «{sentences[0]}» ({cite})" if cite else f"> «{sentences[0]}»"
 
 
-def change_spec_context(project_id: str, change_id: str, units: list[dict], funs: list[dict]) -> dict:
+def change_spec_context(project_id: str, change_id: str, units: list[dict], funs: list[dict],
+                        delivered: dict[str, list[str]] | None = None) -> dict:
+    """`delivered`: release id -> the `SPEC-U` ids a closed release already delivered; they read as preserved behavior (IMP-429)."""
     from ..consolidation_control import consolidation_control
     from ..decision_memory import closed_decisions
     from ..extraction.consolidation import load_consolidation
@@ -260,7 +264,14 @@ def change_spec_context(project_id: str, change_id: str, units: list[dict], funs
                                fun["name"] or "—", ", ".join(gaps) or "—"])
 
     preserved_rows = [r for r in rows if parse_delta(r["delta"]) == "UNCHANGED"]
-    return {"language": language, "funs": out_funs, "trace_rows": trace_rows, "preserved_rows": preserved_rows}
+    delivered_rows: list[tuple[str, str, str]] = []
+    if delivered:
+        from .change_backlog import read_change_units
+
+        known = {u["id"]: u for u in read_change_units(project_id, change_id)}
+        delivered_rows = [(uid, str(known[uid]["statement"]), rid) for rid, ids in delivered.items() for uid in ids if uid in known]
+    return {"language": language, "funs": out_funs, "trace_rows": trace_rows, "preserved_rows": preserved_rows,
+            "delivered_rows": delivered_rows}
 
 
 def _table(header: list[str], rows: list[list[str]]) -> list[str]:
@@ -283,8 +294,11 @@ def render_change_spec_doc(context: dict, change_id: str) -> str:
         for title, key in zip(BLOCKS[language], KEYS):
             lines += [f"### {title}", "", *(fun["blocks"][key] or [empty]), ""]
     lines += [copy["trace"], "", *_table(copy["trace_header"], context["trace_rows"]), "", copy["preserved"], ""]
-    if context["preserved_rows"]:
-        lines += _table(copy["preserved_header"], [[f"`{r['id']}`", r["statement"]] for r in context["preserved_rows"]])
+    delivered = [[f"`{uid}`", f"{statement} ({copy['delivered'].format(rid=rid)})"]
+                 for uid, statement, rid in context.get("delivered_rows") or []]
+    if context["preserved_rows"] or delivered:
+        lines += _table(copy["preserved_header"],
+                        [[f"`{r['id']}`", r["statement"]] for r in context["preserved_rows"]] + delivered)
     else:
         lines.append(copy["no_preserved"])
     lines += ["", copy["note"], ""]

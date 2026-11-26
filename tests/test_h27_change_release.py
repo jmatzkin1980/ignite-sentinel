@@ -241,6 +241,87 @@ class ReleaseBacklogTest(ChangeReleaseCase):
         self.assertEqual({sid: again[sid] for sid in mine}, first)
 
 
+class ReleaseCloseTest(ChangeReleaseCase):
+    def derive(self, *rids: str) -> None:
+        for rid in rids:
+            run_ok(["specs", PID, "--change", CID, "--release", rid])
+            run_ok(["backlog", PID, "--change", CID, "--release", rid])
+
+    def stories(self, rid: str) -> list[str]:
+        return sorted(p.stem for p in (self.base() / "04_backlog" / CID / rid).glob("US-*.md"))
+
+    def finish(self, rid: str) -> Path:
+        evidence = Path("evidencia.md")
+        evidence.write_text(f"Evidencia sintetica de {rid}.\n", encoding="utf-8")
+        for sid in self.stories(rid):
+            for status in ("Ready", "In Progress", "In Review"):
+                run_ok(["story-status", PID, "--story", sid, "--set", status])
+            run_ok(["story-status", PID, "--story", sid, "--set", "Done", "--evidence", str(evidence)])
+        return evidence
+
+    def close(self, rid: str, evidence: Path) -> tuple[int, str]:
+        return cli(["split", PID, "--close", rid, "--evidence", str(evidence), "--ba", "Ana", "--tech", "Equipo",
+                    "--change", CID])
+
+    def partition(self) -> bytes:
+        return (self.base() / "02_requirements" / CID / "series" / "partition.json").read_bytes()
+
+    def test_close_requires_done_stories(self) -> None:
+        self.derive("r1")
+        evidence = Path("evidencia.md")
+        evidence.write_text("Evidencia sintetica.\n", encoding="utf-8")
+        before = self.partition()
+        code, out = self.close("r1", evidence)
+        self.assertNotEqual(code, 0, out)
+        for sid in self.stories("r1"):
+            self.assertIn(sid, out)
+        self.assertIn("Done", out)
+        self.assertEqual(self.partition(), before)
+        code, out = self.close("r2", evidence)  # not derived: nothing to close
+        self.assertNotEqual(code, 0, out)
+        self.assertEqual(self.partition(), before)
+
+    def test_closed_units_preserved_not_redelivered(self) -> None:
+        from sentinel.change_release import ChangeReleaseError, release_units
+
+        self.derive("r1")
+        owned = release_units(PID, CID)
+        evidence = self.finish("r1")
+        code, out = self.close("r1", evidence)
+        self.assertEqual(code, 0, out)
+        run_ok(["specs", PID, "--change", CID, "--release", "r2"])
+        folder = self.base() / "03_specs" / CID / "r2"
+        specs = (folder / "specs.md").read_text(encoding="utf-8")
+        self.assertIn("## Comportamiento preservado", specs)
+        block = specs.split("## Comportamiento preservado")[1]
+        for uid in owned["r1"]:
+            self.assertIn(uid, block)
+            self.assertFalse((folder / "units" / f"{uid}.md").exists(), uid)
+        self.assertIn("entregado en r1", block)
+        self.assertEqual(sorted(p.stem for p in (folder / "units").glob("SPEC-U-*.md")), sorted(owned["r2"]))
+        forget_read_snapshots()
+        with self.assertRaises(ChangeReleaseError) as caught:
+            from sentinel.compilers.change_specs import compile_change_specs
+
+            compile_change_specs(PID, CID, release="r1")
+        self.assertIn("r1 está cerrada", str(caught.exception))
+        code, out = cli(["specs", PID, "--change", CID, "--release", "r1"])
+        self.assertNotEqual(code, 0, out)
+        self.assertIn("r1 está cerrada", out)
+
+    def test_change_guide_shows_progress(self) -> None:
+        self.derive("r1")
+        evidence = self.finish("r1")
+        code, out = self.close("r1", evidence)
+        self.assertEqual(code, 0, out)
+        guide = (self.base() / "02_requirements" / CID / "series" / "release-guide.md").read_text(encoding="utf-8")
+        rows = {line.split("|")[1].split()[0]: line for line in guide.splitlines() if line.startswith("| r")}
+        self.assertIn("cerrado", rows["r1"])
+        self.assertIn("abierto", rows["r2"])
+        self.assertNotIn("todavía no se derivan", guide)
+        self.assertIn(f"/specs {PID} --change {CID} --release r2", rows["r2"])
+
+
 class ProjectReleaseBytesTest(unittest.TestCase):
     def test_project_release_bytes_unchanged(self) -> None:
         """RF 4: the project's specs/backlog/close/move write the bytes recorded before this increment."""

@@ -371,17 +371,18 @@ def _run_project_command(args) -> int:
 
             result = build_inventory(args.project_id, args.source or "", args.change)
             print_json(result)
-        elif args.command == "split" and args.change and (args.close or args.move):
+        elif args.command == "split" and args.change and args.move:
             from .changes import change_language, get_change
             from .errors import InputError
 
             if change_language(args.project_id, get_change(args.project_id, args.change)) == "en":
-                raise InputError("/split --close and --move with --change come with the sub-releases of a change; today: --assess, --propose or --confirm")
-            raise InputError("/split --close y --move con --change llegan con las sub-releases de un cambio; hoy: --assess, --propose o --confirm")
+                raise InputError("/split --move with --change comes with the sub-releases of a change; today: --assess, --propose, --confirm or --close")
+            raise InputError("/split --move con --change llega con las sub-releases de un cambio; hoy: --assess, --propose, --confirm o --close")
         elif args.command == "split" and args.close:
             from .release_guide import close_release
 
-            print_json(close_release(args.project_id, args.close, args.evidence or "", args.ba or "", args.tech or ""))
+            print_json(close_release(args.project_id, args.close, args.evidence or "", args.ba or "", args.tech or "",
+                                     change_id=args.change))
         elif args.command == "split" and args.move:
             if not (args.unit and args.from_holder and args.to_holder):
                 raise ValueError("/split --move needs --unit, --from and --to (and --reason, --ba, --tech)")

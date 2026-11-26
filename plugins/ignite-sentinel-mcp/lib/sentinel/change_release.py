@@ -25,7 +25,7 @@ TEXT = {
         "twice": "{unit} tiene dueño en dos releases ({a} y {b}) en la serie de {cid}: no se eligió ninguna; nada se escribió.",
         "never": "{unit} no tiene dueño: ninguna release de la serie de {cid} contiene sus superficies; nada se escribió.",
         "not_release": "{rid} no es una release de la serie de {cid} (las releases son {releases}).",
-        "closed": "{rid} ya está cerrada en la serie de {cid}: no se deriva de nuevo.",
+        "closed": "{rid} está cerrada en la serie de {cid}: no se deriva de nuevo.",
         "next_move": "/split {pid} --change {cid} --move --unit <C-NN> --from <rA> --to <rB> --reason \"...\" --ba \"...\" --tech \"...\"",
         "next_pick": "Elegí una de las releases abiertas: {open}.",
         "next_done": "/next {pid} --change {cid}",
@@ -161,8 +161,12 @@ def derive_release_specs(project_id: str, change_id: str, rid: str, whole: dict[
     units = [u for u in read_change_units(project_id, change_id) if u["id"] in mine]
     ears = {u["ears"][0] for u in units if u["ears"]}
     funs = [f for f in change_functionalities(project_id, change_id) if any(r in ears for r in f["rows"])]
+    # what a closed release before this one already delivered reads as preserved behavior, never as new units
+    earlier = releases[:releases.index(rid)]
+    every = release_units(project_id, change_id)
+    delivered = {r: every[r] for r in closed_releases(project_id, change_id) if r in earlier and every.get(r)}
     write_text(folder / "specs.md",
-               render_change_spec_doc(change_spec_context(project_id, change_id, units, funs), change_id))
+               render_change_spec_doc(change_spec_context(project_id, change_id, units, funs, delivered), change_id))
     return {
         "project_id": project_id, "change_id": change_id, "status": "derived", "release": rid, "units": mine,
         "path": (folder / "specs.md").relative_to(base).as_posix(),
