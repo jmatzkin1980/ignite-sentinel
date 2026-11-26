@@ -436,7 +436,7 @@ REGISTRY: tuple[Command, ...] = (
     Command("prototype", MUTATING, _prototype, mcp_params={"mode": ("inventory", "trace", "manual")}, skill="sentinel-prototype-trace", skill_variants=(("--manual", "sentinel-prototype-manual"),)),
     Command("self-review", MUTATING, _self_review, skill="sentinel-self-review", skill_variants=(("--change", "sentinel-self-review §Change coherence"),)),
     Command("assume", MUTATING, _assume, skill="sentinel-assume", skill_variants=(("--change", "sentinel-assume §Change assumptions"),)),
-    Command("compose", MUTATING, _project_source, skill="sentinel-compose"),
+    Command("compose", MUTATING, _project_source_change, skill="sentinel-compose", skill_variants=(("--change", "sentinel-compose §Change"),)),
     Command("refine-backlog", MUTATING, _project_source_change, skill="sentinel-backlog-refine", skill_variants=(("--change", "sentinel-backlog-refine §Change"),)),
     Command("implementation-feedback", MUTATING, _project_source, skill="sentinel-implementation-feedback"),
     Command("story-status", MUTATING, _story_status, release=True, skill="sentinel-backlog"),

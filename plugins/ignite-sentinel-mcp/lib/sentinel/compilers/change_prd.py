@@ -108,6 +108,9 @@ def write_change_prd(project_id: str, change_id: str) -> dict[str, Any]:
         return {"skipped": f"/export {project_id} --artifact brief --change {change_id} --final"}
     path = workspace_path(project_id) / "03_specs" / change_id / "prd.md"
     path.parent.mkdir(parents=True, exist_ok=True)
-    write_text(path, text)
+    from ..prd import render_prd_compositions
+
+    # IMP-433: keeps the prose composed onto the PRD, as generation.py does for the project
+    write_text(path, render_prd_compositions(project_id, text, change_id))
     return {"path": path.relative_to(workspace_path(project_id)).as_posix(),
             "source_sha": final_source_sha(project_id, change_id)}
