@@ -40,12 +40,12 @@ def list_changes(project_id: str) -> dict[str, dict]:
 
 
 CHANGE_DELIVERABLES: tuple[str, ...] = ("brief", "gaps", "borde", "decisiones", "diagrams", "prototype", "prototype-manual",
-                                        "prototype-trace")  # IMP-386: what /view and /export take with --change
+                                        "prototype-trace", "release-guide")  # IMP-386: what /view and /export take with --change
 CHANGE_ONLY_REFUSED: tuple[str, ...] = ("brief", "gaps", "borde", "decisiones")  # the 0.34 set: a project /view of the rest is not refused
 REVIEW_DELIVERABLES: tuple[str, ...] = ("borde", "decisiones")  # IMP-412: review views of a change (only md; only with --change)
 CHANGE_FORMATS: dict[str, tuple[str, ...]] = {"gaps": ("md", "interview", "faq"), "brief": ("md", "interview"),
                                               "borde": ("md",), "decisiones": ("md",), "diagrams": ("md",), "prototype": ("md",),
-                                              "prototype-manual": ("md",), "prototype-trace": ("md",)}
+                                              "prototype-manual": ("md",), "prototype-trace": ("md",), "release-guide": ("md",)}
 
 
 def check_change_deliverable(project_id: str, command: str, artifact: str, change_id: str, fmt: str | None = None) -> None:

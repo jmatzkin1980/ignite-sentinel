@@ -366,6 +366,11 @@ def artifact_source(base: Path, artifact: str, domain: str | None, change_id: st
             from .prototype_trace import TRACE_MD
 
             return prototype_dir(base, change_id) / {"prototype": INVENTORY_MD, "prototype-manual": MANUAL_MD, "prototype-trace": TRACE_MD}[artifact]
+        if artifact == "release-guide":  # H27 inc 7c: the guide of the change's series
+            from .release_guide import GUIDE_FILE
+            from .series_scope import series_dir
+
+            return series_dir(base, change_id) / GUIDE_FILE
         raise InputError(f"Unsupported export artifact with --change: {artifact}")
     if artifact == "gaps":
         return base / "01_discovery" / "gaps.md"

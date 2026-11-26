@@ -370,6 +370,13 @@ def _run_project_command(args) -> int:
 
             result = build_inventory(args.project_id, args.source or "", args.change)
             print_json(result)
+        elif args.command == "split" and args.change and (args.close or args.move):
+            from .changes import change_language, get_change
+            from .errors import InputError
+
+            if change_language(args.project_id, get_change(args.project_id, args.change)) == "en":
+                raise InputError("/split --close and --move with --change come with the sub-releases of a change; today: --assess, --propose or --confirm")
+            raise InputError("/split --close y --move con --change llegan con las sub-releases de un cambio; hoy: --assess, --propose o --confirm")
         elif args.command == "split" and args.close:
             from .release_guide import close_release
 

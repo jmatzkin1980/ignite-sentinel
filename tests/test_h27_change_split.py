@@ -140,3 +140,50 @@ class ChangeConfirmTest(ChangeSplitCase):
         with self.assertRaises(InputError) as caught:
             confirm_partition(PID, "Ana", "Equipo", CID)
         self.assertIn("the brief changed since the proposal was stored; run /split --propose again", str(caught.exception))
+
+
+class ChangeRefusalsTest(ChangeSplitCase):
+    """Task 4 (RF 4): what needs the sub-releases of a change (7d) is refused, and the guide shows with --change."""
+
+    @staticmethod
+    def cli(argv: list[str]) -> tuple[int, str]:
+        import io
+        from contextlib import redirect_stderr, redirect_stdout
+
+        from sentinel.cli import main
+
+        out, err = io.StringIO(), io.StringIO()
+        with redirect_stdout(out), redirect_stderr(err):
+            code = main(list(argv))
+        return code, out.getvalue() + err.getvalue()
+
+    def partition_sha(self) -> str:
+        import hashlib
+
+        return hashlib.sha256((self.base() / "02_requirements" / CID / "series" / "partition.json").read_bytes()).hexdigest()
+
+    def test_close_move_release_refuse_with_change(self) -> None:
+        self.propose()
+        run_ok(["split", PID, "--confirm", "--ba", "Ana", "--tech", "Equipo", "--change", CID])
+        before = self.partition_sha()
+        message = ("/split --close y --move con --change llegan con las sub-releases de un cambio; "
+                   "hoy: --assess, --propose o --confirm")
+        for argv in (["split", PID, "--close", "r1", "--change", CID, "--evidence", "x", "--ba", "Ana", "--tech", "Equipo"],
+                     ["split", PID, "--move", "--unit", "U", "--from", "r1", "--to", "r2", "--reason", "x", "--ba", "Ana",
+                      "--tech", "Equipo", "--change", CID]):
+            code, out = self.cli(argv)
+            self.assertNotEqual(code, 0)
+            self.assertIn(message, out)
+        self.assertEqual(self.partition_sha(), before)
+        code, out = self.cli(["next", PID, "--change", CID, "--release", "r1"])
+        self.assertNotEqual(code, 0)
+        self.assertIn("no se combina con --release", out)
+
+    def test_view_change_release_guide(self) -> None:
+        self.propose()
+        run_ok(["split", PID, "--confirm", "--ba", "Ana", "--tech", "Equipo", "--change", CID])
+        run_ok(["view", PID, "--artifact", "release-guide", "--change", CID])
+        self.assertTrue((self.base() / "08_context_packs" / "views" / f"{CID}-release-guide.html").is_file())
+        code, out = self.cli(["view", PID, "--artifact", "prd", "--change", CID])
+        self.assertNotEqual(code, 0)
+        self.assertIn("sólo admite", out)
