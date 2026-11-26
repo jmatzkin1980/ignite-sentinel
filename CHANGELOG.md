@@ -6,21 +6,30 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
-## [0.39.0] — 2026-11-26
-
 ### Added
 
-- **`/quality PROJECT_ID --change CHG-NNN` and the `quality` step of `/next --change` (IMP-431, H27 inc 8a).** The stories of a change have their own quality audit: test cases and the readiness audit in `05_quality/CHG-nnn/` (in the change's language, over every derived release of a series), a verdict kept in the change's record (never the project's phase or health), current until a story of the change is edited. `/next --change` asks for it between the backlog and the validation, and asks again after an edit; `/status --change` shows the verdict.
 - **`/refine-backlog --change CHG-NNN` and `/compose --change CHG-NNN` (IMP-433, H27 inc 8b).** The stories of a change are refined against their own units and text, without `EPIC-001`, into `04_backlog/CHG-nnn/refinements/` (a refinement leaves the quality audit of the change stale, and the command refuses while the change's backlog is behind its units, like `/quality --change`); `/implementation-feedback` on a story of a change accepts only that change's units, so it never marks a project story `Stale`; the PRD of a change takes cited blocks into `03_specs/CHG-nnn/compositions/`. The examples the skills teach for the change channels (refinements, composition, feedback over change stories, `/annotate`, `/challenge`, `/scrutinize` with `--change`) are validated by the production validators, and the flow matrix has a section "Change path — after the backlog".
 
 ### Changed
 
-- `/quality` of the project audits only the stories no change wrote; in a workspace that only holds changes it refuses and names `/quality P --change CHG-001`.
 - `/refine-backlog` of the project ignores the stories of a change; `/specs --change` keeps the composed blocks when it regenerates the PRD of the change (IMP-433).
 
 ### Fixed
 
 - `/implementation-feedback` checks and marks the `source_units` of a story of a change against the units of that change, and its report adds the Change column only for such a story (IMP-433).
+
+## [0.39.0] — 2026-11-26
+
+### Added
+
+- **`/quality PROJECT_ID --change CHG-NNN` and the `quality` step of `/next --change` (IMP-431, H27 inc 8a).** The stories of a change have their own quality audit: test cases and the readiness audit in `05_quality/CHG-nnn/` (in the change's language, over every derived release of a series), a verdict kept in the change's record (never the project's phase or health), current until a story of the change is edited. `/next --change` asks for it between the backlog and the validation, and asks again after an edit; `/status --change` shows the verdict.
+
+### Changed
+
+- `/quality` of the project audits only the stories no change wrote; in a workspace that only holds changes it refuses and names `/quality P --change CHG-001`.
+
+### Fixed
+
 - `/maturity` in a workspace that only holds changes refuses without writing a BLOCKED report or marking the project DIRTY (IMP-431).
 
 ## [0.38.0] — 2026-11-26
