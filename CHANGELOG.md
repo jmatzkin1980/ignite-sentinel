@@ -6,6 +6,8 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+## [0.39.0] — 2026-11-26
+
 ### Added
 
 - **`/quality PROJECT_ID --change CHG-NNN` and the `quality` step of `/next --change` (IMP-431, H27 inc 8a).** The stories of a change have their own quality audit: test cases and the readiness audit in `05_quality/CHG-nnn/` (in the change's language, over every derived release of a series), a verdict kept in the change's record (never the project's phase or health), current until a story of the change is edited. `/next --change` asks for it between the backlog and the validation, and asks again after an edit; `/status --change` shows the verdict.
