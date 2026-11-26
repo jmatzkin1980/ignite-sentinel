@@ -96,7 +96,7 @@ def _mirror(base: Path, project_id: str, rid: str) -> Path:
 
 
 def release_stories(base: Path, project_id: str, rid: str, change_id: str | None = None) -> dict[str, str]:
-    """Story id → lifecycle status of a release, from its mirror; of a change: its folder `04_backlog/CHG-nnn/rN/`
+    """Story id → lifecycle status of a release, from its mirror; of a change: the index `04_backlog/CHG-nnn/rN/stories.md`
     and the lifecycle of the workspace (IMP-429)."""
     from .core.io import read_json
 
@@ -105,8 +105,9 @@ def release_stories(base: Path, project_id: str, rid: str, change_id: str | None
 
         state = read_json(state_path(project_id), {})
         lifecycle = (state.get("story_lifecycle") if isinstance(state, dict) else None) or {}
-        folder = base / "04_backlog" / change_id / rid
-        stories = sorted(p.stem for p in folder.glob("US-*.md")) if folder.is_dir() else []
+        from .change_release import release_story_ids
+
+        stories = sorted(release_story_ids(base, change_id, rid))
         return {sid: str((lifecycle.get(sid) or {}).get("status", "Draft")) for sid in stories}
     mirror = _mirror(base, project_id, rid)
     state = read_json(mirror / "state.json", {}) if (mirror / "state.json").exists() else {}
@@ -137,9 +138,14 @@ def close_release(project_id: str, rid: str, evidence: str, ba: str, tech: str, 
     if proof is None or not proof.is_file():
         raise ReleaseSplitError("/split --close needs --evidence PATH: a local file with the result of the release's closing check")
     stories = release_stories(base, project_id, rid, change_id)
-    scope = f" --change {change_id}" if change_id else ""
+    derive = f"/backlog {project_id} --change {change_id} --release {rid}" if change_id else f"/backlog --release {rid}"
     if not stories:
-        raise ReleaseSplitError(f"{rid} has no stories yet: derive it (/specs, /backlog {project_id}{scope} --release {rid}) and build it before closing", gate=True)
+        raise ReleaseSplitError(f"{rid} has no stories yet: derive it (/specs, {derive}) and build it before closing", gate=True)
+    units: list[str] | None = None
+    if change_id:  # IMP-429 (I4): its specs and its stories must be current, and what it delivers is frozen at the close
+        from .change_release import close_gate
+
+        units = close_gate(project_id, change_id, rid)
     pending = sorted(sid for sid, status in stories.items() if status != "Done")
     if pending:
         again = f"/story-status {project_id} --story US-NNN --set Done" if change_id else f"/story-status --release {rid}"
@@ -147,6 +153,8 @@ def close_release(project_id: str, rid: str, evidence: str, ba: str, tech: str, 
     closed[rid] = {"date": today or utc_now()[:10], "evidence": proof.as_posix(),
                    "evidence_sha256": hashlib.sha256(proof.read_bytes()).hexdigest(),
                    "closed_by": {"ba": _s(ba), "technical_team": _s(tech)}, "stories": sorted(stories)}
+    if units is not None:
+        closed[rid]["units"] = units
     partition["closed"] = dict(sorted(closed.items(), key=lambda kv: release_order(kv[0])))
     target = series_dir(base, change_id) / PARTITION_FILE
     write_text(target, json.dumps(partition, ensure_ascii=False, indent=2) + "\n")
@@ -154,8 +162,14 @@ def close_release(project_id: str, rid: str, evidence: str, ba: str, tech: str, 
     unblocked = sorted((_s(r.get("id")) for r in _dicts(payload.get("releases"))
                         if rid in hard_dependencies(payload, _s(r.get("id")))
                         and not inherited_blockers(base, _s(r.get("id")), change_id)), key=release_order)
-    return {"status": "closed", "release": rid, "closed": closed[rid], "unblocked": unblocked,
-            "guide": (series_dir(base, change_id) / GUIDE_FILE).as_posix()}
+    result = {"status": "closed", "release": rid, "closed": closed[rid], "unblocked": unblocked,
+              "guide": (series_dir(base, change_id) / GUIDE_FILE).as_posix()}
+    if change_id:  # I1: a later release derived before this close lacks its preserved rows: derive it again
+        from .change_release import stale_derivations
+
+        result["stale_derivations"] = sorted({row["release"] for row in stale_derivations(project_id, change_id)},
+                                             key=release_order)
+    return result
 
 
 def release_status(base: Path, project_id: str, payload: dict[str, Any], partition: dict[str, Any], rid: str,

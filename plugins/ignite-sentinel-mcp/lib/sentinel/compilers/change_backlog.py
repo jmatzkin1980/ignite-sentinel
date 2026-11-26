@@ -46,6 +46,7 @@ TEXT = {
         "missing_affected": "{sid}, que {row} de {cid} dice afectar, ya no existe en el backlog: se ignora",
         "stale_reason": "El cambio {cid} modifica o retira lo que esta historia entrega",
         "in_progress": "{sid} está {status}: queda como está; {new} lleva el cambio {cid} como change request y hay que coordinarlo con quien la implementa",
+        "series_confirmed": "La serie de releases de {cid} está confirmada: su backlog se deriva release por release, nunca entero (borraría o duplicaría las historias de cada release). Corré {next}",
     },
     "en": {
         "no_specs": "{cid} has no specification: /backlog --change starts from {path}",
@@ -68,6 +69,7 @@ TEXT = {
         "missing_affected": "{sid}, which {row} of {cid} says it affects, no longer exists in the backlog: ignored",
         "stale_reason": "The change {cid} modifies or retires what this story delivers",
         "in_progress": "{sid} is {status}: it is left as it is; {new} carries the change {cid} as a change request, coordinate it with whoever implements it",
+        "series_confirmed": "The release series of {cid} is confirmed: its backlog is derived release by release, never whole (that would delete or duplicate the stories of each release). Run {next}",
     },
 }
 
@@ -448,10 +450,41 @@ def _reindex_change_artifacts(project_id: str, change_id: str) -> None:
 
 
 def _release_story_ids(base: Path, change_id: str, release: str | None) -> set[str]:
-    """The stories a release of the change has in `04_backlog/CHG-nnn/rN/` (all releases with `release=None`)."""
+    """The stories a release of the change lists in `04_backlog/CHG-nnn/rN/stories.md` (all releases with `release=None`)."""
+    from ..change_release import release_story_ids
+
     folder = base / "04_backlog" / change_id
-    folders = [folder / release] if release else [p for p in sorted(folder.glob("r*")) if p.is_dir()]
-    return {path.stem for one in folders for path in one.glob("US-*.md")}
+    rids = [release] if release else [p.name for p in sorted(folder.glob("r*")) if p.is_dir()]
+    return {sid for rid in rids for sid in release_story_ids(base, change_id, rid)}
+
+
+def _plain_stories_of(base: Path, change_id: str, unit_ids: set[str]) -> set[str]:
+    """IMP-429 (I2): the change's stories no release lists (a plain backlog of 0.37) that carry a unit of `unit_ids`."""
+    listed = _release_story_ids(base, change_id, None)
+    found: set[str] = set()
+    for sid in _change_story_ids(base, change_id):
+        if sid in listed:
+            continue
+        front = parse_frontmatter((base / "04_backlog" / f"{sid}.md").read_text(encoding="utf-8"))
+        if set(_story_units(front)) & unit_ids:
+            found.add(sid)
+    return found
+
+
+def _refuse_plain_with_series(project_id: str, change_id: str, text: dict[str, Any]) -> None:
+    """I2: once the change's series is confirmed, a plain /backlog --change is refused (it points at a release)."""
+    from ..change_release import _series, closed_releases
+    from ..release_split import ReleaseSplitError
+
+    try:
+        releases = _series(project_id, change_id)[0]
+    except ReleaseSplitError:
+        return  # no confirmed series: the plain backlog of the change, as before
+    closed = closed_releases(project_id, change_id)
+    open_ones = [rid for rid in releases if rid not in closed]
+    command = (f"/backlog {project_id} --change {change_id} --release {open_ones[0]}" if open_ones
+               else f"/next {project_id} --change {change_id}")
+    raise GateRefusal(text["series_confirmed"].format(cid=change_id, next=command), next_step=command)
 
 
 def _compile_change_backlog(project_id: str, change_id: str, story_format: str | None = None,
@@ -469,12 +502,14 @@ def _compile_change_backlog(project_id: str, change_id: str, story_format: str |
     from .change_slices import plan_change_slices
     from .slicing import build_cross_cutting_enabler_specs, build_slice_story_specs
 
-    if release:  # a release the series does not have, or a unit with no owner, refuses before anything is read
-        from ..change_release import ChangeReleaseError, _series, release_units
+    if release:  # a release the series does not have, a closed one, or a unit with no owner refuses before anything is read
+        from ..change_release import check_release, release_units
 
-        if release not in release_units(project_id, change_id):
-            raise ChangeReleaseError(f"{release} is not a release of the series of {change_id} "
-                                     f"({', '.join(_series(project_id, change_id)[0])})")
+        check_release(project_id, change_id, release)
+        release_units(project_id, change_id)
+    else:
+        _refuse_plain_with_series(project_id, change_id, TEXT.get(change_language(project_id, get_change(project_id, change_id)),
+                                                                  TEXT["es"]))
     change, text, units = _gate(project_id, change_id, release)
     story_format = normalize_story_format(story_format or load_config(project_id).get("story_format"))
     base = workspace_path(project_id)
@@ -495,6 +530,9 @@ def _compile_change_backlog(project_id: str, change_id: str, story_format: str |
     funs = change_functionalities(project_id, change_id, rows)
     previous_ids = _release_story_ids(base, change_id, release) if release else set(_change_story_ids(base, change_id))
     other_releases = _release_story_ids(base, change_id, None) - previous_ids if release else set()
+    # I2: the stories of a plain backlog (0.37) that carry this release's units are this release's: reused, never duplicated
+    adopted = _plain_stories_of(base, change_id, {unit["id"] for unit in units}) - previous_ids if release else set()
+    previous_ids |= adopted
     scope = f"{change_id}|{release}" if release else change_id  # slice keys: two releases never share a story id
     release_rel = f"{change_id}/{release}" if release else change_id
     # A story already past backlog/ready keeps its id and the units it still has; only the rest regroup.
@@ -502,8 +540,15 @@ def _compile_change_backlog(project_id: str, change_id: str, story_format: str |
     locked_units = {uid for piece in locked for uid in piece["units"]}
     slices = plan_change_slices(scope, [unit for unit in units if unit["id"] not in locked_units], funs, unit_of, size,
                                 slicing_model)
-    ids = id_registry.assign_ids(project_id, "US", [item["key"] for item in slices])
     locked_ids = {piece["locked_id"] for piece in locked}
+    reused: dict[str, str] = {}
+    if adopted:  # an adopted plain story keeps its id when its slice had that id as a plain slice (the registry key)
+        for item in slices:
+            plain = id_registry.issued_id(project_id, "US", item["key"].replace(f"{scope}|", f"{change_id}|", 1))
+            if plain in adopted and plain not in locked_ids and plain not in reused.values():
+                reused[item["key"]] = plain
+    ids = id_registry.assign_ids(project_id, "US", [item["key"] for item in slices if item["key"] not in reused])
+    ids.update(reused)
     clashes = [item for item in slices if ids[item["key"]] in locked_ids]
     for item in clashes:  # the key of a regrouped slice may be the one the locked story was issued under
         item["key"] += "|regrouped"
@@ -593,12 +638,12 @@ def _compile_change_backlog(project_id: str, change_id: str, story_format: str |
         path = base / "04_backlog" / f"{story['id']}.md"
         write_text(path, carry_modificada_por(path, render_story(project_id, epic_id, story, story_format)))
         story_paths.append(path)
-        if release:  # the folder of the release holds a copy of each of its stories
-            write_text(base / "04_backlog" / release_rel / f"{story['id']}.md", path.read_text(encoding="utf-8"))
     for story_id in removed:
         remove(base / "04_backlog" / f"{story_id}.md")
-        if release:
-            remove(base / "04_backlog" / release_rel / f"{story_id}.md")
+    if release:  # I3: the folder of the release lists its stories (links to the canonical files), never copies them
+        from ..change_release import write_release_stories
+
+        write_release_stories(project_id, change_id, release, stories)
 
     # Graph: ids equal the registry ids (upsert, never add_node).
     upsert_node(project_id, epic_id, "epic", epic_path, title, domain="product")
@@ -680,7 +725,10 @@ def _compile_change_backlog(project_id: str, change_id: str, story_format: str |
         "dropped_units": sorted(skipped),  # IMP-396: units deliberately left without a story
     }
     if release:
+        from ..change_release import specs_sha256
+
         record["epic_rows"] = epic_rows
+        record["specs_sha256"] = specs_sha256(project_id, change_id, release)  # specs derived again later: these are old
     if release:  # the record of a release does not stand for the whole backlog of the change
         changes[change_id].setdefault("backlog_releases", {})[release] = record
     else:

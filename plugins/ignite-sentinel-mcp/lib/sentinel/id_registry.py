@@ -62,6 +62,13 @@ def assign_ids(project_id: str, family: str, keys: list[str]) -> dict[str, str]:
     return result
 
 
+def issued_id(project_id: str, family: str, key: str) -> str | None:
+    """The id already issued under `key`, or None; nothing is issued or written (IMP-429)."""
+    found = ((_load(project_id).get("families") or {}).get(family) or {}).get("issued") or {}
+    value = found.get(key) if isinstance(found, dict) else None
+    return str(value) if value else None
+
+
 def seed_family(project_id: str, family: str, issued: dict[str, str]) -> None:
     data = _load(project_id)
     entry = _entry(data, family)

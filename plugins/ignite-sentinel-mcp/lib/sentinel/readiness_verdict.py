@@ -1221,6 +1221,7 @@ SERIES_TEXT = {
         "specs": "Corré /specs {pid} --change {cid} --release {rid}: la serie de {cid} se deriva release por release y {rid} {why}.",
         "specs_new": "todavía no tiene sus unidades",
         "specs_old": "tiene unidades viejas (cambió la serie o el cambio)",
+        "specs_closed": "se derivó antes de que cerrara {closed}: lo que entregó {closed} tiene que pasar a preservado antes de cerrar {rid}",
         "backlog": "Corré /backlog {pid} --change {cid} --release {rid}: {rid} {why}.",
         "backlog_new": "todavía no tiene sus historias",
         "backlog_old": "tiene historias que no son las de sus unidades",
@@ -1231,6 +1232,7 @@ SERIES_TEXT = {
         "specs": "Run /specs {pid} --change {cid} --release {rid}: the series of {cid} is derived release by release and {rid} {why}.",
         "specs_new": "does not have its units yet",
         "specs_old": "has old units (the series or the change moved)",
+        "specs_closed": "was derived before {closed} closed: what {closed} delivered must become preserved behavior before {rid} closes",
         "backlog": "Run /backlog {pid} --change {cid} --release {rid}: {rid} {why}.",
         "backlog_new": "does not have its stories yet",
         "backlog_old": "has stories that are not those of its units",
@@ -1246,10 +1248,12 @@ def _series_step_texts(project_id: str, change_id: str, key: str, walking: dict[
     texts = SERIES_TEXT["es" if language == "es" else "en"]
     rid = walking["release"]
     ctx = {"pid": project_id, "cid": change_id, "rid": rid, "done": walking.get("done", 0), "total": walking.get("total", 0),
-           "why": texts.get(f"{key}_{walking.get('why', 'new')}", "")}
+           "why": texts.get(f"{key}_{walking.get('why', 'new')}", "").format(
+               closed=", ".join(walking.get("closed_since") or []), rid=rid)}
     if key == "done":
-        return (f"/split {project_id} --change {change_id} --close {rid}",
-                ("Cerrar " if language == "es" else "Close ") + rid, texts["done"].format(**ctx))
+        # M5: while a story is not Done the close is bound to fail: it stays in the sentence, not as the command
+        close = f"/split {project_id} --change {change_id} --close {rid}" if ctx["done"] >= ctx["total"] else ""
+        return close, ("Cerrar " if language == "es" else "Close ") + rid, texts["done"].format(**ctx)
     return f"{command} --release {rid}", title, texts[key].format(**ctx)
 
 

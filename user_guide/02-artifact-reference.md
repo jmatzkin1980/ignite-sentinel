@@ -290,7 +290,7 @@ Agent paragraphs accepted through `/compose` appear in the PRD under "Agent Comp
 | `acceptance_evidence/` | Evidence files attached to support a `Done` transition. | QA | Never edit | `/story-status --evidence` |
 | `refinements/` | Audit trail of agent backlog refinements: submitted JSON, `accepted_refinements.json`, `refinement_report.md`. | BA | Never edit | `/refine-backlog` |
 | `CHG-nnn/SLICE-PLAN.md` | Implementation order of one change: enablers of new surfaces first, then the waves of its stories. The project's `SLICE-PLAN.md` is not touched. | Delivery, planning agents | Never edit (hook) | `/backlog --change CHG-nnn` |
-| `CHG-nnn/<rN>/` | A copy of the stories of one release of the change's series and its `SLICE-PLAN.md`; the stories themselves stay at `US-nnn.md`, and `EPIC-CHG-nnn.md` lists every derived release. | Delivery, planning agents | Never edit (hook) | `/backlog --change CHG-nnn --release rN` |
+| `CHG-nnn/<rN>/` | `stories.md`, the index of the stories of one release of the change's series (their ids, each linked to its `US-nnn.md`; never copies), and its `SLICE-PLAN.md`; the stories themselves live only at `US-nnn.md`, and `EPIC-CHG-nnn.md` lists every derived release. | Delivery, planning agents | Never edit (hook) | `/backlog --change CHG-nnn --release rN` |
 | `<rN>/` | The same files derived for one release. | | Never edit | `/backlog --release rN` |
 
 Valid story statuses are `Draft`, `Ready`, `In Progress`, `In Review`, `Done`, `Blocked` and `Stale`. Only `/story-status` changes them.

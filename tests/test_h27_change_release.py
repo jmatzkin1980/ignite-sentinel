@@ -148,7 +148,17 @@ class ReleaseUnitsTest(ChangeReleaseCase):
             self.assertIn(f"--release con --change existe para /specs y /backlog; para el resto corré /{command} {PID} --change {CID}", out)
 
 
+def _release_ids(folder: Path) -> list[str]:
+    """The stories a release lists in `04_backlog/CHG/rN/stories.md` (I3 of the 7d review: an index, never copies)."""
+    index = folder / "stories.md"
+    return sorted(set(re.findall(r"\[(US-\d+)\]\(\.\./\.\./US-\d+\.md\)", index.read_text(encoding="utf-8")))) if index.is_file() else []
+
+
 def _story_files(folder: Path) -> dict[str, str]:
+    """Story id -> text: the canonical stories a release folder lists, or the `US-*.md` files of a plain folder."""
+    if folder.parent.name.startswith("CHG-"):
+        backlog = folder.parent.parent
+        return {sid: (backlog / f"{sid}.md").read_text(encoding="utf-8") for sid in _release_ids(folder)}
     return {p.stem: p.read_text(encoding="utf-8") for p in sorted(folder.glob("US-*.md"))}
 
 
@@ -247,19 +257,82 @@ class ReleaseBacklogTest(ChangeReleaseCase):
         self.assertEqual(_sha_tree(base, "03_specs/CHG-002", "**/*"), before_other)
         self.assertEqual(_sha_tree(base, "02_requirements/CHG-002", "**/*"), before_req)
 
+    def without_series(self, *argvs: list[str]) -> None:
+        """Run commands as a change of 0.37 did before its series was confirmed (the partition set aside, then put back)."""
+        partition = self.base() / "02_requirements" / CID / "series" / "partition.json"
+        kept = partition.read_bytes()
+        partition.unlink()
+        forget_read_snapshots()
+        try:
+            for argv in argvs:
+                run_ok(argv)
+        finally:
+            partition.write_bytes(kept)
+            forget_read_snapshots()
+
+    def change_stories(self) -> dict[str, str]:
+        return {sid: t for sid, t in _story_files(self.base() / "04_backlog").items() if f"change: {CID}" in t}
+
     def test_change_backlog_without_release_unchanged(self) -> None:
-        run_ok(["specs", PID, "--change", CID])
-        run_ok(["backlog", PID, "--change", CID])
+        """A change with no confirmed series keeps the plain /backlog --change (same stories on a rerun)."""
+        self.without_series(["specs", PID, "--change", CID], ["backlog", PID, "--change", CID])
         base = self.base()
-        stories = _story_files(base / "04_backlog")
-        mine = {sid for sid, t in stories.items() if f"change: {CID}" in t}
-        self.assertTrue(mine)
+        first = self.change_stories()
+        self.assertTrue(first)
         self.assertTrue((base / "04_backlog" / CID / "SLICE-PLAN.md").is_file())
         self.assertFalse((base / "04_backlog" / CID / "r1").exists())
-        first = {sid: stories[sid] for sid in mine}
-        run_ok(["backlog", PID, "--change", CID])
-        again = _story_files(base / "04_backlog")
-        self.assertEqual({sid: again[sid] for sid in mine}, first)
+        self.without_series(["backlog", PID, "--change", CID])
+        self.assertEqual(self.change_stories(), first)
+
+    def test_plain_backlog_refused_once_series_confirmed(self) -> None:
+        """I2: with a confirmed series a plain /backlog --change would delete or duplicate the release stories."""
+        self._derive_specs()
+        run_ok(["backlog", PID, "--change", CID, "--release", "r1"])
+        run_ok(["backlog", PID, "--change", CID, "--release", "r2"])
+        before = self.change_stories()
+        code, out = cli(["backlog", PID, "--change", CID])
+        self.assertNotEqual(code, 0, out)
+        self.assertIn(f"/backlog {PID} --change {CID} --release r1", out)
+        self.assertEqual(self.change_stories(), before)
+
+    def test_release_backlog_adopts_plain_stories(self) -> None:
+        """I2: a 0.37 change with a plain backlog and a confirmed series: the release derivation reuses its stories."""
+        from sentinel.change_release import release_units
+
+        self.without_series(["specs", PID, "--change", CID], ["backlog", PID, "--change", CID])
+        plain = self.change_stories()
+        busy = sorted(plain)[0]
+        for status in ("Ready", "In Progress"):
+            run_ok(["story-status", PID, "--story", busy, "--set", status])
+        self._derive_specs()
+        run_ok(["backlog", PID, "--change", CID, "--release", "r1"])
+        run_ok(["backlog", PID, "--change", CID, "--release", "r2"])
+        stories = self.change_stories()
+        self.assertIn(busy, stories)  # a story in progress keeps its id
+        covered: dict[str, list[str]] = {}
+        for sid, text in stories.items():
+            for uid in set(re.findall(r"SPEC-U-\d+", text.split("---", 2)[1])):
+                covered.setdefault(uid, []).append(sid)
+        owned = release_units(PID, CID)
+        for uid in (u for ids in owned.values() for u in ids):
+            self.assertEqual(len(covered.get(uid, [])), 1, (uid, covered))
+        listed = [sid for rid in ("r1", "r2") for sid in _release_ids(self.base() / "04_backlog" / CID / rid)]
+        self.assertEqual(sorted(listed), sorted(stories))
+        self.assertEqual(len(listed), len(set(listed)))
+
+    def test_release_folder_holds_an_index_not_copies(self) -> None:
+        """I3: `04_backlog/CHG/rN/` lists its stories with links to the canonical files; a status change never drifts."""
+        self._derive_specs()
+        result = json.loads(run_ok(["backlog", PID, "--change", CID, "--release", "r1"]))
+        folder = self.base() / "04_backlog" / CID / "r1"
+        self.assertFalse(list(folder.glob("US-*.md")))
+        self.assertTrue((folder / "SLICE-PLAN.md").is_file())
+        self.assertEqual(_release_ids(folder), sorted(result["stories"]))
+        sid = sorted(result["stories"])[0]
+        run_ok(["story-status", PID, "--story", sid, "--set", "Ready"])
+        from sentinel.release_guide import release_stories
+
+        self.assertEqual(release_stories(self.base(), PID, "r1", CID)[sid], "Ready")
 
 
 class ReleaseFlowCase(ChangeReleaseCase):
@@ -269,7 +342,7 @@ class ReleaseFlowCase(ChangeReleaseCase):
             run_ok(["backlog", PID, "--change", CID, "--release", rid])
 
     def stories(self, rid: str) -> list[str]:
-        return sorted(p.stem for p in (self.base() / "04_backlog" / CID / rid).glob("US-*.md"))
+        return _release_ids(self.base() / "04_backlog" / CID / rid)
 
     def finish(self, rid: str) -> Path:
         evidence = Path("evidencia.md")
@@ -379,7 +452,9 @@ class SeriesWalkTest(ReleaseFlowCase):
         run_ok(["specs", PID, "--change", CID, "--release", "r1"])
         self.assertEqual(self.step()["command"], f"/backlog {PID} --change {CID} --release r1")  # its stories are the old ones
         run_ok(["backlog", PID, "--change", CID, "--release", "r1"])
-        self.assertEqual(self.step()["command"], f"/split {PID} --change {CID} --close r1")  # r1 is whole again
+        step = self.step()  # r1 is whole again
+        self.assertEqual(step["key"], "done")
+        self.assertIn("--close r1", step["text"])
 
     def test_move_refuses_a_closed_release(self) -> None:
         self.derive("r1")
@@ -409,20 +484,99 @@ class SeriesWalkTest(ReleaseFlowCase):
             run_ok(["backlog", PID, "--change", CID, "--release", rid])
             step = self.step()
             self.assertEqual(step["key"], "done")
-            self.assertEqual(step["command"], f"/split {PID} --change {CID} --close {rid}")
+            self.assertEqual(step["command"], "")  # M5: the close is not a command while stories are not Done
             self.assertIn(f"--close {rid}", step["text"])
-            seen.append(step["command"])
             self.finish(rid)
+            step = self.step()
+            self.assertEqual(step["command"], f"/split {PID} --change {CID} --close {rid}")
+            seen.append(step["command"])
             code, out = self.close(rid, evidence)
             self.assertEqual(code, 0, out)
-        # the integrity of each release brief has its own tests: here the synthetic briefs are taken as clean
-        with patch("sentinel.release_series.series_validation_findings", return_value=[]):
-            step = self.step()
-            self.assertEqual(self.step(), step)  # asked again, the same answer, not a new instruction
-        self.assertEqual(step["key"], "done")
+        step = self.step()
+        self.assertEqual(self.step(), step)  # asked again, the same answer, not a new instruction
+        self.assertEqual(step["key"], "done", step)
         self.assertEqual(step["command"], "")
         self.assertNotIn("--close", step["text"])
         self.assertEqual(len(seen), len(set(seen)))
+
+    def test_close_makes_a_later_derivation_stale(self) -> None:
+        """I1: r2 derived before r1 closes lacks r1's preserved rows: /next and /validate ask to derive r2 again."""
+        self.derive("r1", "r2")
+        evidence = self.finish("r1")
+        code, out = self.close("r1", evidence)
+        self.assertEqual(code, 0, out)
+        self.assertEqual(json.loads(out[out.index("{"):])["stale_derivations"], ["r2"])
+        step = self.step()
+        self.assertEqual((step["key"], step["command"]), ("specs", f"/specs {PID} --change {CID} --release r2"))
+        self.assertIn("r1", step["text"])
+        forget_read_snapshots()
+        code, out = cli(["validate", PID, "--change", CID])
+        found = json.loads(out[out.index("{"):])
+        series = [c for c in found["checks"] if c["id"] == "release_series"][0]
+        self.assertEqual(series["status"], "FAIL", found)
+        self.assertIn(f"/specs {PID} --change {CID} --release r2", series["detail"])
+        run_ok(["specs", PID, "--change", CID, "--release", "r2"])
+        self.assertIn("entregado en r1", (self.base() / "03_specs" / CID / "r2" / "specs.md").read_text(encoding="utf-8"))
+        step = self.step()
+        self.assertEqual((step["key"], step["command"]), ("backlog", f"/backlog {PID} --change {CID} --release r2"))
+        run_ok(["backlog", PID, "--change", CID, "--release", "r2"])
+        self.assertEqual(self.step()["key"], "done")
+
+    def test_close_refuses_a_release_whose_derivation_is_old(self) -> None:
+        """I4: a unit moved into r1 after its backlog has no story: r1 does not close until it is derived again."""
+        self.derive("r1")
+        evidence = self.finish("r1")
+        code, out = cli(["split", PID, "--move", "--unit", "Bandeja de aprobaciones", "--from", "r2", "--to", "r1",
+                         "--reason", "la bandeja va con el alta", "--ba", "Ana", "--tech", "Equipo", "--change", CID])
+        self.assertEqual(code, 0, out)
+        forget_read_snapshots()
+        before = self.partition()
+        code, out = self.close("r1", evidence)
+        self.assertNotEqual(code, 0, out)
+        self.assertIn(f"/specs {PID} --change {CID} --release r1", out)
+        self.assertEqual(self.partition(), before)
+
+    def test_backlog_of_a_closed_release_refused(self) -> None:
+        """M1: /backlog --release of a closed release refuses like /specs does."""
+        self.derive("r1")
+        evidence = self.finish("r1")
+        self.assertEqual(self.close("r1", evidence)[0], 0)
+        plan = (self.base() / "04_backlog" / CID / "r1" / "SLICE-PLAN.md").read_bytes()
+        code, out = cli(["backlog", PID, "--change", CID, "--release", "r1"])
+        self.assertNotEqual(code, 0, out)
+        self.assertIn("r1 está cerrada", out)
+        self.assertEqual((self.base() / "04_backlog" / CID / "r1" / "SLICE-PLAN.md").read_bytes(), plan)
+
+    def test_release_closed_out_of_order_is_preserved(self) -> None:
+        """M3: a release closed before an earlier one reads as preserved in that earlier release."""
+        from sentinel.change_release import release_units
+
+        self.derive("r2")
+        evidence = self.finish("r2")
+        self.assertEqual(self.close("r2", evidence)[0], 0)
+        run_ok(["specs", PID, "--change", CID, "--release", "r1"])
+        specs = (self.base() / "03_specs" / CID / "r1" / "specs.md").read_text(encoding="utf-8")
+        self.assertIn("entregado en r2", specs)
+        for uid in release_units(PID, CID)["r2"]:
+            self.assertIn(uid, specs.split("## Comportamiento preservado")[1])
+
+    def test_specs_refuses_a_bad_release_before_compiling(self) -> None:
+        """M2: a release the series does not have refuses before the change-level units are rewritten."""
+        from sentinel.change_release import ChangeReleaseError
+        from sentinel.compilers.change_specs import compile_change_specs
+
+        with patch("sentinel.compilers.change_specs._compile_change_specs", side_effect=AssertionError("compiled")):
+            with self.assertRaises(ChangeReleaseError):
+                compile_change_specs(PID, CID, release="r9")
+
+    def test_containment_match_is_reported(self) -> None:
+        """M4: a unit owned only because its surface is contained in a quote says so in the result."""
+        run_ok(["specs", PID, "--change", CID])
+        self.edit_surface("REQ-EARS-003", "Bandeja")
+        result = json.loads(run_ok(["specs", PID, "--change", CID, "--release", "r2"]))
+        self.assertTrue(result["containment"], result)
+        self.assertEqual(result["containment"][0]["release"], "r2")
+        self.assertEqual(result["containment"][0]["surface"], "Bandeja")
 
     def test_next_names_the_release_when_stories_are_not_done(self) -> None:
         self.derive("r1")
@@ -455,6 +609,20 @@ class SeriesRefreshAndValidateTest(ReleaseFlowCase):
         code, found = self.validate()
         self.assertFalse([f for f in found["findings"] if "desactualizada" in f], found["findings"])
 
+    def test_confirmed_series_validates_clean(self) -> None:
+        """C1: an open gap with no owner reads `sin dato registrado` in the release briefs, never a bare `-`."""
+        from sentinel.release_series import series_validation_findings
+
+        run_ok(["specs", PID, "--change", CID])
+        self.assertEqual(series_validation_findings(self.base(), CID), [])
+        for rid in ("r1", "r2"):
+            brief = (self.series().parent / rid / "project-brief.md").read_text(encoding="utf-8")
+            self.assertNotRegex(brief, r"(?m)\|\s*-\s*\|\s*$")
+            self.assertIn("sin dato registrado", brief)
+        code, found = self.validate()
+        series = [c for c in found["checks"] if c["id"] == "release_series"]
+        self.assertEqual(series[0]["status"], "PASS", found)
+
     def test_validate_reports_a_stale_series(self) -> None:
         run_ok(["specs", PID, "--change", CID])
         code, found = self.validate()
@@ -483,6 +651,24 @@ class SeriesRefreshAndValidateTest(ReleaseFlowCase):
         code, found = self.validate()
         series = [c for c in found["checks"] if c["id"] == "release_series"]
         self.assertIn("ninguna release", series[0]["detail"])
+
+
+class ProjectCloseTextTest(unittest.TestCase):
+    def test_project_close_message_unchanged(self) -> None:
+        """I5: the project's "no stories yet" refusal is the text of 36f3a19, byte for byte."""
+        from sentinel.release_guide import close_release
+        from sentinel.release_split import ReleaseSplitError
+
+        with tempfile.TemporaryDirectory() as tmp:
+            proof = Path(tmp) / "evidence.md"
+            proof.write_text("x\n", encoding="utf-8")
+            with patch("sentinel.release_guide._series", return_value=({"releases": ["r1"]}, {})), \
+                    patch("sentinel.release_guide.release_stories", return_value={}), \
+                    patch("sentinel.core.paths.workspace_path", return_value=Path(tmp)):
+                with self.assertRaises(ReleaseSplitError) as caught:
+                    close_release("P", "r1", str(proof), "Ana", "Equipo")
+        self.assertEqual(str(caught.exception),
+                         "r1 has no stories yet: derive it (/specs, /backlog --release r1) and build it before closing")
 
 
 class ProjectReleaseBytesTest(unittest.TestCase):

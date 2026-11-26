@@ -87,6 +87,11 @@ def _gate(project_id: str, change_id: str) -> tuple[dict, list[dict]]:
 
 def compile_change_specs(project_id: str, change_id: str, release: str | None = None) -> dict[str, Any]:
     """The change's units; with `release` also that release's share under `03_specs/CHG-nnn/rN/` (IMP-429)."""
+    if release is not None:  # a release the series does not have, or a closed one, refuses before anything is written
+        from ..change_release import check_release
+
+        _gate(project_id, change_id)  # the change's own gate answers first (read-only)
+        check_release(project_id, change_id, release)
     whole = _compile_change_specs(project_id, change_id)
     if release is None:
         return whole

@@ -49,7 +49,17 @@ class Inc7dWalk(SyncCase):
         return workspace_path(PID)
 
     def stories(self, rid: str) -> list[str]:
-        return sorted(p.stem for p in (self.base() / "04_backlog" / CID / rid).glob("US-*.md"))
+        index = self.base() / "04_backlog" / CID / rid / "stories.md"  # an index of links, never copies
+        return sorted(set(re.findall(r"\[(US-\d+)\]", index.read_text(encoding="utf-8"))))
+
+    def build_and_close(self, rid: str) -> None:
+        evidence = Path("evidencia.md")
+        evidence.write_text(f"Evidencia sintetica de {rid}.\n", encoding="utf-8")
+        for sid in self.stories(rid):
+            for status in ("Ready", "In Progress", "In Review"):
+                run_ok(["story-status", PID, "--story", sid, "--set", status])
+            run_ok(["story-status", PID, "--story", sid, "--set", "Done", "--evidence", str(evidence)])
+        run_ok(["split", PID, "--close", rid, "--evidence", str(evidence), "--ba", "Ana", "--tech", "Equipo", "--change", CID])
 
     def test_walk(self) -> None:
         run_ok(["split", PID, "--propose", "--source", str(INC7 / "propuesta_serie_cambio.json"), "--change", CID])
@@ -59,13 +69,7 @@ class Inc7dWalk(SyncCase):
         run_ok(["backlog", PID, "--change", CID, "--release", "r1"])
         mine = self.stories("r1")
         self.assertTrue(mine)
-        evidence = Path("evidencia.md")
-        evidence.write_text("Evidencia sintetica de r1.\n", encoding="utf-8")
-        for sid in mine:
-            for status in ("Ready", "In Progress", "In Review"):
-                run_ok(["story-status", PID, "--story", sid, "--set", status])
-            run_ok(["story-status", PID, "--story", sid, "--set", "Done", "--evidence", str(evidence)])
-        run_ok(["split", PID, "--close", "r1", "--evidence", str(evidence), "--ba", "Ana", "--tech", "Equipo", "--change", CID])
+        self.build_and_close("r1")
         run_ok(["specs", PID, "--change", CID, "--release", "r2"])
         folder = self.base() / "03_specs" / CID
         text = (folder / "r2" / "specs.md").read_text(encoding="utf-8")
@@ -80,6 +84,18 @@ class Inc7dWalk(SyncCase):
         self.assertIn("cerrado", rows["r1"])
         self.assertIn("abierto", rows["r2"])
         self.assertTrue((self.base() / "08_context_packs" / "views" / f"{CID}-release-guide.html").is_file())
+        # r2 to its end, nothing patched: the series walk ends in done and /validate --change is VALID
+        run_ok(["backlog", PID, "--change", CID, "--release", "r2"])
+        self.build_and_close("r2")
+        forget_read_snapshots()
+        from sentinel.change_release import series_step
+        from sentinel.changes import get_change
+        from sentinel.readiness_verdict import _change_build_key
+
+        self.assertEqual(series_step(PID, CID, get_change(PID, CID)), {"key": ""})
+        validation = json.loads(run_ok(["validate", PID, "--change", CID]))
+        self.assertEqual(validation["verdict"], "VALID", validation["findings"])
+        self.assertEqual(_change_build_key(PID, CID, get_change(PID, CID)), "done")
         forget_read_snapshots()
 
 
