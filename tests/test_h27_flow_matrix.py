@@ -101,6 +101,15 @@ class FlowMatrixTest(unittest.TestCase):
         self.assertIn("--change CHG-001", rows["F"][4])
         self.assertIn("not found in a partial baseline: confirm", rows["D"][3])
 
+    def test_escalation_offers_split_change(self):
+        cells = [cell for rows in _sections().values() for row in rows for cell in row if "escalat" in cell.lower()]
+        self.assertTrue(cells)
+        for cell in cells:
+            with self.subTest(cell=cell[:40]):
+                self.assertIn("/split", cell)
+                self.assertIn("--change", cell)
+                self.assertNotIn("inc 7", cell)
+
     def test_starting_points_a_to_j(self):
         letters = set()
         for cells in _sections()["Starting points"]:

@@ -13,7 +13,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from helpers import IDS_SCOPE_ANSWER  # noqa: E402
+from helpers import IDS_SCOPE_ANSWER, SyncCase, run_ok  # noqa: E402
 
 from sentinel.change_requirements import parse_delta, parse_surfaces
 from sentinel.compilers.change_spec_doc import BLOCKS, COPY, NO_DATA
@@ -48,6 +48,7 @@ EXAMPLE_OWNERS = {
     "gap-assumption": "sentinel-gap-response",
     "consolidation": "sentinel-project-brief",
     "change-functionality": "sentinel-specs",
+    "change-split-proposal": "sentinel-release-split",
 }
 
 FENCE = re.compile(
@@ -461,6 +462,20 @@ class SkillFormatTests(unittest.TestCase):
         stale = body.replace(match.group(0), f"{match.group(1)}nuevo | pantallita | X", 1)
         with self.assertRaises(AssertionError):
             check_gap_response(stale, lang)
+
+
+class ChangeSplitProposalExampleTest(SyncCase):
+    """H27 inc 7c: the proposal the release-split skill teaches for a change is accepted by `/split --propose --change`."""
+    PID = "CSKF"
+
+    def test_change_split_proposal_example_is_accepted(self):
+        found = examples_of("change-split-proposal")
+        self.assertEqual(len(found), 1)
+        _, body = found[0]
+        path = Path.cwd() / "propuesta-ejemplo.json"
+        path.write_text(body, encoding="utf-8")
+        out = json.loads(run_ok(["split", self.PID, "--propose", "--source", str(path), "--change", self.CID]))
+        self.assertEqual(out["status"], "proposal")
 
 
 if __name__ == "__main__":

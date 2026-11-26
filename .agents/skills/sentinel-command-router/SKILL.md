@@ -28,6 +28,7 @@ Translate short chat commands into Sentinel CLI executions.
 - `/split PROJECT_ID --confirm --ba NAME --tech TEAM`
 - `/split PROJECT_ID --close rN --evidence PATH --ba NAME --tech TEAM`
 - `/split PROJECT_ID --move --unit UNIT --from rA --to rB --reason TEXT [--finding ID] [--criterion Cn] --ba NAME --tech TEAM`
+- `/split PROJECT_ID --assess|--propose --source PROPOSAL.json|--confirm --ba NAME --tech TEAM --change CHG-NNN` (a change too big for one release: the series lands under `02_requirements/CHG-NNN/`; `--close`, `--move` and `--release` with `--change` are refused)
 - `/assume PROJECT_ID --source ASSUMPTIONS.json`
 - `/assume PROJECT_ID --change CHG-NNN (--source ASSUMPTIONS.json | --id ASM-ID --validate|--invalidate --reason TEXT)`
 - `/resolve-gaps PROJECT_ID --source PATH [--change CHG-NNN]`
@@ -48,7 +49,7 @@ Translate short chat commands into Sentinel CLI executions.
 - `/sources PROJECT_ID --load PATH --role pedido|linea_de_base|plan_previo|diseno_nuevo [--change CHG-NNN]` (`pedido` requires `--change`)
 - `/sources PROJECT_ID --id F-NN --role ROLE` (correct the role of a registered source)
 - `/sources PROJECT_ID --change CHG-NNN --no-baseline --reason TEXT` (waive the baseline of a change)
-- `/export PROJECT_ID --artifact gaps|brief|context-request|prd|borde|decisiones --format md [--change CHG-NNN]` (with `--change` it accepts only `brief`, `gaps`, `borde` and `decisiones`; the last two need it)
+- `/export PROJECT_ID --artifact gaps|brief|context-request|prd|borde|decisiones --format md [--change CHG-NNN]` (with `--change` it accepts `brief`, `gaps`, `borde`, `decisiones`, `diagrams`, the prototype views and `release-guide` (the series guide of a change after `/split --change --confirm`); `borde` and `decisiones` need it)
 - `/export PROJECT_ID --artifact prd --format mdx`
 - `/export PROJECT_ID --artifact gaps --format interview`
 - `/export PROJECT_ID --artifact gaps --format faq [--change CHG-NNN]`
@@ -128,6 +129,7 @@ When a command leaves the user a decision or a next step, end with one short que
 - `/prototype --manual`: use `sentinel-prototype-manual` to author the manual before executing. Report the screens with and without manual; a screen without manual is a hole.
 - `/split --close rN`: run it only with the evidence of the release's closing check and the BA's and the technical team's names, given by them. It refuses until every story of the release is Done; report the releases it unblocks.
 - `/split --move`: run it only with the reason and the BA's and the technical team's names, given by them. Report the dated change, `releases_changed` and `stale_derivations`; a round trip is refused and opens `GAP-SPLIT-CRITERION`.
+- `/split --change CHG-NNN` (`--assess`, `--propose`, `--confirm`): same rules as the project modes, on the change's brief; the change's escalation notice offers it. Ask the BA before choosing between splitting and keeping one change.
 - `/split --confirm`: run it only with the BA's and the technical team's names, given by them. It refuses unless the partition validation is green; report every finding by code. A confirmation opens `GAP-SPLIT-CLIENT` for the client's confirmation, freezes the contracts and compiles the series (`02_requirements/series/index.md` and `02_requirements/r<N>/project-brief.md`); report the index's sync findings.
 - `/assume`: use `sentinel-assume` to author the assumptions JSON before executing.
 - `/assume --change`: use `sentinel-assume` (Change assumptions); register one only when the BA said to proceed with the risk, quoting their words, and never validate or invalidate for them (the reason is theirs).

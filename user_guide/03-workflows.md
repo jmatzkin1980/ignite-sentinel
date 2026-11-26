@@ -1188,6 +1188,7 @@ If the same refusal returns: `/status ACME_PORTAL --full` and read the gap count
 - A refused proposal, partition or move lists every finding; fix them and run again.
 - A missing step refuses with a next step: confirming without a stored proposal or after the brief changed, moving or working on a release without a confirmed series, closing while a story is not Done.
 - Moving a unit back where it came from is refused and opens a question until you name the written cut criterion.
+- A change that is too big (the escalation notice says so) is split with the same three steps and `--change CHG-001`: say "this change is too big, split it into releases". The files go under the change, `/view --artifact release-guide --change CHG-001` shows the guide, and `--close` and `--move` are refused for a change.
 
 <details><summary>In a terminal</summary>
 

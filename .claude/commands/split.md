@@ -1,6 +1,6 @@
 ---
 description: Release series of a brief v2: assess whether to split, validate and store an agent-written series proposal, validate the partition, confirm it and compile the series, and move units later.
-argument-hint: PROJECT_ID --assess | --propose --source PROPOSAL.json | --confirm --ba NAME --tech TEAM | --move --unit UNIT --from rA --to rB --reason TEXT --ba NAME --tech TEAM | --close rN --evidence PATH --ba NAME --tech TEAM
+argument-hint: PROJECT_ID --assess | --propose --source PROPOSAL.json | --confirm --ba NAME --tech TEAM | --move --unit UNIT --from rA --to rB --reason TEXT --ba NAME --tech TEAM | --close rN --evidence PATH --ba NAME --tech TEAM [--change CHG-NNN]
 ---
 
 # Ignite Split
@@ -15,6 +15,7 @@ Parse `PROJECT_ID` and the mode from:
 /split PROJECT_ID --confirm --ba NAME --tech TEAM
 /split PROJECT_ID --move --unit UNIT --from rA --to rB --reason TEXT [--finding ID] [--criterion Cn] --ba NAME --tech TEAM
 /split PROJECT_ID --close rN --evidence PATH --ba NAME --tech TEAM
+/split PROJECT_ID --assess|--propose|--confirm ... --change CHG-NNN
 ```
 
 `--assess` (IMP-263) reads the compiled brief v2 and the release split model (`sentinel/templates/release_split_model.json`). Each of the 7 split signals and 5 no-split signals is `lit` (with the brief lines that anchor it), `off`, `undetermined` (the places it reads are still pending) or `on_proposal` (it judges a proposed release and is checked on the proposal). There is no numeric threshold. The recommendation is `split`, `no_split` or `cannot_decide`, each with its reasons, plus the step 0 questions.
@@ -40,3 +41,5 @@ python -m sentinel /split PROJECT_ID --close rN --evidence PATH --ba NAME --tech
 ```
 
 The runtime writes `01_discovery/split_assessment.md` and `.json` (with the brief sha256) and never touches the brief. A later command that changes the brief re-runs an existing assessment. A v1 brief is rejected: a series does not mix v1 and v2. Report the recommendation with its reasons, the lit signals with their anchors and the undetermined ones.
+
+`--change CHG-NNN` (H27 inc 7c) splits one change instead of the project: `--assess`, `--propose --source PROPOSAL.json` and `--confirm --ba NAME --tech TEAM` work on the brief of the change (its sealed final export while current, else the draft it compiles now), need no project brief, and write under the change: `01_discovery/CHG-NNN/split_assessment.md` and `.json`, `02_requirements/CHG-NNN/series/` (proposal, partition, index and the series guide `release-guide.md`, in the change's language) and `02_requirements/CHG-NNN/r<N>/project-brief.md`. The anchors of the proposal quote the change's text; a quote that is not in it is refused and named. The client's confirmation opens `GAP-SPLIT-CLIENT` in the gaps of the change. Nothing of the project or of another change moves. `--close`, `--move` and `--release rN` with `--change` are refused: the sub-releases of a change come later. To adjust the cut, propose and confirm again. 

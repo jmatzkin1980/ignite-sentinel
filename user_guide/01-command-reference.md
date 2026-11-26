@@ -1166,7 +1166,7 @@ Three checks can stop the brief phase from closing when no blocking gap is open.
 
 **Type.** Mutating.
 
-**Use it when.** The brief is too large for one delivery. Start with `--assess`.
+**Use it when.** The brief is too large for one delivery, or a change is (the escalation notice of `/next --change` offers it). Start with `--assess`; add `--change CHG-NNN` to split one change instead of the project.
 
 **Syntax.**
 
@@ -1176,6 +1176,9 @@ Three checks can stop the brief phase from closing when no blocking gap is open.
 /split ACME_PORTAL --confirm --ba "Ana" --tech "Core team"
 /split ACME_PORTAL --move --unit C-04 --from sketch:tracking --to r1 --reason "client asked for it in r1" --finding F-03 --ba "Ana" --tech "Core team"
 /split ACME_PORTAL --close r1 --evidence closing-check-r1.md --ba "Ana" --tech "Core team"
+/split ACME_PORTAL --assess --change CHG-001
+/split ACME_PORTAL --propose --source proposal.json --change CHG-001
+/split ACME_PORTAL --confirm --ba "Ana" --tech "Core team" --change CHG-001
 ```
 
 **Options.**
@@ -1192,6 +1195,7 @@ Three checks can stop the brief phase from closing when no blocking gap is open.
 | `--source` | a JSON file | none | `--propose`: the proposal. |
 | `--ba` | text | none | The BA who confirms (`--confirm`, `--move`, `--close`). |
 | `--tech` | text | none | The technical team that confirms (`--confirm`, `--move`, `--close`). |
+| `--change` | `CHG-NNN` | none | `--assess`, `--propose`, `--confirm`: split the change instead of the project (its brief, no project brief needed). Files go under the change: `01_discovery/CHG-nnn/split_assessment.*`, `02_requirements/CHG-nnn/series/` and `02_requirements/CHG-nnn/rN/`. `--close` and `--move` with it are refused: the sub-releases of a change come later. MCP: `change`. |
 | `--unit` | `C-NN`, `P-N` or a quote of the brief | none | `--move`: the unit. |
 | `--from` | `rN` or `sketch:<name>` | none | `--move`: where it leaves. |
 | `--to` | `rN` or `sketch:<name>` | none | `--move`: where it goes. |
@@ -1210,11 +1214,12 @@ The modes are mutually exclusive; giving none or two is exit 2.
 - `--confirm`: `02_requirements/series/partition.json`, `index.md`, one `02_requirements/rN/project-brief.md` per release; opens `GAP-SPLIT-CLIENT` for the client's confirmation.
 - `--move`: the partition, the recompiled series, `02_requirements/series/scope_changes.md` and its JSON.
 - `--close`: the close in `partition.json` and `02_requirements/series/release-guide.md`.
+- With `--change CHG-NNN`, the files of `--assess`, `--propose` and `--confirm` under the change (`01_discovery/CHG-nnn/`, `02_requirements/CHG-nnn/series/` with its `release-guide.md` in the change's language, and `02_requirements/CHG-nnn/rN/project-brief.md`); the client's confirmation opens `GAP-SPLIT-CLIENT` in the gaps of the change.
 
 **Refuses when.** Nothing is stored in either case.
 
 - A missing prerequisite or the project's state → exit 4: `--assess` or `--propose` without a compiled brief, `--confirm` on a v1 brief, `--confirm` without a stored proposal or with a brief that changed since the proposal, `--move` without a confirmed series, `--close` on a release already closed, with no stories or with stories not Done, and `--release` on any command without a confirmed series.
-- A refused payload or bad options → exit 3: `--assess` or `--propose` on a v1 brief (recompile it with `/brief PROJECT_ID --brief-version 2`), a refused proposal (every finding with its code), a partition that is not green, `--propose` without `--source`, missing `--ba`/`--tech`, `--move` without unit/from/to or with a round trip and no written criterion (opens `GAP-SPLIT-CRITERION`), `--close` without `--evidence`, an invalid release id, a `--source` file that does not exist.
+- A refused payload or bad options → exit 3: `--assess` or `--propose` on a v1 brief (recompile it with `/brief PROJECT_ID --brief-version 2`), a refused proposal (every finding with its code), a partition that is not green, `--propose` without `--source`, missing `--ba`/`--tech`, `--move` without unit/from/to or with a round trip and no written criterion (opens `GAP-SPLIT-CRITERION`), `--close` without `--evidence`, `--close` or `--move` with `--change` ("come with the sub-releases of a change; today: --assess, --propose or --confirm"), a proposal of a change that quotes something its brief does not say (the message names the quote), an invalid release id, a `--source` file that does not exist.
 
 **You get.** `--assess`: the recommendation, its reasons, the lit and undetermined signals. `--propose`: the `partition_preview`. `--confirm`: the waves, coverage and sync findings. `--move`: `releases_changed` and `stale_derivations`. `--close`: the releases it unblocks.
 
@@ -2109,7 +2114,7 @@ On a brief v2 with a backlog, `cross_artifact_consistency` also warns about each
 | `extract_inventory` / `extract_proposals` / `extract_confirm` | IMP-420: the request has ids; the inventory, the proposals or the confirmation of the extraction is pending (a flagged proposal is confirmed one by one) | `/extract` / `/extract --proposals PATH` / `/extract --confirm all` |
 | `extract_orphans` / `extract_verify` | IMP-420: a confirmed row cites an element no longer in the request / a sample of the confirmations waits to be re-read | `/extract --reject-item ID --reason TEXT` / `/extract --verify` |
 
-With `--change`, the keys are the steps of that sequence instead (the `brief` step also comes back when the compiled change brief no longer matches the change's blocking gaps: recompile it); the result also has `change_id` and `warnings`. Without it, a workspace with changes adds a `changes` list, one entry per change with its own next step, and a workspace that only has changes shows the first pending one. The escalation warnings (`several_processes`, `new_actors`, `third_party_contract`) are computed from the border and the rows; the BA decides whether to split the change or move to the project path, and nothing blocks.
+With `--change`, the keys are the steps of that sequence instead (the `brief` step also comes back when the compiled change brief no longer matches the change's blocking gaps: recompile it); the result also has `change_id` and `warnings`. Without it, a workspace with changes adds a `changes` list, one entry per change with its own next step, and a workspace that only has changes shows the first pending one. The escalation warnings (`several_processes`, `new_actors`, `third_party_contract`) are computed from the border and the rows; the BA decides whether to split the change into releases (`/split P --change CHG-001 --propose`) or keep it as one change, and nothing blocks.
 
 Every next step also carries `skill`: the skill that holds the format and the rules of that command (for `/cross` and `/extract` it names the section, `sentinel-discovery §...`). `/status` shows it in `next_action`; the empty string means the step is not a command to run. When a command is refused, the `next step:` line ends with `(skill: ...)` whenever the text is a command, for example `next step: /resolve-gaps ACME_PORTAL --source FILE --change CHG-001 (skill: sentinel-gap-response)`. Load that skill before you retry.
 
@@ -2145,7 +2150,7 @@ Every next step also carries `skill`: the skill that holds the format and the ru
 | `--open` | flag | off | Open the view in the browser. MCP: `open_browser`. |
 | `--theme` | a built-in theme name or a path to a local theme JSON | the workspace config theme, else `neutral` | Visual theme. |
 | `--release` | `r<N>` or `r<N>.<M>` | none | The artifact of one release. |
-| `--change` | `CHG-NNN` | none | The brief, the gaps, the border (`borde`), the decisions (`decisiones`), the diagrams (`diagrams`: the to-be of the change with its as-is, written to `CHG-nnn-diagrams.html`; a component's status comes only from the `Name (new\|extends\|unchanged\|retired)` notation of the deliverable's section 5.1, else `sin dato registrado`) or the prototype (`prototype`, `prototype-manual`, `prototype-trace`) of one change, written to `08_context_packs/views/CHG-nnn-<artifact>.html`. Another artifact is refused. A workspace that only has changes refuses a view without it. |
+| `--change` | `CHG-NNN` | none | The brief, the gaps, the border (`borde`), the decisions (`decisiones`), the diagrams (`diagrams`: the to-be of the change with its as-is, written to `CHG-nnn-diagrams.html`; a component's status comes only from the `Name (new\|extends\|unchanged\|retired)` notation of the deliverable's section 5.1, else `sin dato registrado`) or the prototype (`prototype`, `prototype-manual`, `prototype-trace`) or the series guide (`release-guide`, after `/split --change --confirm`: `CHG-nnn-release-guide.html`) of one change, written to `08_context_packs/views/CHG-nnn-<artifact>.html`. Another artifact is refused. A workspace that only has changes refuses a view without it. |
 
 **Reads.** The artifact's Markdown, `state.json`, gaps, assumptions, readiness and the graph.
 

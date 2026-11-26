@@ -59,3 +59,4 @@ test_h27_change_diagrams  # 13 s
 test_h27_inc7a_walk  # 12 s
 test_h27_series_scope  # 13 s
 test_h27_change_split  # 25 s
+test_h27_inc7c_walk  # 11 s

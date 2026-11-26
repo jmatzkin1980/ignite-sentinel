@@ -109,9 +109,139 @@ Three types carry their own block, and the release brief copies it into §0.1:
 
 ## Release split of a change
 
-Use this when a change is too big for one release (the escalation notice offers it). `/split PROJECT_ID --change CHG-nnn` works on the change, never on the project.
+Use this when a change is too big for one release (the escalation notice offers it: "split the change into releases with `/split P --change CHG --propose`, or keep it as one change"). `/split PROJECT_ID --change CHG-nnn` works on the change, never on the project. In chat, ask "this change is too big, split it into releases"; the agent runs these modes, and the commands are the reference.
 
 1. **Assess:** `/split PROJECT_ID --assess --change CHG-nnn` reads the change's brief (its sealed final export while current, else the draft it compiles now) and writes `01_discovery/CHG-nnn/split_assessment.md` and `.json`. No project brief is needed.
-2. **Propose:** write the proposal exactly as above, but every anchor quotes the **change's** brief verbatim, never the project's brief or another change's. Submit with `/split PROJECT_ID --propose --source proposal.json --change CHG-nnn`; it is stored in `02_requirements/CHG-nnn/series/proposal.json`. A quote that is not in the change's text is refused and named.
-3. **Confirm:** with the BA and the technical team, `/split PROJECT_ID --confirm --ba NAME --tech TEAM --change CHG-nnn` compiles `02_requirements/CHG-nnn/series/` (partition, index, series guide in the change's language) and one `02_requirements/CHG-nnn/r<N>/project-brief.md` per release. The client's confirmation opens `GAP-SPLIT-CLIENT` in the change's gaps. It refuses when the change was consolidated again since the proposal: propose again.
-4. **Not yet for a change:** `--close`, `--move` and `--release rN`; the sub-releases of a change are not derived yet. To adjust the cut, propose and confirm again.
+2. **Propose:** write the proposal exactly as above, but every anchor quotes the **change's** brief verbatim, never the project's brief or another change's. Submit with `/split PROJECT_ID --propose --source proposal.json --change CHG-nnn`; it is stored in `02_requirements/CHG-nnn/series/proposal.json`. A quote that is not in the change's text is refused and the message names the quote.
+3. **Confirm:** with the BA and the technical team, `/split PROJECT_ID --confirm --ba NAME --tech TEAM --change CHG-nnn` compiles `02_requirements/CHG-nnn/series/` (partition, index and the series guide `release-guide.md`, in the change's language) and one `02_requirements/CHG-nnn/r<N>/project-brief.md` per release. The client's confirmation opens `GAP-SPLIT-CLIENT` in the change's gaps, never in the project's. It refuses when the change was consolidated again since the proposal ("the brief changed since the proposal was stored; run /split --propose again"): propose again.
+4. **See the guide:** `/view PROJECT_ID --artifact release-guide --change CHG-nnn` writes `08_context_packs/views/CHG-nnn-release-guide.html` (also `/export --artifact release-guide --change CHG-nnn`). It says that the sub-releases of a change are "open; sub-releases of a change are not derived yet".
+5. **Refused until 7d:** `--close`, `--move` and `--release rN` with `--change`: the sub-releases of a change are not derived yet ("/split --close and --move with --change come with the sub-releases of a change; today: --assess, --propose or --confirm"). To adjust the cut, propose and confirm again.
+
+The proposal of a change is the JSON of the format above, for example (the quotes are lines of the change's brief):
+
+```sentinel-example kind=change-split-proposal lang=es
+{
+  "core": {
+    "text": "dar de alta un proveedor",
+    "anchor": {
+      "place": "1.3",
+      "quote": "El alta de proveedores con aprobación por monto"
+    }
+  },
+  "variations": [
+    {
+      "id": "V1",
+      "text": "aprobación de jefatura por monto",
+      "anchor": {
+        "place": "6.1",
+        "quote": "Aprobación por monto"
+      }
+    }
+  ],
+  "criteria": [
+    {
+      "id": "C1",
+      "why": "cada release lo acepta Compras por separado",
+      "anchor": {
+        "place": "1.3",
+        "quote": "El alta de proveedores con aprobación por monto"
+      }
+    },
+    {
+      "id": "C2",
+      "why": "la jefatura de compras es un actor nuevo",
+      "anchor": {
+        "place": "6.1",
+        "quote": "Bandeja de aprobaciones"
+      }
+    }
+  ],
+  "contracts": [
+    {
+      "id": "K1",
+      "name": "Registro de proveedor",
+      "kind": "schema",
+      "created_by": "r1",
+      "definition": "proveedor, CUIT, monto, estado de alta"
+    }
+  ],
+  "releases": [
+    {
+      "id": "r1",
+      "name": "Alta de proveedor",
+      "type": "functional",
+      "wave": 0,
+      "pattern": "P15",
+      "criteria": [
+        "C1"
+      ],
+      "goal": "Compras da de alta un proveedor y ve el registro guardado",
+      "closing_check": "Compras da de alta un proveedor de punta a punta en la demo",
+      "contains": [
+        {
+          "place": "6.1",
+          "quote": "Alta de proveedores"
+        },
+        {
+          "place": "6.1",
+          "quote": "Tabla de proveedores"
+        },
+        {
+          "item": "C-03"
+        },
+        {
+          "item": "C-04"
+        }
+      ],
+      "enables": [
+        {
+          "release": "r2",
+          "why": "r2 aprueba los proveedores que r1 registra",
+          "strength": "hard"
+        }
+      ]
+    },
+    {
+      "id": "r2",
+      "name": "Aprobación de jefatura",
+      "type": "functional",
+      "wave": 1,
+      "pattern": "P2",
+      "criteria": [
+        "C1",
+        "C2"
+      ],
+      "goal": "la jefatura aprueba un alta por monto y Compras ve la decisión",
+      "closing_check": "la jefatura aprueba un alta de monto alto en la demo",
+      "contains": [
+        {
+          "place": "6.1",
+          "quote": "Bandeja de aprobaciones"
+        },
+        {
+          "place": "6.1",
+          "quote": "Aprobación por monto"
+        },
+        {
+          "item": "C-01"
+        },
+        {
+          "item": "C-02"
+        }
+      ],
+      "depends_on": [
+        {
+          "release": "r1",
+          "why": "aprueba los proveedores que r1 registra",
+          "strength": "hard",
+          "consumes": "K1"
+        }
+      ]
+    }
+  ]
+}
+```
+
+## Formato
+
+The proposal JSON of `## Proposal format`; the example of the change above is the shortest one the runtime accepts for a change.
