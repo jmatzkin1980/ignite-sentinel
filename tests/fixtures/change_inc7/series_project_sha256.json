@@ -1,13 +1,13 @@
 {
-  "01_discovery/split_assessment.json": "a80590578cceccc08558ce878cc15a256f5080bae972010a28c8473c271af751",
-  "01_discovery/split_assessment.md": "c9c73478ba3bd0c6f942b2cc1814dfc57fd91f40513cd0efc8916c82cec575ca",
-  "02_requirements/r1/project-brief.md": "44b04e93e07d01f6139aafe2d96c6a7b707765fb017479dc219c28820f2500ab",
-  "02_requirements/r2/project-brief.md": "e49d71a6af29910c8f0162fec9cf154ed6991b0e98120067841871fbd4bc5e40",
-  "02_requirements/r3/project-brief.md": "c6942856913ab93a2474ab663ce301be19f07cf0e58dd671e43467f279d7bb1e",
-  "02_requirements/series/index.md": "46ef7148d9fd218a0bc2d402f4a3a2d817e0de3f47a17e29426e59fe02eb57ec",
-  "02_requirements/series/partition.json": "036e6d61a0f2136259f3c46d6b4087142d741725d2a01c68c3fd3781e159ae36",
-  "02_requirements/series/proposal.json": "b5780050e1bdfe4670df3c1dc6873a27c555733ed09af4f37e618e6431fd96d3",
-  "02_requirements/series/release-guide.md": "8d7cfd75dc879aeef6cfdc9c14980138b52492b5c3185b9a0dbd211a0ae9f45d",
-  "02_requirements/series/series_map.json": "62720e8d9a595cd14fb2738af654b932cd9aa2b2821c0e803ca1a01401d5877c",
-  "02_requirements/series/series_report.json": "c607b1142c03743be36c19cd7e8c1319556239eeec95cb064ba45f2e740770f5"
+  "01_discovery/split_assessment.json": "d73215544d4960ce56c5b4742e249d16697766a93c30f129cd115b24024ee929",
+  "01_discovery/split_assessment.md": "04bb2bd04771cb935798d7cd64182ac447be78c93f695b587cfd0d2348901697",
+  "02_requirements/r1/project-brief.md": "3605aa2cd480750443347d35232ccce822039edd2918ff7be4b114e944ba935e",
+  "02_requirements/r2/project-brief.md": "a4ea8f6d27b435b27a4545924b1c89b94784ac23e33d5932b85ccf587714e3f8",
+  "02_requirements/r3/project-brief.md": "f9de91abad54d3a167d81827d6c94d97e877124a59ff89438774ece3e06f40b3",
+  "02_requirements/series/index.md": "3757d46da8a7e295b80aab19948dddde6e8dbf09135162f643a47ede2cb513ee",
+  "02_requirements/series/partition.json": "6f190778bb70eaf536390ed98e4c6828ed69004953f11f3794f61eb906c673de",
+  "02_requirements/series/proposal.json": "2f8fcf59e831e54f033e7c986f22a5740bbb06b0c48e4b210f7a7d67cb29ca5a",
+  "02_requirements/series/release-guide.md": "70d9ec641117ea3ad70a44f8d466b5e6e4a9ad2712126957fe8b8b1b604c0b9f",
+  "02_requirements/series/series_map.json": "6d5c192b31b721ef0ad25fe5a8b167a4c9f1ca7d0c2d313b9665d2dca3c85af5",
+  "02_requirements/series/series_report.json": "87f45175403cad4bf21596e6fa97fc994b508f75ce0e1533de654a07be1f30b5"
 }

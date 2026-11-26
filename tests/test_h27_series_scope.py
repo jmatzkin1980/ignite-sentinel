@@ -7,6 +7,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import sys
 import tempfile
 import unittest
@@ -28,6 +29,17 @@ from sentinel.split import brief_hash  # noqa: E402
 from sentinel.workspace import update_state, workspace_path  # noqa: E402
 
 BASELINE = json.loads((ROOT / "fixtures" / "change_inc7" / "series_project_sha256.json").read_text(encoding="utf-8"))
+
+
+def normalized_sha256(data: bytes, tokens: list[tuple[str, str]]) -> str:
+    """The baseline (taken with the code before IMP-427) masks what depends on the machine:
+    line endings, the checkout and temp paths, and the hashes of files that contain those paths."""
+    text = data.decode("utf-8", "replace").replace(chr(13) + chr(10), chr(10))
+    for value, token in tokens:
+        text = text.replace(value, token)
+    text = re.sub(r"[0-9a-f]{64}", "<SHA256>", text)
+    text = re.sub(r"`[0-9a-f]{12}`", "`<SHA12>`", text)
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
 def run_project_flow(work: Path) -> None:
@@ -99,9 +111,14 @@ class ProjectScopeTest(unittest.TestCase):
         found = {}
         files = list((base / "01_discovery").glob("split_assessment.*")) + list((base / "02_requirements" / "series").rglob("*")) \
             + list(base.glob("02_requirements/r*/project-brief.md"))
+        tokens = []
+        for root, token in ((ROOT.parent, "<REPO>"), (self.work, "<WORK>"), (base, "<WORK>")):
+            for value in {str(root), root.as_posix(), str(root.resolve()), root.resolve().as_posix()}:
+                tokens.append((value, token))
+        tokens.sort(key=lambda item: -len(item[0]))
         for path in sorted(files):
             if path.is_file():
-                found[path.relative_to(base).as_posix()] = hashlib.sha256(path.read_bytes()).hexdigest()
+                found[path.relative_to(base).as_posix()] = normalized_sha256(path.read_bytes(), tokens)
         self.assertEqual(found, BASELINE)
 
 
