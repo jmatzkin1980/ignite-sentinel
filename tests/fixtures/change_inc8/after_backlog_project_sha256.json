@@ -1,0 +1,16 @@
+{
+  "03_specs/compositions/accepted_blocks.json": "90afff0fc23342c04f2b10cb30a3555d4f64f6eb48e6e18da2539b22ad67c73a",
+  "03_specs/compositions/compose.json": "65db4eafdc33964021c3bc987afe39a5280756549ea5082898db399d319eff26",
+  "03_specs/compositions/composition_report.md": "e937e334c65d5c14b2fc30f1fcbbf3896fd9ccec7aa31fcdd29303f6e789a829",
+  "03_specs/compositions/regeneration_report.md": "bed922219bb09d5c5c0730421831d417c43e5e6c2bbb0ff1ed5db2a007e52bcc",
+  "03_specs/prd.md": "bf92a6a8d0f500391c3ed2b4e3b46bbac593189704ef46c11b4f9ac5a00cb296",
+  "04_backlog/EPIC-001.md": "43b9a013ce5d4ed2aa9320a2ef46b565544622ebc1889768478f1ce233627d63",
+  "04_backlog/US-001.md": "bcffbc6401d075fdf9e797b2b42b867c539be11327f88e075aa140aeff88e5a4",
+  "04_backlog/US-002.md": "f959e5f97f9641775483f4cef0a3d9d163f05aecd77d40e45495486d41d0b40b",
+  "04_backlog/US-003.md": "3aa76add048f510ace1642c9c8f794fad2781277ec4c85df2c5469b246836452",
+  "04_backlog/refinements/accepted_refinements.json": "70f80618a97589340ddaa0de5c9af92cc0d799e1dc249673050999ef342895ef",
+  "04_backlog/refinements/refine.json": "28aa7b0942d4b174937fc19c82540cf884ab79a6dc6869c47a2b3dacfa5345eb",
+  "04_backlog/refinements/refinement_report.md": "77cbd86d489576ac88c0efb7a4bef497c4d5df608729f660c0933394cc289bcf",
+  "07_changes/05_implementation_feedback/feedback.json": "101a69a3698cc031b435a932d12b287c07ef75cfcd604c41f443672e099411e2",
+  "07_changes/05_implementation_feedback/feedback_report.md": "9fe6da42988a9c0fba45eb4fc5ffbf0ab690355cdcea1dd4a673faab4a0f7ee6"
+}

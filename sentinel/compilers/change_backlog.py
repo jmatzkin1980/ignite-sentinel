@@ -116,6 +116,18 @@ def read_change_units(project_id: str, change_id: str, release: str | None = Non
     return units
 
 
+def change_unit_texts(project_id: str, change_id: str) -> dict[str, str]:
+    """IMP-433: the units a change owns, id -> text: those of the whole change and those of every release derived from it (7d).
+    Refinement and implementation feedback validate their `source_units` against this, never against the project's units."""
+    base = workspace_path(project_id)
+    releases = (get_change(project_id, change_id).get("backlog_releases") or {})
+    texts: dict[str, str] = {}
+    for release in (None, *sorted(str(rid) for rid in releases)):
+        for unit in read_change_units(project_id, change_id, release):
+            texts[unit["id"]] = unit["path"].read_text(encoding="utf-8")
+    return texts
+
+
 def _change_story_ids(base: Path, change_id: str) -> list[str]:
     """The ids of the stories on disk that this change wrote."""
     found: list[str] = []
@@ -485,7 +497,7 @@ def _reindex_change_artifacts(project_id: str, change_id: str) -> None:
             suffix = "-JSON" if plan_path.suffix == ".json" else ""
             broker.index_artifact(f"{change_id}-SLICE-PLAN{suffix}", "slice_plan", plan_path, plan_path.read_text(encoding="utf-8"),
                                   domain="delivery", trace_ids=[change_id, *story_ids])
-    for plan_path in sorted((base / "04_backlog" / change_id).glob("r*/SLICE-PLAN.md")):  # IMP-429: one plan per release
+    for plan_path in sorted((base / "04_backlog" / change_id).glob("r[0-9]*/SLICE-PLAN.md")):  # IMP-429: one plan per release
         rid = plan_path.parent.name
         broker.index_artifact(f"{change_id}-{rid}-SLICE-PLAN", "slice_plan", plan_path, plan_path.read_text(encoding="utf-8"),
                               domain="delivery", trace_ids=[change_id, *story_ids])
@@ -499,7 +511,7 @@ def _release_story_ids(base: Path, change_id: str, release: str | None) -> set[s
     from ..change_release import release_story_ids
 
     folder = base / "04_backlog" / change_id
-    rids = [release] if release else [p.name for p in sorted(folder.glob("r*")) if p.is_dir()]
+    rids = [release] if release else [p.name for p in sorted(folder.glob("r[0-9]*")) if p.is_dir()]
     return {sid for rid in rids for sid in release_story_ids(base, change_id, rid)}
 
 

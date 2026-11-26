@@ -72,7 +72,7 @@ TOOL_SPECS: list[tuple[str, str, list[str]]] = [
     ("scrutinize", "Merge validated systematic per-lens scrutiny findings (origin: scrutiny) grounded in raw input or local domain context; refreshes the knowledge ledger. With change=CHG-nnn (IMP-418) it scrutinizes that change: the quotable text is its request, answers, brief, baseline and design readings; the gaps open in 01_discovery/CHG-nnn/gaps.md and the report is 01_discovery/CHG-nnn/scrutiny_report.md (no ledger; implementability-probe and anchors modes refuse with change); a change-only workspace refuses it without.", ["project_id", "source"]),
     ("assume", "Register governed BA-owned assumptions with risk, local cited basis, optional provisional gap link, optional risk_category (Cagan's four product risks), and ledger refresh. With change=CHG-nnn (IMP-412) the assumptions close that change's question until validated; id with validate=true or invalidate=true and a reason moves one (invalidating reopens the question). Without change, source is required.", ["project_id"]),
     ("compose", "Merge validated agent-authored PRD narrative blocks; every paragraph cites verbatim local source-of-truth evidence.", ["project_id", "source"]),
-    ("refine_backlog", "Merge validated agent-authored backlog refinement proposals; every proposal cites verbatim local source-of-truth evidence.", ["project_id", "source"]),
+    ("refine_backlog", "Merge validated agent-authored backlog refinement proposals; every proposal cites verbatim local source-of-truth evidence. With change=CHG-nnn (IMP-433) it refines the stories of that change (04_backlog/CHG-nnn/refinements/), validating proposals against the change's own units and stories and quoting only the change's text; it needs the change's backlog (/backlog --change), not EPIC-001.", ["project_id", "source"]),
     ("story_status", "Update a backlog story lifecycle status and owner through the governed state machine; optionally attach local acceptance evidence for Done.", ["project_id", "story", "status", "evidence"]),
     ("backlog_status", "Generate the BA-facing backlog board and rollup by epic/status.", ["project_id"]),
     ("implementation_feedback", "Merge structured downstream implementation feedback as traced backlog feedback without rewriting stories directly.", ["project_id", "source"]),
@@ -679,8 +679,8 @@ def build_server():
         return run_cli(["compose", project_id, "--source", source])
 
     @tool(name="sentinel_refine_backlog", description=TOOL_DESCRIPTIONS["refine_backlog"])
-    def sentinel_refine_backlog(project_id: str, source: str) -> dict:
-        return run_cli(["refine-backlog", project_id, "--source", source])
+    def sentinel_refine_backlog(project_id: str, source: str, change: str = "") -> dict:
+        return run_cli(["refine-backlog", project_id, "--source", source] + (["--change", change] if change else []))
 
     @tool(name="sentinel_story_status", description=TOOL_DESCRIPTIONS["story_status"])
     def sentinel_story_status(project_id: str, story: str, status: str, owner: str = "", evidence: str = "",

@@ -6,13 +6,13 @@ import shutil
 from pathlib import Path
 from typing import Any
 
-from ..core.markdown import table_cell
+from ..core.markdown import parse_frontmatter, table_cell
 from ..core.graph import add_edge, add_node, nodes_by_type
 from ..core.io import read_json, write_json, write_text
 from ..core.text import unique_path
 from ..memory import ContextBroker
 from ..payload_hygiene import archive_payload, sanitize_payload, shield_quote
-from ..workspace import update_state, workspace_path
+from ..workspace import state_path, update_state, workspace_path
 
 
 class BacklogRefinementError(InputError):
@@ -30,20 +30,48 @@ LOOSE_ENABLER_MARKERS = (
 )
 
 
-def apply_backlog_refinement(project_id: str, source: Path) -> dict[str, object]:
+CHANGE_TEXT = {
+    "es": {"no_backlog": "{cid} todavía no tiene backlog para refinar"},
+    "en": {"no_backlog": "{cid} has no backlog to refine yet"},
+}
+
+
+def _refinement_dir(base: Path, change_id: str | None) -> Path:
+    return base / "04_backlog" / change_id / "refinements" if change_id else base / "04_backlog" / "refinements"
+
+
+def apply_backlog_refinement(project_id: str, source: Path, change_id: str | None = None) -> dict[str, object]:
+    """The project's refinement, or (IMP-433) the one of a change: its epic, stories and units, its folder and its state."""
     base = workspace_path(project_id)
-    epic_path = base / "04_backlog" / "EPIC-001.md"
-    if not epic_path.exists():
-        raise BacklogRefinementError("Cannot refine backlog before /backlog creates 04_backlog/EPIC-001.md.", gate=True)
+    if change_id:
+        from ..changes import change_language, get_change
+        from ..compilers.change_backlog import change_unit_texts, epic_id_for
+        from ..errors import GateRefusal
+
+        change = get_change(project_id, change_id)
+        epic_path = base / "04_backlog" / f"{epic_id_for(change_id)}.md"
+        if not epic_path.exists():
+            language = "en" if change_language(project_id, change) == "en" else "es"
+            raise GateRefusal(CHANGE_TEXT[language]["no_backlog"].format(cid=change_id),
+                              next_step=f"/backlog {project_id} --change {change_id}")
+    else:
+        epic_path = base / "04_backlog" / "EPIC-001.md"
+        if not epic_path.exists():
+            raise BacklogRefinementError("Cannot refine backlog before /backlog creates 04_backlog/EPIC-001.md.", gate=True)
     if not source.exists():
         raise BacklogRefinementError(f"Backlog refinement source not found: {source}")
 
     data = read_json(source, {})
     if not isinstance(data, dict):
         raise BacklogRefinementError("Backlog refinement source must be a JSON object with a non-empty proposals array.")
-    evidence_text = backlog_refinement_evidence_text(base)
-    story_index = load_story_index(base)
-    spec_units = load_spec_unit_index(base)
+    if change_id:
+        evidence_text = change_refinement_evidence_text(project_id, change_id)
+        story_index = load_story_index(base, change_id)
+        spec_units = change_unit_texts(project_id, change_id)
+    else:
+        evidence_text = backlog_refinement_evidence_text(base)
+        story_index = load_story_index(base)
+        spec_units = load_spec_unit_index(base)
     accepted, rejected = validate_refinement_proposals(data, evidence_text, story_index, spec_units)
     # IMP-342: validated as written; stored and rendered redacted and neutralized
     accepted = sanitize_payload(base, accepted)
@@ -53,13 +81,13 @@ def apply_backlog_refinement(project_id: str, source: Path) -> dict[str, object]
         # only the report of why each proposal was refused is written.
         from ..prd import rejection_summary
 
-        write_refinement_report(project_id, accepted, rejected, source)
+        write_refinement_report(project_id, accepted, rejected, source, change_id)
         raise BacklogRefinementError(
             "No backlog refinement proposals were accepted: " + rejection_summary(rejected)
-            + " Details in 04_backlog/refinements/refinement_report.md."
+            + " Details in " + _refinement_dir(base, change_id).relative_to(base).as_posix() + "/refinement_report.md."
         )
 
-    refinement_dir = base / "04_backlog" / "refinements"
+    refinement_dir = _refinement_dir(base, change_id)
     refinement_dir.mkdir(parents=True, exist_ok=True)
     archived = unique_path(refinement_dir / source.name)
     archive_payload(base, source, archived)
@@ -69,8 +97,8 @@ def apply_backlog_refinement(project_id: str, source: Path) -> dict[str, object]
     existing_refinements = existing if isinstance(existing, list) else []
     merged, unchanged = merge_refinements(existing_refinements, accepted)
     write_json(accepted_path, merged)
-    render_backlog_refinements(base, merged)
-    report_path = write_refinement_report(project_id, accepted, rejected, archived)
+    render_backlog_refinements(base, merged, epic_path if change_id else None)
+    report_path = write_refinement_report(project_id, accepted, rejected, archived, change_id)
 
     refinement_id = add_node(
         project_id,
@@ -81,7 +109,8 @@ def apply_backlog_refinement(project_id: str, source: Path) -> dict[str, object]
         domain="product",
     )
     for epic in nodes_by_type(project_id, "epic"):
-        add_edge(project_id, epic["id"], refinement_id, "refined_by")
+        if Path(str(epic.get("path", ""))).name == epic_path.name:  # IMP-433: from the epic of the scope, not from every epic
+            add_edge(project_id, epic["id"], refinement_id, "refined_by")
     for proposal in accepted:
         for story_id in proposal.get("target_stories", []):
             add_edge(project_id, refinement_id, str(story_id), "proposes_refinement_for")
@@ -95,14 +124,20 @@ def apply_backlog_refinement(project_id: str, source: Path) -> dict[str, object]
         domain="product",
         trace_ids=[refinement_id, *[item["id"] for item in accepted]],
     )
-    update_state(
-        project_id,
-        backlog_refinement_count=len(merged),
-        last_backlog_refinement_id=refinement_id,
-        last_backlog_refinement_source=str(archived.as_posix()),
-    )
+    if change_id:
+        changes = read_json(state_path(project_id), {}).get("changes", {})
+        changes[change_id]["refinements"] = {"count": len(merged), "last_id": refinement_id, "last_source": str(archived.as_posix())}
+        update_state(project_id, changes=changes)
+    else:
+        update_state(
+            project_id,
+            backlog_refinement_count=len(merged),
+            last_backlog_refinement_id=refinement_id,
+            last_backlog_refinement_source=str(archived.as_posix()),
+        )
 
     return {
+        **({"change_id": change_id} if change_id else {}),
         "refinement_id": refinement_id,
         "accepted": [item["id"] for item in accepted],
         "unchanged": unchanged,
@@ -306,10 +341,13 @@ def normalized_list(value: object) -> list[str]:
     return []
 
 
-def load_story_index(base: Path) -> dict[str, dict[str, Any]]:
+def load_story_index(base: Path, change_id: str | None = None) -> dict[str, dict[str, Any]]:
+    """The stories a refinement may target: those of the change `change_id`, or (project) those no change wrote."""
     stories: dict[str, dict[str, Any]] = {}
     for path in sorted((base / "04_backlog").glob("US-*.md")):
         text = path.read_text(encoding="utf-8")
+        if str(parse_frontmatter(text).get("change", "")).strip() != (change_id or ""):
+            continue
         stories[path.stem] = {"path": path, "pending": is_pending_story_stub(text), "text": text}
     return stories
 
@@ -356,8 +394,27 @@ def backlog_refinement_evidence_text(base: Path) -> str:
     return "\n\n".join(parts)
 
 
-def render_backlog_refinements(base: Path, refinements: list[dict[str, Any]]) -> None:
-    epic_path = base / "04_backlog" / "EPIC-001.md"
+def change_refinement_evidence_text(project_id: str, change_id: str) -> str:
+    """IMP-433: what a refinement of the change may quote: the change's grounding text (request, answers, brief, baseline), its specs,
+    its epic and stories and its context packs; never the project's raw or the project's own backlog."""
+    from ..compilers.change_backlog import _change_story_ids, epic_id_for
+    from ..discovery.change_scope import change_grounding_text
+
+    base = workspace_path(project_id)
+    parts = [change_grounding_text(project_id, change_id)]
+    files = [base / "04_backlog" / f"{epic_id_for(change_id)}.md",
+             *(base / "04_backlog" / f"{sid}.md" for sid in _change_story_ids(base, change_id))]
+    for root in (base / "03_specs" / change_id, base / "04_backlog" / change_id, base / "08_context_packs" / change_id):
+        if root.exists():
+            files += [path for path in sorted(root.rglob("*")) if path.is_file()]
+    for path in files:
+        if path.is_file() and path.suffix.lower() in {".md", ".txt", ".json"}:
+            parts.append(path.read_text(encoding="utf-8", errors="ignore"))
+    return "\n\n".join(parts)
+
+
+def render_backlog_refinements(base: Path, refinements: list[dict[str, Any]], epic_path: Path | None = None) -> None:
+    epic_path = epic_path or base / "04_backlog" / "EPIC-001.md"
     write_text(epic_path, append_refinement_section(strip_refinement_section(epic_path.read_text(encoding="utf-8")), refinements, "epic"))
     by_story: dict[str, list[dict[str, Any]]] = {}
     for refinement in refinements:
@@ -434,8 +491,10 @@ def write_refinement_report(
     accepted: list[dict[str, Any]],
     rejected: list[dict[str, str]],
     source: Path,
+    change_id: str | None = None,
 ) -> Path:
-    path = workspace_path(project_id) / "04_backlog" / "refinements" / "refinement_report.md"
+    path = _refinement_dir(workspace_path(project_id), change_id) / "refinement_report.md"
+    title = f"{project_id} / {change_id}" if change_id else project_id
     accepted_rows = "\n".join(
         f"| {item['id']} | {item['kind']} | {', '.join(item.get('target_stories', [])) or 'N/A'} | agent | {discarded_alternative_note(item)} |"
         for item in accepted
@@ -443,7 +502,7 @@ def write_refinement_report(
     rejected_rows = "\n".join(
         f"| {item['id']} | {item.get('kind', '?')} | {item['reason']} |" for item in rejected
     ) or "| N/A | N/A | N/A |"
-    write_text(path, f"""# Backlog Refinement Report - {project_id}
+    write_text(path, f"""# Backlog Refinement Report - {title}
 
 Source: `{source.as_posix()}`
 

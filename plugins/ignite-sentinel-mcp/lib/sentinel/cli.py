@@ -455,7 +455,7 @@ def _run_project_command(args) -> int:
         elif args.command == "refine-backlog":
             from .backlog.refinement import apply_backlog_refinement
 
-            result = apply_backlog_refinement(args.project_id, Path(args.source))
+            result = apply_backlog_refinement(args.project_id, Path(args.source), args.change)
             print_json(result)
         elif args.command == "implementation-feedback":
             from .implementation_feedback import apply_implementation_feedback

@@ -437,7 +437,7 @@ REGISTRY: tuple[Command, ...] = (
     Command("self-review", MUTATING, _self_review, skill="sentinel-self-review", skill_variants=(("--change", "sentinel-self-review §Change coherence"),)),
     Command("assume", MUTATING, _assume, skill="sentinel-assume", skill_variants=(("--change", "sentinel-assume §Change assumptions"),)),
     Command("compose", MUTATING, _project_source, skill="sentinel-compose"),
-    Command("refine-backlog", MUTATING, _project_source, skill="sentinel-backlog-refine"),
+    Command("refine-backlog", MUTATING, _project_source_change, skill="sentinel-backlog-refine", skill_variants=(("--change", "sentinel-backlog-refine §Change"),)),
     Command("implementation-feedback", MUTATING, _project_source, skill="sentinel-implementation-feedback"),
     Command("story-status", MUTATING, _story_status, release=True, skill="sentinel-backlog"),
     Command("context-request", MUTATING, _context_request, mcp_params={"id": ("request_id",)}, skill="sentinel-domain-request"),
