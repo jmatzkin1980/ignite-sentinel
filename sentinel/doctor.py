@@ -78,6 +78,7 @@ def _runtime_installs() -> tuple[tuple[str, str], ...]:
     # PowerShell (the docs' shell on Windows) needs the call operator before a quoted path
     pip = (f'& "{exe}"' if os.name == "nt" else f'"{exe}"') + " -m pip install"
     return (
+        ("python -m pip install -c constraints/memory-semantic.txt -e .[memory-semantic]", f"{pip} model2vec sentence-transformers"),
         ("python -m pip install -e .[memory-semantic]", f"{pip} model2vec sentence-transformers"),
         ("python -m pip install -e .[memory]", f"{pip} lancedb"),
         ("python -m pip install -e .[mcp]", f'{pip} "mcp>=1.2,<3"'),
@@ -1915,9 +1916,9 @@ def semantic_embedder_check() -> dict[str, str]:
     if reasons:
         detail += f"Candidates — {reasons}. "
     detail += diagnostics.get("recommendation") or (
-        "Install optional local models with `python -m pip install -e .[memory-semantic]` "
-        "and pre-seed the model cache or set SENTINEL_MODEL2VEC_MODEL / "
-        "SENTINEL_SENTENCE_TRANSFORMERS_MODEL to a local model path."
+        "Install optional local models with `python -m pip install -c constraints/memory-semantic.txt "
+        "-e .[memory-semantic]`, then run sentinel /setup --semantic-memory (or --offline-from DIR "
+        "without network)."
     )
     return {
         "name": "memory embedder: semantic local (optional)",
