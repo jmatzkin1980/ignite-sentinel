@@ -586,6 +586,10 @@ NETWORK_MODULES = frozenset(
      "requests", "httpx", "aiohttp", "urllib3", "websockets", "websocket"}
 )
 BROWSER_MODULE_HOME = "core/local_browser.py"
+# IMP-425 (H27 inc 7b): the one declared exception. `sentinel/setup_download.py`
+# is a stdlib-only script that no module imports; `/setup --semantic-memory` runs
+# it as a subprocess. Its network imports are not violations; anyone else's are.
+NETWORK_MODULE_HOME = "setup_download.py"
 
 
 def _package_dir() -> Path:
@@ -618,6 +622,8 @@ def network_import_violations(package_dir: Path) -> list[str]:
                     names = [node.args[0].value]
             for name in names:
                 top = name.split(".")[0]
+                if top in NETWORK_MODULES and relative == NETWORK_MODULE_HOME:
+                    continue
                 if top in NETWORK_MODULES:
                     violations.append(f"{relative}:{node.lineno} imports {name} (network)")
                 elif top == "webbrowser" and relative != BROWSER_MODULE_HOME:

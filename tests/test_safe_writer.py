@@ -127,6 +127,7 @@ class AtomicityTests(_Tmp):
 
 # Modules allowed to write outside core/io.py, each with its reason.
 WRITER_EXEMPT = {
+    "sentinel/setup_download.py": "IMP-425: stdlib-only downloader script, cannot import sentinel.core.io; writes <dest>.part then renames",
     "sentinel/build.py": "builds dist/sentinel.pyz from a private staging tempdir (maintainer tool, not runtime)",
 }
 _WRITE_ATTRS = {"write_text", "write_bytes", "write_json_text"}
