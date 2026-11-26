@@ -187,14 +187,15 @@ def _decided_surfaces(project_id: str, change_id: str, change: dict, t: dict) ->
 def _candidate_partial(project_id: str, change_id: str, key: str) -> bool:
     from .crosses.surfaces import new_surface_candidates
 
-    return any(item["id"] == key and item["partial"] for item in new_surface_candidates(project_id, change_id))
+    return any((key == item["id"] or key in item["aliases"]) and item["partial"]  # a decision saved in 0.34 may use an alias id
+               for item in new_surface_candidates(project_id, change_id))
 
 
 def _candidate_text(project_id: str, change_id: str, key: str) -> str:
     from .crosses.surfaces import new_surface_candidates, solo_en_diseno_item
 
     for item in new_surface_candidates(project_id, change_id):
-        if item["id"] == key:
+        if key == item["id"] or key in item["aliases"]:
             return _squash(item["text"])
     try:
         return _squash(solo_en_diseno_item(project_id, change_id, key, "es")["text"])

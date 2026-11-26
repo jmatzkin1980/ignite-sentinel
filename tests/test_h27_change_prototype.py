@@ -69,6 +69,12 @@ class ChangePrototypeCase(SyncCase):
         self.assertTrue((base / "02_requirements" / "prototype" / "inventory.json").is_file())
         self.assertFalse((base / "02_requirements" / self.CID / "prototype").exists())
 
+    def test_project_view_of_prototype_works_in_change_only_workspace(self) -> None:
+        run_ok(["prototype", PID, "--inventory"])
+        run_ok(["view", PID, "--artifact", "prototype"])
+        self.assertTrue((workspace_path(PID) / "08_context_packs" / "views" / "prototype.html").is_file()
+                        or any((workspace_path(PID) / "08_context_packs" / "views").glob("prototype*.html")))
+
     def test_change_manual_written(self) -> None:
         build_inventory(PID, change_id=self.CID)
         source, screen = self.first_screen(self.CID)

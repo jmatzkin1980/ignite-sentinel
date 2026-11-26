@@ -255,7 +255,8 @@ class _Index:
             found: list[tuple[str, dict, set[str]]] = []
             if decided:
                 record = load_cross(workspace_path(self.project_id), self.change_id, "diseno") or {}
-                texts = {c["id"]: c["text"] for c in new_surface_candidates(self.project_id, self.change_id)}
+                texts = {name: c["text"] for c in new_surface_candidates(self.project_id, self.change_id)
+                         for name in (c["id"], *c["aliases"])}
                 for key in sorted(decided):
                     quotes = {_flat(c.get("quote")).lower() for claim in record.get("claims", []) if claim.get("gap") == key
                               for c in claim.get("citations", []) if c.get("side") == "diseno"}

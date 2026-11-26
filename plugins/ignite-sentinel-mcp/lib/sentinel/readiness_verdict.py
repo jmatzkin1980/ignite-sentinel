@@ -1153,6 +1153,7 @@ def change_next_step(project_id: str, change_id: str) -> dict[str, Any]:
     if key == "crosses":
         found = _cross_step_context(project_id, change_id, language)
         ctx.update(missing=found["missing"], cross_command=found["cross_command"], n=int(found["n_missing"]))
+    partial_asked = False
     if key == "cross_new_surfaces":
         from .crosses.surfaces import new_surface_candidates
 
@@ -1161,11 +1162,19 @@ def change_next_step(project_id: str, change_id: str) -> dict[str, Any]:
         if len(pending) > 5:
             shown += f"; {'y' if language == 'es' else 'and'} {len(pending) - 5} {'más' if language == 'es' else 'more'}"
         ctx.update(n=len(pending), items=shown, first_candidate=pending[0]["id"])
+        partial_asked = any(c["partial"] for c in pending)  # H27 inc 7a: a partial baseline asks, it does not assert
     command_key = text_key if text_key in (
         "extract_confirm_flagged", "extract_partial", "preserved_answer", "preserved_source",
         "export_not_ready", "extract_verify_result", "coherence_view") else key
     command_key = "extract_proposals" if text_key == "requirements_none" else command_key
     text = text.format(**ctx)
+    if key == "cross_new_surfaces" and partial_asked:
+        from .crosses.state import PARTIAL_NOT_FOUND
+
+        label = PARTIAL_NOT_FOUND["es" if language == "es" else "en"]
+        text = (text.replace(f"no encontró en lo construido {ctx['n']}", f"registró ({label}) {ctx['n']}")
+                if language == "es" else
+                text.replace(f"found {ctx['n']} thing(s) not in what is built", f"recorded ({label}) {ctx['n']} thing(s)"))
     if text_key == "extract_proposals":
         text += _batch_sentence(project_id, change_id, language)
     versions = change_versions(project_id, change_id)

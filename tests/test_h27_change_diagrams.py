@@ -39,7 +39,20 @@ class ChangeDiagramsCase(SyncCase):
         self.assertFalse((views / "diagrams.html").exists())
         self.assertFalse((workspace_path(PID) / "02_requirements" / "project-brief.md").exists())
 
+    def read_code(self) -> None:
+        """A second harvest of the change that reads code: `repo:` makes `sad-compras` a system that exists."""
+        path = Path.cwd() / "harvest_codigo.md"
+        path.write_text(
+            "# Harvest\n\n## B0 Inventario\n- repo: sad-compras — 00_raw/06_baseline/src\n\n"
+            "## B1 Arquitectura y componentes\n"
+            "- [HECHO sad-compras:src/alta.py] El alta de proveedor se valida en el backoffice.\n", encoding="utf-8")
+        run_ok(["harvest", PID, "--source", str(path), "--change", CID])
+
+    def test_doc_only_harvest_draws_no_component(self) -> None:
+        self.assertEqual(change_asis_components(PID, CID, []), [])
+
     def test_asis_status_only_registered(self) -> None:
+        self.read_code()
         card = self.asis_card()
         language = collect_diagrams_model(PID, CID)["language"]
         self.assertIn("sad-compras", card["mermaid"])
@@ -48,11 +61,19 @@ class ChangeDiagramsCase(SyncCase):
             self.assertNotIn(word, card["mermaid"])
 
     def test_registered_status_is_transcribed(self) -> None:
+        self.read_code()
         got = change_asis_components(PID, CID, [{"name": "sad-compras", "status": "extends"}])
         self.assertEqual(got, [{"name": "sad-compras", "status": "extends"}])
         got = change_asis_components(PID, CID, [])
         self.assertEqual([c["name"] for c in got], ["sad-compras"])
         self.assertEqual(got[0]["status"], "")
+
+    def test_provenance_hashes_what_was_drawn(self) -> None:
+        first = collect_diagrams_model(PID, CID)["provenance"]
+        self.assertTrue(any("deliverable (working)" in f["path"] for f in first["sources"]), first["sources"])
+        self.assertEqual(first, collect_diagrams_model(PID, CID)["provenance"])
+        self.read_code()
+        self.assertNotEqual(first["source_sha256"], collect_diagrams_model(PID, CID)["provenance"]["source_sha256"])
 
     def test_no_series_card_in_change(self) -> None:
         model = collect_diagrams_model(PID, CID)

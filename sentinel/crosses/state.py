@@ -13,7 +13,6 @@ from ..source_registry import row_role
 from ..sources import load_source_manifest
 from ..workspace import workspace_path
 from . import CROSS_KINDS, cross_path, crosses_dir
-from .claims import cross_sources
 from .claims import TAG_NAMES, cross_sources
 
 HARVEST_KINDS = ("fact", "inferred", "not_found", "out_of_code", "divergence")
@@ -271,7 +270,8 @@ def write_cross_report(project_id: str, change_id: str | None) -> Path:
                 verdict = f"{'descartada' if lang == 'es' else 'declined'}: {item['reason']}"
             else:
                 verdict = "pendiente" if lang == "es" else "pending"
-            lines.append(f"- {item['id']} «{item['text']}» ({item['source_id']}:{item['line']}): {verdict}")
+            confirm = f" [{PARTIAL_NOT_FOUND[lang]}]" if item["partial"] else ""  # the label travels with each copied line
+            lines.append(f"- {item['id']} «{item['text']}»{confirm} ({item['source_id']}:{item['line']}): {verdict}")
         lines.append("")
     path = crosses_dir(base, change_id) / "crosses.md" if change_id else base / "01_discovery" / "crosses.md"
     write_text(path, "\n".join(lines).rstrip() + "\n")

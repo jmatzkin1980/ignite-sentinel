@@ -142,6 +142,23 @@ class DerivedCitationTests(DerivedCase):
         self.assertTrue(f"(derivado de {self.ORI})" in text or f"(derived from {self.ORI})" in text)
         self.assertIn(f"{derived} (", text)
 
+    def test_gap_text_names_origin(self):
+        from sentinel.changes import change_gaps_path
+        from sentinel.crosses.record import record_cross
+
+        derived = self.load_derived()["source_id"]
+        path = Path.cwd() / "sub-solo-derivado.md"
+        path.write_text(
+            "# Cruce pedido ↔ diseño nuevo — CHG-001\n\n"
+            "- [SOLO EN DISEÑO] El prototipo trae un botón de envío que el pedido no menciona.\n"
+            f"  - Diseño: {derived} \"Botón: Enviar a aprobación\"\n", encoding="utf-8")
+        result = record_cross(PID, CID, "diseno", path)
+        forget_read_snapshots()
+        gaps = change_gaps_path(workspace_path(PID), CID).read_text(encoding="utf-8")
+        gap_id = next(g for g in result["gaps"] if g.startswith("GAP-SED-"))
+        text = "\n".join(item for item in gaps.splitlines() if gap_id in item)
+        self.assertTrue(f"({derived}, derivado de {self.ORI})" in text or f"({derived}, derived from {self.ORI})" in text, text)
+
     def test_quote_absent_from_derived_refused(self):
         from sentinel.crosses.record import record_cross
         from sentinel.errors import InputError
@@ -162,6 +179,20 @@ class DerivedCitationTests(DerivedCase):
         other = next(item for item in text.splitlines() if item.startswith(f"- `{self.ORI}`"))
         self.assertNotIn("derivado de", other)
         self.assertNotIn("derived from", other)
+
+
+class DerivedOverwriteTests(DerivedCase):
+    def test_other_origin_refused(self):
+        self.load_derived()
+        extra = Path.cwd() / "otro-prototipo.md"
+        extra.write_text("# Otro prototipo\n\nPantalla de consulta de proveedores.\n", encoding="utf-8")
+        other = json.loads(run_ok(["sources", PID, "--load", str(extra), "--role", "diseno_nuevo", "--change", CID]))["source_id"]
+        code, err = run_err(["sources", PID, "--load", str(TRANSCRIPT), "--role", "diseno_nuevo", "--change", CID,
+                             "--derived-from", other])
+        self.assertNotEqual(code, 0)
+        self.assertIn(self.ORI, err)
+        derived = [r for r in self.rows() if r.get("derived_from")]
+        self.assertEqual([r["derived_from"] for r in derived], [self.ORI])
 
 
 if __name__ == "__main__":

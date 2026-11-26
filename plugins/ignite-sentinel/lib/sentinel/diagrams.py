@@ -558,11 +558,17 @@ def change_asis_components(project_id: str, change_id: str, to_be: list[dict[str
     harvests = {str(i) for i in resolve_scope(project_id, change_id).entry.get("harvests") or []}
     status = {c["name"]: c["status"] for c in to_be}
     names: list[str] = []
-    for entry in load_harvest(workspace_path(project_id)).get("entries") or []:
+    record = load_harvest(workspace_path(project_id))
+    docs = {str(d) for d in record.get("docs") or []}
+    repos = {str(r) for r in record.get("repos") or []}
+    for entry in record.get("entries") or []:
         ref = str(entry.get("ref") or "")
         if str(entry.get("source_id")) not in harvests or entry.get("kind") not in ("fact", "inferred") or ":" not in ref:
             continue
-        name = clean_label(ref.split(":", 1)[0])
+        prefix = ref.split(":", 1)[0]
+        if prefix in docs and prefix not in repos:  # a document that was read is a source, not a component that exists today
+            continue
+        name = clean_label(prefix)
         if name and name not in names:
             names.append(name)
     return [{"name": name, "status": status.get(name, "")} for name in names]
@@ -606,9 +612,16 @@ def build_cards(project_id: str, text: str, language: str, *, asis: list[dict[st
     return cards
 
 
-def _change_diagrams_input(project_id: str, change_id: str) -> tuple[list[dict[str, Any]], str, list[Path]]:
-    """(cards, language, provenance files) of a change: its deliverable text through `build_cards`, as-is from its harvests."""
-    from .changes import change_gaps_path, resolve_scope
+def _file_fingerprint(base: Path, project_id: str, path: Path) -> dict[str, str]:
+    return {"path": f"workspaces/{project_id}/{path.relative_to(base).as_posix()}", "sha256": content_fingerprint(path.read_bytes())}
+
+
+def _change_diagrams_input(project_id: str, change_id: str) -> tuple[list[dict[str, Any]], str, list[dict[str, str]], list[Path]]:
+    """(cards, language, fingerprints, files whose mtime dates it) of a change.
+
+    The cards come from its deliverable text through `build_cards` (as-is from its harvests); the fingerprint is of the
+    live text that was drawn, not of the last compiled file, plus the harvest it read."""
+    from .changes import resolve_scope
     from .compilers.change_deliverable import render_change_deliverable
 
     base = workspace_path(project_id)
@@ -616,15 +629,21 @@ def _change_diagrams_input(project_id: str, change_id: str) -> tuple[list[dict[s
     text = render_change_deliverable(project_id, change_id, final=False)
     asis = change_asis_components(project_id, change_id, parse_components(read_section(text, ("5.1",))))
     cards = build_cards(project_id, text, scope.language, asis=asis, series=False)
-    wanted = (base / "02_requirements" / change_id / "project-brief.md", base / "01_discovery" / "harvest.json")
-    sources = [p for p in wanted if p.is_file()] or [change_gaps_path(base, change_id)]
-    return cards, scope.language, sources
+    fingerprints = [{"path": f"{change_id} deliverable (working)", "sha256": content_fingerprint(text.encode("utf-8"))}]
+    dated: list[Path] = []
+    for path in (base / "02_requirements" / change_id / "project-brief.md", base / "01_discovery" / "harvest.json",
+                 base / "01_discovery" / change_id / "gaps.md"):
+        if path.is_file():
+            dated.append(path)
+            if path.name == "harvest.json":
+                fingerprints.append(_file_fingerprint(base, project_id, path))
+    return cards, scope.language, fingerprints, dated
 
 
 def collect_diagrams_model(project_id: str, change_id: str | None = None) -> dict[str, Any]:
     base = workspace_path(project_id)
     if change_id is not None:
-        cards, language, sources = _change_diagrams_input(project_id, change_id)
+        cards, language, fingerprints, dated = _change_diagrams_input(project_id, change_id)
     else:
         brief = base / "02_requirements" / "project-brief.md"
         if not brief.is_file():
@@ -642,8 +661,8 @@ def collect_diagrams_model(project_id: str, change_id: str | None = None) -> dic
         sources = [brief]
         series_dir = base / "02_requirements" / "series"
         sources += sorted(p for p in (series_dir / "partition.json", series_dir / "proposal.json") if p.is_file())
-    fingerprints = [{"path": f"workspaces/{project_id}/{p.relative_to(base).as_posix()}", "sha256": content_fingerprint(p.read_bytes())}
-                    for p in sources]
+        fingerprints = [_file_fingerprint(base, project_id, p) for p in sources]
+        dated = sources
     return {
         "project_id": project_id,
         **({"change_id": change_id} if change_id is not None else {}),
@@ -658,7 +677,8 @@ def collect_diagrams_model(project_id: str, change_id: str | None = None) -> dic
             "no_notation": sum(1 for c in cards if c["status"] == "no_notation"),
         },
         "provenance": {
-            "cutoff": max(datetime.fromtimestamp(int(p.stat().st_mtime), timezone.utc).isoformat() for p in sources),
+            "cutoff": max((datetime.fromtimestamp(int(p.stat().st_mtime), timezone.utc) for p in dated),
+                          default=datetime.now(timezone.utc).replace(microsecond=0)).isoformat(),
             "source_sha256": content_fingerprint("\n".join(f"{f['path']}:{f['sha256']}" for f in fingerprints).encode("utf-8")),
             "sources": fingerprints,
         },

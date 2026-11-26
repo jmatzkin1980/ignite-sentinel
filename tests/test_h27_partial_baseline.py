@@ -80,6 +80,18 @@ class PartialBaselineTests(PartialCase):
         self.assertEqual(len(candidates), 2)
         self.assertTrue(all(c["partial"] is True for c in candidates))
 
+    def test_step_and_report_lines_ask_instead_of_asserting(self):
+        from sentinel.readiness_verdict import change_next_step
+
+        forget_read_snapshots()
+        step = change_next_step(self.PID, CID)
+        self.assertEqual(step["key"], "cross_new_surfaces")
+        self.assertIn(LABEL_ES, step["text"])
+        self.assertNotIn("no encontró en lo construido", step["text"])
+        report = write_cross_report(self.PID, CID).read_text(encoding="utf-8")
+        for line in (item for item in report.splitlines() if item.startswith("- NEW-")):
+            self.assertIn(LABEL_ES, line)
+
     def test_same_absence_asked_once(self):
         shutil.copy(PARCIAL, Path.cwd() / "harvest_parcial.md")
         run_ok(["harvest", self.PID, "--source", "harvest_parcial.md", "--change", CID])
@@ -120,6 +132,10 @@ class PartialBaselineTests(PartialCase):
         self.assertEqual(after[0]["decision"], "declined")
         self.assertEqual(after[0]["id"], kept[0]["id"])
         self.assertIn(dropped, after[0]["aliases"])
+        from sentinel.review_views import _candidate_partial, _candidate_text
+        self.assertEqual(_candidate_text(self.PID, CID, dropped), _candidate_text(self.PID, CID, kept[0]["id"]))
+        self.assertIn("JEFATURA", _candidate_text(self.PID, CID, dropped).upper())
+        self.assertTrue(_candidate_partial(self.PID, CID, dropped))
 
     def test_reload_marks_partial(self):
         run_ok(["sources", self.PID, "--load", str(SAD), "--role", "linea_de_base", "--change", CID,
@@ -153,6 +169,14 @@ class CompleteBaselineTests(CompleteCase):
         self.assertIn("NO ENCONTRADO 2", text)
         self.assertNotIn("parcial", text)
         self.assertTrue(all(c["partial"] is False for c in new_surface_candidates(self.PID, CID)))
+        from sentinel.readiness_verdict import change_next_step
+
+        forget_read_snapshots()
+        step = change_next_step(self.PID, CID)
+        self.assertEqual(step["key"], "cross_new_surfaces")
+        self.assertIn("no encontró en lo construido", step["text"])
+        self.assertNotIn("parcial", step["text"])
+        self.assertNotIn("parcial", write_cross_report(self.PID, CID).read_text(encoding="utf-8"))
 
     def test_first_load_with_flag(self):
         extra = Path.cwd() / "manual-compras.md"

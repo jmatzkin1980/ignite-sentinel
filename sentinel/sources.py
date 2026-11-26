@@ -260,6 +260,12 @@ def load_source(
         raise _harvest_refusal(source.name, language)
     if derived_from and existing is not None and str(existing["id"]) == derived_from:
         raise InputError(_text(language, "una fuente no puede derivar de sí misma", "a source cannot derive from itself"))
+    if derived_from and existing is not None and existing.get("derived_from") and str(existing["derived_from"]) != derived_from:
+        raise InputError(_text(  # the shared row keeps its first origin: another view may be showing it
+            language,
+            f"{existing['id']} ya deriva de {existing['derived_from']}; no se cambia a {derived_from}",
+            f"{existing['id']} already derives from {existing['derived_from']}; it is not changed to {derived_from}",
+        ))
     if existing is not None and role_is_declared(existing) and existing["role"] != role:
         raise InputError(
             _text(
