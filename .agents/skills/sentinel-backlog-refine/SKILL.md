@@ -49,6 +49,42 @@ Use this skill when the backlog already exists and an agent has a proposed impro
 }
 ```
 
+## Change (`--change CHG-NNN`)
+
+When the BA is working on one change (a request that modifies a system that already exists), refine the stories of that change instead of the project's. In chat: "refine this change's stories" or "this story of CHG-001 is too big". Behind it, run `python -m sentinel /refine-backlog PROJECT_ID --source PATH --change CHG-NNN`, after `/backlog --change` and `/quality --change` have run.
+
+- `target_stories` are stories of that change (`04_backlog/US-NNN.md` with `change: CHG-NNN`), and `source_units` are units the change owns: those of the change and of its releases. A story or unit of the project, or of another change, is refused.
+- Citations are verbatim lines of the change's own text: its request, brief, specs, stories and context packs. The project's raw input is not part of it.
+- The proposals open in the change (`04_backlog/CHG-NNN/refinements/`), with their own report. `/refine-backlog PROJECT_ID` without `--change` leaves the stories of a change alone, and a refinement of the change makes its quality audit stale: run `/quality PROJECT_ID --change CHG-NNN` again.
+- A workspace that only has changes refuses the form without `--change` and names the one to use. `--release` is not accepted.
+
+## Formato
+
+The example of `/refine-backlog --change`: it is parsed by the real validator in the test suite, against the stories and units of a change and the request of a made-up Compras change (guardar borrador en el alta de proveedores):
+
+```sentinel-example kind=refinement-proposals lang=es
+{
+  "proposals": [
+    {
+      "kind": "reslice",
+      "target_stories": ["US-001"],
+      "source_units": ["SPEC-U-001"],
+      "slicing_pattern": "Workflow Steps",
+      "recommendation": "Dejar en una historia sólo guardar el borrador incompleto, sin la consulta posterior.",
+      "rationale": "El pedido separa guardar lo cargado de consultar y retomar los borradores.",
+      "citations": ["después consultar sus borradores y retomarlos para terminar el alta"]
+    },
+    {
+      "kind": "missing-story",
+      "source_units": ["SPEC-U-002"],
+      "recommendation": "Agregar una historia para retomar un borrador y terminar el alta.",
+      "rationale": "El pedido lo nombra y ninguna historia lo cubre todavía.",
+      "citations": ["retomarlos para terminar el alta"]
+    }
+  ]
+}
+```
+
 ## Agentic Spirit (applies to every proposal you author)
 
 - **Citation rejection loop:** when the runtime rejects a citation, never paraphrase the quote to make it pass. Re-read the source and shorten to the exact verbatim substring (typos included; never translate or normalize), or drop the finding. Evidence or silence applies to your proposals too.

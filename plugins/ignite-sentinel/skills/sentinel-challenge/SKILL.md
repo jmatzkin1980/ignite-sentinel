@@ -85,6 +85,30 @@ When the BA is working on one change (a request that modifies a system that alre
 - Questions open in the change (`01_discovery/CHG-NNN/gaps.md`) and the report is `01_discovery/CHG-NNN/challenge_report.md`, in the language the change was opened in. A question the change already decided is not asked again.
 - A workspace that only has changes refuses the form without `--change` and names the one to use.
 
+An example for a change (the Compras domain is made up); the evidence is a line of the request, copied exactly, and what was looked for and not found is reported as `AUSENTE`:
+
+```sentinel-example kind=change-challenge lang=es
+{
+  "gaps": [
+    {
+      "id": "GAP-APROBACION-AUSENCIA",
+      "lens": "business",
+      "severity": "high",
+      "technique": "pre-mortem",
+      "question": "¿Quién aprueba un alta de monto alto cuando la jefa de Compras está ausente?",
+      "evidence": "Si el monto supera el umbral, el alta pasa a la bandeja de la jefa de Compras.",
+      "description": "La aprobación depende de una sola persona."
+    }
+  ],
+  "absent": ["AUSENTE: suplente de la jefa de Compras en la sección Reglas de negocio"],
+  "untouched": ["Los criterios de aceptación CA-01 a CA-05"]
+}
+```
+
+## Formato
+
+The example of `/challenge --change` is the one above: it is parsed by the real validator against the request of a change in the test suite, so a quote that drifts from the text fails there.
+
 ## Sweep protocol (IMP-271)
 
 Follow the sweep protocol (the package's `templates/agent_sweep_protocol.md`; the rules that matter are below). The runtime rejects the whole payload when:

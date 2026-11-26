@@ -88,6 +88,28 @@ When the BA is working on one change (a request that modifies a system that alre
 - `--mode implementability-probe` (per project unit) and `--mode anchors` (the project's brief anchors) refuse with `--change`.
 - A workspace that only has changes refuses the form without `--change` and names the one to use.
 
+An example for a change (the Compras domain is made up); the evidence is a line of the request, copied exactly, and `finding_type` is one of the four of the project form:
+
+```sentinel-example kind=change-scrutiny lang=es
+{
+  "gaps": [
+    {
+      "id": "GAP-SCRUTINY-AUDITOR-HISTORIAL",
+      "lens": "compliance",
+      "severity": "medium",
+      "finding_type": "mention-without-counterpart",
+      "question": "¿Por cuánto tiempo debe conservarse el historial de aprobaciones que consulta el auditor interno?",
+      "evidence": "Auditor interno: consulta el historial de aprobaciones.",
+      "description": "El historial se menciona pero ninguna regla define su retención."
+    }
+  ]
+}
+```
+
+## Formato
+
+The example of `/scrutinize --change` is the one above: it is parsed by the real validator against the request of a change in the test suite, so a quote that drifts from the text fails there.
+
 ## Sweep protocol (IMP-271)
 
 Follow the sweep protocol (the package's `templates/agent_sweep_protocol.md`; the rules that matter are below). The runtime rejects the whole payload when:

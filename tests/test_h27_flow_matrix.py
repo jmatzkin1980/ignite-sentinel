@@ -5,7 +5,7 @@ import re
 import unittest
 from pathlib import Path
 
-from sentinel.commands import skill_for_command
+from sentinel.commands import build_parser, skill_for_command
 from sentinel.readiness_verdict import CHANGE_COMMANDS, NEXT_STEPS
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -44,7 +44,38 @@ def _keyed(section: str) -> dict[str, list[str]]:
     return rows
 
 
+AFTER_BACKLOG = ("refine_backlog", "compose", "story_status", "implementation_feedback", "health", "annotate", "challenge", "scrutinize")
+AFTER_BACKLOG_ARGV = {
+    "refine_backlog": ["refine-backlog", "P", "--source", "PATH", "--change", "CHG-001"],
+    "compose": ["compose", "P", "--source", "PATH", "--change", "CHG-001"],
+    "story_status": ["story-status", "P", "--story", "US-001", "--set", "Done"],
+    "implementation_feedback": ["implementation-feedback", "P", "--source", "PATH"],
+    "health": ["validate", "P", "--change", "CHG-001"],
+    "annotate": ["annotate", "P", "--source", "PATH", "--change", "CHG-001"],
+    "challenge": ["challenge", "P", "--source", "PATH", "--change", "CHG-001"],
+    "scrutinize": ["scrutinize", "P", "--source", "PATH", "--change", "CHG-001"],
+}
+
+
 class FlowMatrixTest(unittest.TestCase):
+    def test_after_backlog_section(self):
+        """IMP-433: the work after the backlog of a change: the skill, the command and the rule of the change path, per step."""
+        rows = _keyed("Change path — after the backlog")
+        self.assertEqual(set(rows), set(AFTER_BACKLOG))
+        for key, cells in rows.items():
+            with self.subTest(step=key):
+                command = re.sub(r"`", "", cells[1]).replace("{pid}", "P").replace("{cid}", "CHG-001")
+                self.assertEqual(cells[2], skill_for_command(command) or "—")
+                self.assertEqual(_verb(cells[1]), _verb(command))
+                build_parser().parse_args(AFTER_BACKLOG_ARGV[key])
+                self.assertTrue(cells[3] and cells[4])
+                self.assertRegex(cells[5], r"(?i)change")
+                self.assertGreaterEqual(len(cells[5]), 30)
+        self.assertEqual(rows["refine_backlog"][2], "sentinel-backlog-refine §Change")
+        self.assertEqual(rows["compose"][2], "sentinel-compose §Change")
+        self.assertIn("/validate {pid} --change {cid}", rows["health"][1])
+        self.assertIn("/next", " ".join(r[5] for r in rows.values()))
+
     def test_every_project_step_has_a_row(self):
         rows = _keyed("Project path")
         self.assertEqual(set(rows), set(NEXT_STEPS))

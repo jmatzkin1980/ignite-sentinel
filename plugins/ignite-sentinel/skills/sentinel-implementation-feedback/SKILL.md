@@ -46,6 +46,35 @@ Field contract — the runtime rejects anything outside it, so copy it exactly:
 - `gap_id`: optional for `type: gap`; defaults to the next free `GAP-FEEDBACK-NNN`. A finding sent again by its `id` keeps the gap it already opened, so you do not repeat `gap_id`.
 - `id`: optional; defaults to the next free `IFB-NNN`, after the ids of earlier runs. To resolve a finding, send it again with its `id` and `status: resolved`; its `GAP-FEEDBACK-*` row is marked `RESOLVED`.
 
+## Change stories
+
+A story of a change (its frontmatter has `change: CHG-NNN`) needs no flag: the story knows its change. In chat: "this story of CHG-001 hits a blocker". The command is the same.
+
+- `source_units` of a finding on a change story must be units that change owns (those of the change and of its releases) or the project's; any other unit is refused with `source unit does not exist for CHG-NNN`.
+- `mark_stale` marks only the stories whose `source_units` match, as for the project.
+- The report adds a `Change` column only when an accepted finding is on a change story; for the project it is unchanged.
+
+## Formato
+
+The example of a finding on a story of a change: it is parsed by the real validator in the test suite, against the units of a change (made-up Compras domain):
+
+```sentinel-example kind=implementation-findings lang=es
+{
+  "findings": [
+    {
+      "type": "surface-not-covered",
+      "story": "US-002",
+      "acceptance_criteria": "AC-002-01",
+      "summary": "Retomar un borrador exige leer los adjuntos del servicio de documentos, que ninguna historia cubre.",
+      "evidence": "documentos-service/README.md: los adjuntos de un borrador se guardan aparte",
+      "status": "open",
+      "mark_stale": true,
+      "source_units": ["SPEC-U-002"]
+    }
+  ]
+}
+```
+
 ## What Acceptance Triggers
 
 - A `CHG` trace anchor plus `07_changes/05_implementation_feedback/feedback_report.md`; rejected findings are listed with the rejection reason. If no finding is accepted the command exits 3 and changes nothing but that report; its message lists why each finding was refused.

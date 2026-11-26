@@ -82,6 +82,21 @@ For a change to something built, `/next P --change CHG-001` gives the first step
 | `validate` | `/validate P --change CHG-001` | sentinel-health | the change and its derived files | nothing: it reports the findings and the escalation warnings; a change that is too big is split with `/split P --change CHG-001 --propose`, or kept as one | `handoff` — validate and hand off |
 | `done` | — | — | the whole change; with a series, a release whose stories are derived waits for its close: `/split P --change CHG-001 --close r1` | nothing; the close turns what the release delivered into preserved behavior of the next ones | `handoff` — validate and hand off |
 
+## Change path — after the backlog
+
+Once the backlog of a change is written, `/next P --change CHG-001` hands the change on to `/quality` and then `done`; the work below is not a step of `/next` and is never said by it. You ask for it in chat ("refine this change's stories", "compose the PRD of this change", "this story of the change hits a blocker") and it runs over the stories, units and PRD of the change only, leaving the project's files as they are.
+
+| Step | Command | Skill | Reads | Writes | Rule of the change path |
+|---|---|---|---|---|---|
+| `refine_backlog` | `/refine-backlog {pid} --source PATH --change {cid}` | sentinel-backlog-refine §Change | the proposals file, the stories and units of the change | `04_backlog/CHG-nnn/refinements/` and the section of the change epic | only stories and units of that change are accepted; a refinement makes the quality audit of the change stale, so `/next` asks for `quality` again |
+| `compose` | `/compose {pid} --source PATH --change {cid}` | sentinel-compose §Change | the blocks file, `03_specs/CHG-nnn/prd.md` | `03_specs/CHG-nnn/compositions/` and the PRD of the change | needs `/specs --change` first; `/specs --change` keeps the composed blocks when it regenerates the PRD |
+| `story_status` | `/story-status {pid} --story US-001 --set Done` | sentinel-backlog | the story file | the story status | the story knows its change, so there is no flag; the same command and the same lifecycle as the project |
+| `implementation_feedback` | `/implementation-feedback {pid} --source PATH` | sentinel-implementation-feedback | the findings file, the stories of the change | `07_changes/05_implementation_feedback/`, the gap of a `gap` finding | a finding on a story of a change checks its `source_units` against the units of that change and adds the Change column to the report; no flag |
+| `health` | `/validate {pid} --change {cid}` | sentinel-health | the change and its derived files | nothing: it reports the findings | validates the change and its derived files, including what refinement and composition wrote; the checks are the same as before |
+| `annotate` | `/annotate {pid} --source PATH --change {cid}` | sentinel-annotate §Change | the request of the change and its sources | `01_discovery/CHG-nnn/gaps.md` | the evidence is the text of the change; the project's gaps are not touched |
+| `challenge` | `/challenge {pid} --source PATH --change {cid}` | sentinel-challenge §Change | the request of the change and its sources | `01_discovery/CHG-nnn/challenge_report.md`, the change gaps | same engine as the project; questions stay in the change |
+| `scrutinize` | `/scrutinize {pid} --source PATH --change {cid}` | sentinel-scrutiny §Change | the request of the change and its sources | `01_discovery/CHG-nnn/scrutiny_report.md`, the change gaps | `--mode implementability-probe` and `--mode anchors` are refused with `--change` |
+
 ## Next
 
 - [Workflows by situation](03-workflows.md)
