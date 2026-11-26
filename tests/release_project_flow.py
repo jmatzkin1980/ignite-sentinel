@@ -69,9 +69,10 @@ def normalized_sha256(data: bytes, tokens: list[tuple[str, str]]) -> str:
         text = text.replace(value, token)
     text = re.sub(r"[0-9a-f]{64}", "<SHA256>", text)
     text = re.sub(r"`[0-9a-f]{12}`", "`<SHA12>`", text)
-    if "[TRUNCATED IN GENERATED ARTIFACT" in text:
-        # the artifact is cut at a fixed length and the paths it quotes are part of that length: keep what precedes the cut zone
-        text = text.split("#### Ready to build")[0]
+    # specs.md is cut at a fixed length and the absolute source paths it quotes count toward it, so where it is cut
+    # depends on the checkout path (a 45-character checkout already cuts it at line 77): compare its first 60 lines.
+    if "## Backlog-Relevant Contract" in text or "[TRUNCATED IN GENERATED ARTIFACT" in text or "#### Ready to build" in text:
+        text = chr(10).join(text.split("#### Ready to build")[0].split(chr(10))[:60])
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
