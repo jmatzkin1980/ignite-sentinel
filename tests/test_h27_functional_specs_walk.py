@@ -73,7 +73,7 @@ class FunctionalSpecsWalk(ConsolidationCase):
         run_ok(["backlog", PID, "--change", CID])
         forget_read_snapshots()
         step = json.loads(run_ok(["next", PID, "--change", CID]))
-        self.assertIn(step["key"], ("validate", "done"), step)
+        self.assertEqual(step["key"], "quality", step)  # IMP-431: the audit comes between the backlog and the validation
 
 
 if __name__ == "__main__":

@@ -95,6 +95,9 @@ class Inc7dWalk(SyncCase):
         self.assertEqual(series_step(PID, CID, get_change(PID, CID)), {"key": ""})
         validation = json.loads(run_ok(["validate", PID, "--change", CID]))
         self.assertEqual(validation["verdict"], "VALID", validation["findings"])
+        self.assertEqual(_change_build_key(PID, CID, get_change(PID, CID)), "quality")  # IMP-431
+        run_ok(["quality", PID, "--change", CID])
+        forget_read_snapshots()
         self.assertEqual(_change_build_key(PID, CID, get_change(PID, CID)), "done")
         forget_read_snapshots()
 

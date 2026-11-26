@@ -494,6 +494,10 @@ class SeriesWalkTest(ReleaseFlowCase):
             self.assertEqual(code, 0, out)
         step = self.step()
         self.assertEqual(self.step(), step)  # asked again, the same answer, not a new instruction
+        self.assertEqual((step["key"], step["command"]), ("quality", f"/quality {PID} --change {CID}"))  # IMP-431
+        seen.append(step["command"])
+        run_ok(["quality", PID, "--change", CID])
+        step = self.step()
         self.assertEqual(step["key"], "done", step)
         self.assertEqual(step["command"], "")
         self.assertNotIn("--close", step["text"])

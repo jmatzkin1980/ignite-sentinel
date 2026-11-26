@@ -167,6 +167,10 @@ class ChangeQualityOnly(SnapshotWorkspaceCase):
     def changes(self) -> dict:
         return read_json(workspace_path("BORR") / "state.json", {})["changes"]
 
+    def audit_files(self) -> dict:
+        folder = workspace_path("BORR") / "05_quality" / "CHG-001"
+        return {path.name: path.read_bytes() for path in folder.glob("*.md")} if folder.exists() else {}
+
     def test_change_quality_language(self):
         generate_quality("BORR", change_id="CHG-001")
         folder = workspace_path("BORR") / "05_quality" / "CHG-001"
@@ -194,6 +198,7 @@ class ChangeQualityOnly(SnapshotWorkspaceCase):
         self.assertTrue(audit.startswith("# Backlog Readiness Audit - BORR / CHG-001"))
 
     def test_change_quality_refusals(self):
+        before = self.audit_files()
         changes = self.changes()
         changes["CHG-001"].pop("backlog")
         update_state("BORR", changes=changes)
@@ -202,7 +207,7 @@ class ChangeQualityOnly(SnapshotWorkspaceCase):
             generate_quality("BORR", change_id="CHG-001")
         self.assertEqual(caught.exception.next_step, "/backlog BORR --change CHG-001")
         self.assertIn("El backlog de CHG-001 falta o está atrasado", str(caught.exception))
-        self.assertFalse((workspace_path("BORR") / "05_quality" / "CHG-001").exists())
+        self.assertEqual(self.audit_files(), before)  # nothing was written
         with self.assertRaises(GateRefusal) as unknown:
             generate_quality("BORR", change_id="CHG-999")
         with self.assertRaises(GateRefusal) as expected:
@@ -239,10 +244,11 @@ class ChangeQualityOnly(SnapshotWorkspaceCase):
         self.assertIn("/quality BORR --change CHG-001", out)
 
     def test_quality_change_with_release_refused(self):
+        before = self.audit_files()
         code, out = cli(["quality", "BORR", "--change", "CHG-001", "--release", "r1"])
         self.assertNotEqual(code, 0, out)
         self.assertIn("para el resto corré /quality BORR --change CHG-001", out)
-        self.assertFalse((workspace_path("BORR") / "05_quality" / "CHG-001").exists())
+        self.assertEqual(self.audit_files(), before)  # nothing was written
 
 
 class SeriesQuality(ReleaseFlowCase):
@@ -268,6 +274,23 @@ class SeriesQuality(ReleaseFlowCase):
         code, out = cli(["quality", PID, "--change", CID])
         self.assertNotEqual(code, 0, out)
         self.assertIn(f"/backlog {PID} --change {CID}", out)
+
+    def test_quality_step_after_the_last_release_closes(self):
+        evidence = Path("evidencia.md")
+        evidence.write_text("Evidencia sintetica.\n", encoding="utf-8")
+        for rid in ("r1", "r2"):
+            self.derive(rid)
+            self.finish(rid)
+            self.assertEqual(self.close(rid, evidence)[0], 0)
+            if rid == "r1":
+                self.assertNotEqual(self.step()["key"], "quality")  # the walk stays intact
+        step = self.step()
+        self.assertEqual((step["key"], step["command"]), ("quality", f"/quality {PID} --change {CID}"))
+        self.quality()
+        self.assertEqual(self.step()["key"], "done")
+        path = self.base() / "04_backlog" / f"{self.stories('r1')[0]}.md"
+        path.write_text(path.read_text(encoding="utf-8") + "\nNota.\n", encoding="utf-8")
+        self.assertEqual(self.step()["key"], "quality")
 
     def step(self) -> dict:
         forget_read_snapshots()
