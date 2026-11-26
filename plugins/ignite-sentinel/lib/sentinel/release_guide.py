@@ -35,7 +35,7 @@ COPY = {
         "waves": "Waves", "wave": "Wave {n}", "releases": "Releases",
         "header": "| Release | Type | Wave | Goal | Depends on | Status |",
         "closed": "closed {date} (evidence `{evidence}`)", "waiting": "NOT READY by inheritance: depends hard on {deps}, not closed",
-        "open": "open", "not_derived_change": "open; sub-releases of a change are not derived yet", "stage": "open; its own verdict: `/status --release {rid}` (stage {stage})", "not_derived": "open; not derived yet (`/specs --release {rid}`)",
+        "open": "open", "not_derived_change": "open; not derived yet (`/specs {pid} --change {cid} --release {rid}`)", "derived_change": "open; derived, {done}/{total} stories Done (`/split {pid} --change {cid} --close {rid}` when all are)", "no_stories_change": "open; specs derived, no stories yet (`/backlog {pid} --change {cid} --release {rid}`)", "stage": "open; its own verdict: `/status --release {rid}` (stage {stage})", "not_derived": "open; not derived yet (`/specs --release {rid}`)",
         "edges": "Edges and why", "edge": "- {rid} → {target} ({strength}{contract}): {why}",
         "contracts": "Frozen contracts", "contracts_header": "| Contract | Name | Kind | Created by |",
         "coverage": "Coverage matrix", "coverage_header": "| Family | Unit | Owner |",
@@ -49,7 +49,7 @@ COPY = {
         "waves": "Olas", "wave": "Ola {n}", "releases": "Releases",
         "header": "| Release | Tipo | Ola | Objetivo | Depende de | Estado |",
         "closed": "cerrado {date} (evidencia `{evidence}`)", "waiting": "NOT READY por herencia: depende en duro de {deps}, sin cerrar",
-        "open": "abierto", "not_derived_change": "abierto; las sub-releases de un cambio todavía no se derivan", "stage": "abierto; su veredicto: `/status --release {rid}` (etapa {stage})", "not_derived": "abierto; todavía sin derivar (`/specs --release {rid}`)",
+        "open": "abierto", "not_derived_change": "abierto; todavía sin derivar (`/specs {pid} --change {cid} --release {rid}`)", "derived_change": "abierto; derivada, {done}/{total} historias Done (`/split {pid} --change {cid} --close {rid}` cuando estén todas)", "no_stories_change": "abierto; specs derivadas, sin historias todavía (`/backlog {pid} --change {cid} --release {rid}`)", "stage": "abierto; su veredicto: `/status --release {rid}` (etapa {stage})", "not_derived": "abierto; todavía sin derivar (`/specs --release {rid}`)",
         "edges": "Aristas y porqué", "edge": "- {rid} → {target} ({strength}{contract}): {why}",
         "contracts": "Contratos congelados", "contracts_header": "| Contrato | Nombre | Tipo | Lo crea |",
         "coverage": "Matriz de cobertura", "coverage_header": "| Familia | Unidad | Dueño |",
@@ -80,10 +80,10 @@ def hard_dependencies(payload: dict[str, Any], rid: str) -> list[str]:
     return [_s(e.get("release")) for e in _dicts(release.get("depends_on")) if (_s(e.get("strength")) or "hard") == "hard"]
 
 
-def inherited_blockers(main_base: Path, rid: str) -> list[str]:
+def inherited_blockers(main_base: Path, rid: str, change_id: str | None = None) -> list[str]:
     """[A38] The hard dependencies of `rid` that are not closed, as verdict blockers. No series, none."""
     try:
-        partition, payload = _series(Path(main_base))
+        partition, payload = _series(Path(main_base), change_id)
     except ReleaseSplitError:
         return []
     closed = partition.get("closed") or {}
@@ -95,10 +95,20 @@ def _mirror(base: Path, project_id: str, rid: str) -> Path:
     return base / WORK_DIR / rid / "workspaces" / project_id
 
 
-def release_stories(base: Path, project_id: str, rid: str) -> dict[str, str]:
-    """Story id → lifecycle status of a release, from its mirror."""
+def release_stories(base: Path, project_id: str, rid: str, change_id: str | None = None) -> dict[str, str]:
+    """Story id → lifecycle status of a release, from its mirror; of a change: the index `04_backlog/CHG-nnn/rN/stories.md`
+    and the lifecycle of the workspace (IMP-429)."""
     from .core.io import read_json
 
+    if change_id:
+        from .core.paths import state_path
+
+        state = read_json(state_path(project_id), {})
+        lifecycle = (state.get("story_lifecycle") if isinstance(state, dict) else None) or {}
+        from .change_release import release_story_ids
+
+        stories = sorted(release_story_ids(base, change_id, rid))
+        return {sid: str((lifecycle.get(sid) or {}).get("status", "Draft")) for sid in stories}
     mirror = _mirror(base, project_id, rid)
     state = read_json(mirror / "state.json", {}) if (mirror / "state.json").exists() else {}
     lifecycle = state.get("story_lifecycle") or {}
@@ -127,27 +137,43 @@ def close_release(project_id: str, rid: str, evidence: str, ba: str, tech: str, 
     proof = Path(evidence) if evidence else None
     if proof is None or not proof.is_file():
         raise ReleaseSplitError("/split --close needs --evidence PATH: a local file with the result of the release's closing check")
-    stories = release_stories(base, project_id, rid)
+    stories = release_stories(base, project_id, rid, change_id)
+    derive = f"/backlog {project_id} --change {change_id} --release {rid}" if change_id else f"/backlog --release {rid}"
     if not stories:
-        raise ReleaseSplitError(f"{rid} has no stories yet: derive it (/specs, /backlog --release {rid}) and build it before closing", gate=True)
+        raise ReleaseSplitError(f"{rid} has no stories yet: derive it (/specs, {derive}) and build it before closing", gate=True)
+    units: list[str] | None = None
+    if change_id:  # IMP-429 (I4): its specs and its stories must be current, and what it delivers is frozen at the close
+        from .change_release import close_gate
+
+        units = close_gate(project_id, change_id, rid)
     pending = sorted(sid for sid, status in stories.items() if status != "Done")
     if pending:
-        raise ReleaseSplitError(f"{rid} cannot close: stories not Done: {', '.join(pending)} (/story-status --release {rid})", gate=True)
+        again = f"/story-status {project_id} --story US-NNN --set Done" if change_id else f"/story-status --release {rid}"
+        raise ReleaseSplitError(f"{rid} cannot close: stories not Done: {', '.join(pending)} ({again})", gate=True)
     closed[rid] = {"date": today or utc_now()[:10], "evidence": proof.as_posix(),
                    "evidence_sha256": hashlib.sha256(proof.read_bytes()).hexdigest(),
                    "closed_by": {"ba": _s(ba), "technical_team": _s(tech)}, "stories": sorted(stories)}
+    if units is not None:
+        closed[rid]["units"] = units
     partition["closed"] = dict(sorted(closed.items(), key=lambda kv: release_order(kv[0])))
     target = series_dir(base, change_id) / PARTITION_FILE
     write_text(target, json.dumps(partition, ensure_ascii=False, indent=2) + "\n")
     write_release_guide(project_id, change_id)
     unblocked = sorted((_s(r.get("id")) for r in _dicts(payload.get("releases"))
                         if rid in hard_dependencies(payload, _s(r.get("id")))
-                        and not inherited_blockers(base, _s(r.get("id")))), key=release_order)
-    return {"status": "closed", "release": rid, "closed": closed[rid], "unblocked": unblocked,
-            "guide": (series_dir(base, change_id) / GUIDE_FILE).as_posix()}
+                        and not inherited_blockers(base, _s(r.get("id")), change_id)), key=release_order)
+    result = {"status": "closed", "release": rid, "closed": closed[rid], "unblocked": unblocked,
+              "guide": (series_dir(base, change_id) / GUIDE_FILE).as_posix()}
+    if change_id:  # I1: a later release derived before this close lacks its preserved rows: derive it again
+        from .change_release import stale_derivations
+
+        result["stale_derivations"] = sorted({row["release"] for row in stale_derivations(project_id, change_id)},
+                                             key=release_order)
+    return result
 
 
-def release_status(base: Path, project_id: str, payload: dict[str, Any], partition: dict[str, Any], rid: str) -> dict[str, Any]:
+def release_status(base: Path, project_id: str, payload: dict[str, Any], partition: dict[str, Any], rid: str,
+                   change_id: str | None = None) -> dict[str, Any]:
     from .core.io import read_json
 
     closed = (partition.get("closed") or {}).get(rid)
@@ -160,6 +186,11 @@ def release_status(base: Path, project_id: str, payload: dict[str, Any], partiti
         status = "waiting"
     else:
         status = "open"
+    if change_id:  # IMP-429: the sub-release of a change is derived into 03_specs/CHG-nnn/rN/ and 04_backlog/CHG-nnn/rN/
+        stories = release_stories(base, project_id, rid, change_id)
+        return {"id": rid, "status": status, "closed": closed, "waiting_on": waiting, "stage": None,
+                "derived": (base / "03_specs" / change_id / rid / "specs.md").is_file(),
+                "stories": len(stories), "done": sum(1 for s in stories.values() if s == "Done")}
     return {"id": rid, "status": status, "closed": closed, "waiting_on": waiting, "stage": stage,
             "derived": (base / "03_specs" / rid).is_dir()}
 
@@ -181,8 +212,14 @@ def render_release_guide(project_id: str, partition: dict[str, Any], payload: di
             status = copy["closed"].format(date=st["closed"].get("date", ""), evidence=Path(str(st["closed"].get("evidence", ""))).name)
         elif st["status"] == "waiting":
             status = copy["waiting"].format(deps=", ".join(st["waiting_on"]))
-        elif change_id:  # the sub-releases of a change are not derived yet (and /specs --release refuses a change)
-            status = copy["not_derived_change"]
+        elif change_id:
+            fields = {"pid": project_id, "cid": change_id, "rid": rid}
+            if not st["derived"]:
+                status = copy["not_derived_change"].format(**fields)
+            elif not st["stories"]:
+                status = copy["no_stories_change"].format(**fields)
+            else:
+                status = copy["derived_change"].format(**fields, done=st["done"], total=st["stories"])
         elif st["derived"]:
             status = copy["stage"].format(rid=rid, stage=st["stage"] or "?")
         else:
@@ -232,7 +269,7 @@ def write_release_guide(project_id: str, change_id: str | None = None) -> Path:
     if section is not None:
         out_of_scope = sum(1 for line in lines[section.start + 1:section.end] if line.lstrip().startswith("- ") and "[[" in line)
     absent = out_of_scope + sum(len(_dicts(s.get("contains"))) for s in _dicts(payload.get("sketches")))
-    statuses = {rid: release_status(base, project_id, payload, partition, rid) for rid in partition.get("releases") or []}
+    statuses = {rid: release_status(base, project_id, payload, partition, rid, change_id) for rid in partition.get("releases") or []}
     partition = {**partition, "unresolved": len(assignment["unresolved"])}
     target = scope.series_dir / GUIDE_FILE
     write_text(target, render_release_guide(project_id, partition, payload, statuses, families, absent, scope.language, change_id))

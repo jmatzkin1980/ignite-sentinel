@@ -478,5 +478,30 @@ class ChangeSplitProposalExampleTest(SyncCase):
         self.assertEqual(out["status"], "proposal")
 
 
+class ChangeSeriesSkillTextTest(unittest.TestCase):
+    """H27 inc 7d: the skills teach the sub-releases of a change (derive, close, move) and no longer promise them for later."""
+
+    SKILLS = Path(__file__).resolve().parents[1] / ".codex" / "skills"
+
+    def text(self, name: str) -> str:
+        return (self.SKILLS / name / "SKILL.md").read_text(encoding="utf-8")
+
+    def test_release_split_skill_has_no_leftover_promise(self):
+        body = self.text("sentinel-release-split")
+        section = body.split("## Release split of a change", 1)[1].split("\n## ", 1)[0]
+        for leftover in ("until 7d", "7d", "is refused for now", "comes later"):
+            self.assertNotIn(leftover, body)
+        for needle in ("--release rN", "--close rN", "--move", "stale_derivations", "03_specs/CHG-nnn/rN/", "delivered in rN"):
+            self.assertIn(needle, section)
+
+    def test_specs_backlog_and_router_name_the_release_of_a_change(self):
+        self.assertIn("--change CHG-nnn --release rN", self.text("sentinel-specs"))
+        self.assertIn("04_backlog/CHG-nnn/rN/", self.text("sentinel-backlog"))
+        router = self.text("sentinel-command-router")
+        split_line = router.split("`/split PROJECT_ID --assess|--propose", 1)[1].split("\n", 1)[0]
+        self.assertNotIn("are refused", split_line)
+        self.assertIn("`/specs` and `/backlog", split_line)
+
+
 if __name__ == "__main__":
     unittest.main()

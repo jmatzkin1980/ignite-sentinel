@@ -281,6 +281,8 @@ def compile_release_brief(brief_text: str, payload: dict[str, Any], release_id: 
     if _s(release.get("type")) == "already_built":  # IMP-298: only this release documents what exists
         direction = _direction_re()
         out = [direction.sub(rf"\g<1>{BUILT}", line) for line in out]
+    if change_id:  # IMP-429: an open gap of a change with no owner yet is missing data, never a bare `-` cell
+        out = _no_owner_cells(out, language)
     title = next((n for n, line in enumerate(out) if line.startswith("# ")), None)
     if title is not None:
         out[title] = f"{out[title]} · {release_id} {_s(release.get('name'))}".rstrip()
@@ -296,6 +298,22 @@ def compile_release_brief(brief_text: str, payload: dict[str, Any], release_id: 
     else:
         out[(title or 0) + 1:(title or 0) + 1] = [""] + block
     return "\n".join(out).rstrip() + "\n", local
+
+
+NO_OWNER = {"es": "sin dato registrado", "en": "no data recorded"}
+_DASH_LAST_CELL = re.compile(r"\|\s*-\s*\|\s*$")
+
+
+def _no_owner_cells(lines: list[str], language: str) -> list[str]:
+    """IMP-429: in §7.1 of a change's release brief, the owner cell of an open gap with no owner says it is missing."""
+    model = parse_brief("\n".join(lines))
+    words = NO_OWNER.get(language, NO_OWNER["en"])
+    out = list(lines)
+    for number, line in enumerate(lines, start=1):
+        if line.lstrip().startswith("|") and _DASH_LAST_CELL.search(line) \
+                and (model.section_id_at_line(number) or "").startswith("7.1"):
+            out[number - 1] = _DASH_LAST_CELL.sub(f"| {words} |", line)
+    return out
 
 
 def _integrity(text: str, gaps: dict[str, dict[str, str]], registry: list[dict[str, Any]]) -> list[str]:

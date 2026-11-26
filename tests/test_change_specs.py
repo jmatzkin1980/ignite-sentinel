@@ -189,11 +189,11 @@ class ChangeSpecs(SnapshotWorkspaceCase):
             compile_change_specs("BORR", self.cid)
         self.assertIn("blocking gap(s) open", str(caught.exception))
         code, _ = run_cli(["specs", "BORR", "--change", self.cid, "--release", "r1"])
-        self.assertEqual(code, 3)
+        self.assertEqual(code, 4)  # IMP-429: --release is accepted with --change; the gate answers first
         err = io.StringIO()
         with redirect_stderr(err), redirect_stdout(io.StringIO()):
             cli_main(["specs", "BORR", "--change", self.cid, "--release", "r1"])
-        self.assertIn("cannot be combined with --release", err.getvalue())
+        self.assertIn("blocking gap(s) open", err.getvalue())
 
     def test_lost_registry_does_not_reissue_change_ids(self):
         first = json.loads(run_ok(["specs", "BORR", "--change", self.cid]))
@@ -220,7 +220,7 @@ class ChangeSpecs(SnapshotWorkspaceCase):
         self.assertEqual(code, 0)
         self.assertEqual(json.loads(out)["change_id"], self.cid)
         code, _ = run_cli(["specs", "BORR", "--change", self.cid, "--release", "r1"])
-        self.assertEqual(code, 3)
+        self.assertEqual(code, 4)  # IMP-429: accepted; with no confirmed series the gate refuses
         captured: list[list[str]] = []
         with patch.object(sentinel_mcp, "run_cli", lambda arguments: captured.append(arguments) or {"exit_code": 0}):
             _tools()["sentinel_specs"](project_id="BORR", change=self.cid)
@@ -237,9 +237,10 @@ class ChangeSpecs(SnapshotWorkspaceCase):
         self.assertNotIn("Run /ingest first", err.getvalue() + out.getvalue())
         self.assertFalse((workspace_path("BORR") / "03_specs" / self.cid).exists())
 
-    def test_release_with_change_refused_only_for_specs(self):
+    def test_release_with_change_needs_a_confirmed_series(self):
         code, _ = run_cli(["specs", "BORR", "--change", self.cid, "--release", "r1"])
-        self.assertEqual(code, 3)
+        self.assertEqual(code, 4)  # IMP-429: /specs takes --release with --change; no series, no derivation
+        self.assertFalse((workspace_path("BORR") / "03_specs" / self.cid / "r1").exists())
 
 
 class ChangeSpecsWithProject(SnapshotWorkspaceCase):

@@ -84,6 +84,14 @@ class FlowMatrixTest(unittest.TestCase):
         self.assertTrue(rows["extract_verify_result"][5].startswith("`extract_verify`"))
         self.assertTrue(rows["baseline"][5].startswith("`crosses`"))
 
+    def test_change_release_cells(self):
+        """H27 inc 7d: a change with a confirmed series asks for its specs and backlog release by release, and for the close."""
+        rows = _keyed("Change path")
+        for key in ("specs", "backlog"):
+            with self.subTest(step=key):
+                self.assertIn("--release", rows[key][1])
+        self.assertIn("--close", rows["done"][3])
+
     def test_no_cell_promises_inc_6(self):
         for section, rows in _sections().items():
             for cells in rows:

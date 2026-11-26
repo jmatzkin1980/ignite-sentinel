@@ -822,9 +822,11 @@ CHANGE_COMMANDS = {
 
 def _change_step_key(project_id: str, change_id: str, change: dict[str, Any]) -> str:
     """IMP-396: the first step of the change's sequence that is still pending (`specs` also covers the PRD of the change, written by `/specs --change`)."""
-    from .change_validation import validate_change
-    from .compilers.change_backlog import read_change_units, specs_currency
+    return _change_prep_key(project_id, change_id, change) or _change_build_key(project_id, change_id, change)
 
+
+def _change_prep_key(project_id: str, change_id: str, change: dict[str, Any]) -> str:
+    """The steps before the specs (scope to the final export): the key of the first pending one, "" when none is."""
     base = workspace_path(project_id)
     if change.get("round") == "scope":
         return "scope"
@@ -875,6 +877,21 @@ def _change_step_key(project_id: str, change_id: str, change: dict[str, Any]) ->
         return "consolidate"
     if not _final_export_current(base, change_id, change):
         return "export_final"
+    return ""
+
+
+def _change_build_key(project_id: str, change_id: str, change: dict[str, Any]) -> str:
+    """The steps from the specs on. A change with a confirmed series (7d) walks it release by release: `series_step`."""
+    from .change_validation import validate_change
+    from .compilers.change_backlog import read_change_units, specs_currency
+    from .change_release import series_step
+
+    base = workspace_path(project_id)
+    walking = series_step(project_id, change_id, change)
+    if walking is not None:
+        if walking["key"]:
+            return walking["key"]
+        return "validate" if validate_change(project_id, change_id)["verdict"] != "VALID" else "done"
     if (not change.get("specs") or not (base / "03_specs" / change_id / "specs.md").is_file()
             or specs_currency(project_id, change_id) != "current"):
         return "specs"
@@ -1181,6 +1198,12 @@ def change_next_step(project_id: str, change_id: str) -> dict[str, Any]:
     for item in versions:
         text += " " + version_sentence(project_id, item, language == "es")
     command = CHANGE_COMMANDS[command_key].format(**ctx)
+    if key in ("specs", "backlog", "done"):
+        from .change_release import series_step
+
+        walking = series_step(project_id, change_id, change)
+        if walking is not None and walking["key"] == key:  # H27 inc 7d: the step names the release
+            command, title, text = _series_step_texts(project_id, change_id, key, walking, language, command, title, text)
     step = {"change_id": change_id, "key": key, "title": title, "text": text,
             "command": command, "skill": skill_for_command(command)}
     if versions:
@@ -1191,6 +1214,47 @@ def change_next_step(project_id: str, change_id: str) -> dict[str, Any]:
     if pre_decided:
         step["pre_decided"] = pre_decided
     return step
+
+
+SERIES_TEXT = {
+    "es": {
+        "specs": "Corré /specs {pid} --change {cid} --release {rid}: la serie de {cid} se deriva release por release y {rid} {why}.",
+        "specs_new": "todavía no tiene sus unidades",
+        "specs_old": "tiene unidades viejas (cambió la serie o el cambio)",
+        "specs_closed": "se derivó antes de que cerrara {closed}: lo que entregó {closed} tiene que pasar a preservado antes de cerrar {rid}",
+        "backlog": "Corré /backlog {pid} --change {cid} --release {rid}: {rid} {why}.",
+        "backlog_new": "todavía no tiene sus historias",
+        "backlog_old": "tiene historias que no son las de sus unidades",
+        "done": "{rid} está derivada ({done}/{total} historias Done). Cuando todas estén Done, cerrala con /split {pid} --change {cid} --close {rid} "
+                "--evidence ARCHIVO --ba NOMBRE --tech NOMBRE: lo que entregó pasa a preservado en las releases siguientes.",
+    },
+    "en": {
+        "specs": "Run /specs {pid} --change {cid} --release {rid}: the series of {cid} is derived release by release and {rid} {why}.",
+        "specs_new": "does not have its units yet",
+        "specs_old": "has old units (the series or the change moved)",
+        "specs_closed": "was derived before {closed} closed: what {closed} delivered must become preserved behavior before {rid} closes",
+        "backlog": "Run /backlog {pid} --change {cid} --release {rid}: {rid} {why}.",
+        "backlog_new": "does not have its stories yet",
+        "backlog_old": "has stories that are not those of its units",
+        "done": "{rid} is derived ({done}/{total} stories Done). When all of them are Done, close it with /split {pid} --change {cid} --close {rid} "
+                "--evidence FILE --ba NAME --tech NAME: what it delivered becomes preserved behavior in the next releases.",
+    },
+}
+
+
+def _series_step_texts(project_id: str, change_id: str, key: str, walking: dict[str, Any], language: str,
+                       command: str, title: str, text: str) -> tuple[str, str, str]:
+    """H27 inc 7d: the command and the sentence of a step of the series name the release (the keys and their titles do not change)."""
+    texts = SERIES_TEXT["es" if language == "es" else "en"]
+    rid = walking["release"]
+    ctx = {"pid": project_id, "cid": change_id, "rid": rid, "done": walking.get("done", 0), "total": walking.get("total", 0),
+           "why": texts.get(f"{key}_{walking.get('why', 'new')}", "").format(
+               closed=", ".join(walking.get("closed_since") or []), rid=rid)}
+    if key == "done":
+        # M5: while a story is not Done the close is bound to fail: it stays in the sentence, not as the command
+        close = f"/split {project_id} --change {change_id} --close {rid}" if ctx["done"] >= ctx["total"] else ""
+        return close, ("Cerrar " if language == "es" else "Close ") + rid, texts["done"].format(**ctx)
+    return f"{command} --release {rid}", title, texts[key].format(**ctx)
 
 
 def _batch_sentence(project_id: str, change_id: str, language: str) -> str:

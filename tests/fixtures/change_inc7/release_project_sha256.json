@@ -1,0 +1,16 @@
+{
+  "02_requirements/series/index.md": "e8810617a55f0a952df6a7ed84466fec17d3818ab9338af578108e809f793328",
+  "02_requirements/series/partition.json": "b636d884b97f8e189c343e880b6dd12a50d9783d576c0fc6f3f72c213c0b8e00",
+  "02_requirements/series/proposal.json": "78bb8b64699c87179c5898afa259dbeb0988a967f5b63ac17b184cbb8eac475e",
+  "02_requirements/series/release-guide.md": "2e73dcd678be61f06450d10a03826688b7cb783ae0c441329aec55b1be9cf582",
+  "02_requirements/series/scope_changes.json": "622d2b2b56444efffad980a76c734e48d271db72554901f5bd239de0a20466b7",
+  "02_requirements/series/scope_changes.md": "491980f4f4c853ad04d503cde3d1ab56ad60157e6fabb62d1b6ad9a467a18f5f",
+  "02_requirements/series/series_map.json": "3debeb887300f26978cc4db738d05dda337f79a2277f6ccde4477e750e7026da",
+  "02_requirements/series/series_report.json": "412bd3abb492bbb59297e55f8eb8ac9f774038ef383cbc9fda8ce6032a300db1",
+  "03_specs/r1/prd.md": "64435e9137445169af38788be74bcd62b55e6a155479a929b70e3b9b754f87e4",
+  "03_specs/r1/specs.md": "b858b75a16aa62422ad21be4489a0d1a6d3324bae7c084270f3b23887d8889c9",
+  "04_backlog/r1/BACKLOG.md": "2b06a5ef44466bd935c71a5132838fc15745648e5e5ea13b7efb6ce9875974e5",
+  "04_backlog/r1/EPIC-001.md": "f3d90a71aadc6066a0ce3d3d6047fb1334399573032ee7014bd284731a7f08c2",
+  "04_backlog/r1/SLICE-PLAN.md": "057db2b1cdb1d9c48b16cbd887feb8da47832a5978fe25ae83049fbebff9e839",
+  "04_backlog/r1/US-001.md": "cb34441036eaff2bad783b50b2e9ce4701208718c6965a0606c368a8f097a5ea"
+}

@@ -107,8 +107,12 @@ def _render_changes(project_id: str, history: list[dict[str, Any]]) -> str:
 
 
 def move_unit(project_id: str, spec: str, source: str, target: str, reason: str, ba: str, tech: str,
-              finding: str = "", criterion: str = "", today: str | None = None) -> dict[str, Any]:
-    """Move one unit of the confirmed series and confirm the new partition. Every refusal leaves nothing changed."""
+              finding: str = "", criterion: str = "", today: str | None = None,
+              change_id: str | None = None) -> dict[str, Any]:
+    """Move one unit of the confirmed series and confirm the new partition. Every refusal leaves nothing changed.
+
+    With `change_id` (IMP-429) the series is the change's (`02_requirements/CHG-nnn/series/`): the same move, the same
+    partition validation, a closed release is not touched, and the derivations of the releases it touches go stale."""
     from .core.io import read_json, write_text
     from .core.paths import workspace_path
     from .core.time import utc_now
@@ -121,7 +125,10 @@ def move_unit(project_id: str, spec: str, source: str, target: str, reason: str,
     if not _s(ba) or not _s(tech):
         raise ReleaseSplitError("/split --move changes the partition: --ba NAME and --tech NAME confirm it, as in --confirm")
     base = workspace_path(project_id)
-    series = base.joinpath(*PROPOSAL_DIR)
+    from .series_scope import series_dir, series_scope
+
+    series = series_dir(base, change_id) if change_id else base.joinpath(*PROPOSAL_DIR)
+    scope = series_scope(project_id, change_id) if change_id else None
     partition = read_json(series / PARTITION_FILE, None)
     if not isinstance(partition, dict) or partition.get("status") != "confirmed":
         raise ReleaseSplitError("/split --move needs a confirmed series; run /split --confirm first", gate=True)
@@ -129,57 +136,123 @@ def move_unit(project_id: str, spec: str, source: str, target: str, reason: str,
     if not isinstance(stored, dict) or stored.get("proposal_sha256") != partition.get("proposal_sha256"):
         raise ReleaseSplitError("the stored proposal is not the confirmed one; confirm it before moving units", gate=True)
     brief_path = base / "02_requirements" / "project-brief.md"
-    if brief_hash(brief_path) != stored.get("brief_sha256"):
-        raise ReleaseSplitError("the brief changed since the series was confirmed; run /split --propose again", gate=True)
+    brief_text = scope.brief_text if scope else (brief_path.read_text(encoding="utf-8") if brief_path.is_file() else "")
+    if (scope.brief_sha256 if scope else brief_hash(brief_path)) != stored.get("brief_sha256"):
+        scope_flag = f" --change {change_id}" if change_id else ""
+        raise ReleaseSplitError(f"the brief changed since the series was confirmed; run /split{scope_flag} --propose again", gate=True)
+    if change_id:
+        shut = [name for name in (source, target) if name in (partition.get("closed") or {})]
+        if shut:
+            names = ", ".join(shut)
+            raise ReleaseSplitError(
+                f"{names} está cerrada en la serie de {change_id}: lo entregado no se mueve" if scope.language == "es"
+                else f"{names} is closed in the series of {change_id}: what was delivered does not move", gate=True)
     payload = stored["proposal"]
     moved, unit = plan_move(payload, spec, source, target)
     history = read_json(series / CHANGES_JSON, None)
     history = list(history.get("changes", [])) if isinstance(history, dict) else []
     key = unit_key(unit)
-    language = project_language(project_id)
+    language = scope.language if scope else project_language(project_id)
     previous = round_trip(history, key, source, target)
     written = {_s(c.get("id")) for c in _dicts(payload.get("criteria"))}
     if previous is not None:
         dst = _holder(moved, target) or {}
         allowed = criterion in written and (target.startswith(SKETCH_PREFIX) or criterion in (dst.get("criteria") or []))
         if not allowed:
-            open_split_gap(project_id, {
+            _open_criterion_gap(project_id, change_id, {
                 "id": CRITERION_GAP_ID, "lens": "product", "severity": "medium", "status": "OPEN",
                 "description": f"{unit_label(unit)} went {target} → {source} ({previous.get('date', '')}) and is asked back to {target}: "
                                "a cut criterion is not written [A42].",
                 "question": f"Which cut criterion decides where {unit_label(unit)} lives? Write it in the proposal and name it with --criterion.",
-                "evidence_mention": "02_requirements/series/scope_changes.md", "origin": "split", "resolution_note": "",
+                "evidence_mention": (f"02_requirements/{change_id}/series/scope_changes.md" if change_id
+                                     else "02_requirements/series/scope_changes.md"),
+                "origin": "split", "resolution_note": "",
             }, language)
             raise ReleaseSplitError(
                 f"round trip: {unit_label(unit)} already went {target} → {source}; a cut criterion is not written [A42]. "
                 f"{CRITERION_GAP_ID} is open: name the written criterion that decides it with --criterion Cn "
                 f"(written in the proposal{'' if target.startswith(SKETCH_PREFIX) else f' and used by {target}'})")
-    gaps_path = base / "01_discovery" / "gaps.md"
+    gaps_path = scope.gaps_path if scope else base / "01_discovery" / "gaps.md"
     rows = parse_gap_rows(gaps_path.read_text(encoding="utf-8")) if gaps_path.is_file() else []
     open_gaps = {_s(g.get("id")).strip("`") for g in rows if _s(g.get("status")).upper() != "CLOSED"}
-    result = validate_partition(brief_path.read_text(encoding="utf-8"), moved, open_gaps, partition.get("contracts_frozen") or {})
+    result = validate_partition(brief_text, moved, open_gaps, partition.get("contracts_frozen") or {})
     if result["findings"]:
         reasons = "; ".join(f"[{f['code']}] {f['where']}: {f['reason']}" for f in result["findings"])
         raise ReleaseSplitError(f"the move leaves the partition red ({len(result['findings'])} finding(s)); nothing changed: {reasons}")
-    briefs_before = {rid: _brief_digest(base, rid) for rid in partition.get("releases") or []}
+    briefs_before = {rid: _brief_digest(base, rid, change_id) for rid in partition.get("releases") or []}
     new_stored = {**stored, "proposal": moved,
                   "proposal_sha256": hashlib.sha256(json.dumps(moved, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest(),
                   "summary": _summary(moved)}
     write_text(series / PROPOSAL_FILE, json.dumps(new_stored, ensure_ascii=False, indent=2) + "\n")
-    confirmed = confirm_partition(project_id, ba, tech)
+    confirmed = confirm_partition(project_id, ba, tech, change_id)
     change = {"date": today or utc_now()[:10], "unit": unit_label(unit), "unit_key": key, "from": source, "to": target,
               "reason": _s(reason), "finding": _s(finding), "criterion": _s(criterion) if previous is not None else "",
               "confirmed_by": {"ba": _s(ba), "technical_team": _s(tech)}}
     history.append(change)
     write_text(series / CHANGES_JSON, json.dumps({"changes": history}, ensure_ascii=False, indent=2) + "\n")
     write_text(series / CHANGES_MD, _render_changes(project_id, history))
-    touched = sorted(rid for rid in confirmed["releases"] if _brief_digest(base, rid) != briefs_before.get(rid))
+    touched = sorted(rid for rid in confirmed["releases"] if _brief_digest(base, rid, change_id) != briefs_before.get(rid))
+    if change_id:
+        return _moved_in_change(project_id, change_id, change, touched, confirmed, source, target)
     return {"status": "moved", "change": change, "releases_changed": touched,
             "stale_derivations": [rid for rid in touched if (base / "03_specs" / rid).is_dir() or (base / "04_backlog" / rid).is_dir()],
             "confirmed_by": confirmed["confirmed_by"], "series": confirmed["series"],
             "next": "run /specs, /backlog and /quality with --release for each release in stale_derivations"}
 
 
-def _brief_digest(base: Path, rid: str) -> str:
-    path = base / "02_requirements" / rid / "project-brief.md"
+def _open_criterion_gap(project_id: str, change_id: str | None, row: dict[str, str], language: str) -> None:
+    """GAP-SPLIT-CRITERION of the project goes in gaps.md; the one of a change goes through the change's own sink, once."""
+    if change_id is None:
+        open_split_gap(project_id, row, language)
+        return
+    from .changes import change_gaps_path, merge_change_gaps, reopen_change_gap
+    from .core.paths import workspace_path
+
+    path = change_gaps_path(workspace_path(project_id), change_id)
+    current = next((r for r in parse_gap_rows(path.read_text(encoding="utf-8")) if _s(r.get("id")).strip("`") == row["id"]),
+                   None) if path.is_file() else None
+    if current is not None and _s(current.get("status")).upper() != "CLOSED":
+        return
+    if current is not None:
+        reopen_change_gap(project_id, change_id, row["id"])
+        return
+    merge_change_gaps(project_id, change_id, [row], [])
+
+
+def _moved_in_change(project_id: str, change_id: str, change: dict[str, Any], touched: list[str],
+                     confirmed: dict[str, Any], source: str, target: str) -> dict[str, Any]:
+    """The result of a move inside a change's series: which derivations of `03_specs/CHG/rN/` and `04_backlog/CHG/rN/` are old now."""
+    from .change_release import ChangeReleaseError, release_dir, release_units
+
+    try:
+        owned: dict[str, list[str]] | None = release_units(project_id, change_id)
+    except ChangeReleaseError:
+        owned = None  # a unit with two owners or none: every derived release has to be derived again
+    stale: list[str] = []
+    for rid in (source, target):
+        if rid.startswith(SKETCH_PREFIX) or rid in stale:
+            continue
+        if not any(release_dir(project_id, change_id, rid, layer).is_dir() for layer in ("03_specs", "04_backlog")):
+            continue
+        derived = release_dir(project_id, change_id, rid, "03_specs") / "units"
+        held = sorted(p.stem for p in derived.glob("SPEC-U-*.md")) if derived.is_dir() else []
+        if owned is None or held != sorted(owned.get(rid, [])):
+            stale.append(rid)
+    flag = f"--change {change_id}"
+    if _language(project_id, change_id) == "es":
+        advice = f"/next {project_id} {flag}: rehace con /specs y /backlog {flag} --release las releases de stale_derivations"
+    else:
+        advice = f"/next {project_id} {flag}: derive again with /specs and /backlog {flag} --release the releases in stale_derivations"
+    return {"status": "moved", "change": change, "releases_changed": touched, "stale_derivations": sorted(stale),
+            "confirmed_by": confirmed["confirmed_by"], "series": confirmed["series"], "next": advice}
+
+
+def _language(project_id: str, change_id: str) -> str:
+    from .changes import change_language, get_change
+
+    return change_language(project_id, get_change(project_id, change_id))
+
+
+def _brief_digest(base: Path, rid: str, change_id: str | None = None) -> str:
+    path = (base / "02_requirements" / change_id / rid if change_id else base / "02_requirements" / rid) / "project-brief.md"
     return hashlib.sha256(path.read_bytes()).hexdigest() if path.is_file() else ""

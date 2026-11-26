@@ -29,6 +29,14 @@ TEXT = {
         "no_units": "Sin unidades: corré /specs {project} --change {change}.",
         "no_backlog": "Sin backlog del cambio: corré /backlog {project} --change {change}.",
         "no_rows": "Sin filas EARS del cambio.",
+        "series_stale": "La serie de releases de {change} está desactualizada: el cambio se movió desde que se compiló.",
+        "series_next": "Proponé la serie de nuevo con /split {project} --change {change} --propose --source PROPUESTA.json y confirmala con --confirm.",
+        "series_unit_next": "/split {project} --change {change} --move --unit <C-NN> --from <rA> --to <rB> --reason \"...\" --ba \"...\" --tech \"...\"",
+        "release_specs_old": "Las unidades de {rid} en 03_specs/{change}/{rid}/ están viejas: cambió la serie o el cambio desde que se derivaron.",
+        "release_specs_closed": "Las unidades de {rid} en 03_specs/{change}/{rid}/ se derivaron antes de que cerrara {closed}: lo que entregó no figura como preservado.",
+        "release_backlog_old": "Las historias de {rid} (04_backlog/{change}/{rid}/stories.md) no salen de sus unidades actuales.",
+        "release_specs_next": "/specs {project} --change {change} --release {rid} y después /backlog {project} --change {change} --release {rid}",
+        "release_backlog_next": "/backlog {project} --change {change} --release {rid}",
         "ok": "Sin hallazgos.",
         "next": "Siguiente paso",
     },
@@ -48,6 +56,14 @@ TEXT = {
         "no_units": "No units: run /specs {project} --change {change}.",
         "no_backlog": "No backlog for the change: run /backlog {project} --change {change}.",
         "no_rows": "No EARS rows for the change.",
+        "series_stale": "The release series of {change} is stale: the change moved since it was compiled.",
+        "series_next": "Propose the series again with /split {project} --change {change} --propose --source PROPOSAL.json and confirm it with --confirm.",
+        "series_unit_next": "/split {project} --change {change} --move --unit <C-NN> --from <rA> --to <rB> --reason \"...\" --ba \"...\" --tech \"...\"",
+        "release_specs_old": "The units of {rid} in 03_specs/{change}/{rid}/ are old: the series or the change moved since they were derived.",
+        "release_specs_closed": "The units of {rid} in 03_specs/{change}/{rid}/ were derived before {closed} closed: what it delivered is not listed as preserved.",
+        "release_backlog_old": "The stories of {rid} (04_backlog/{change}/{rid}/stories.md) do not come from its current units.",
+        "release_specs_next": "/specs {project} --change {change} --release {rid}, then /backlog {project} --change {change} --release {rid}",
+        "release_backlog_next": "/backlog {project} --change {change} --release {rid}",
         "ok": "No findings.",
         "next": "Next step",
     },
@@ -87,6 +103,35 @@ def _source_gap(row: dict) -> str:
 
 def _p2p_lines(text: str) -> list[str]:
     return [line for line in text.splitlines() if line.startswith("| AC-") and "pass-to-pass" in line]
+
+
+def _series_findings(project_id: str, change_id: str, text: dict, has_units: bool) -> list[tuple[str, str, dict]] | None:
+    """(message, next-step key, its fields) of what is wrong with the confirmed series of the change; None when it has none."""
+    from .change_release import ChangeReleaseError, release_units, stale_derivations
+    from .core.io import read_json
+    from .release_series import MAP_FILE, series_validation_findings
+    from .series_scope import series_dir, series_scope
+
+    base = workspace_path(project_id)
+    partition = read_json(series_dir(base, change_id) / "partition.json", None)
+    if not isinstance(partition, dict) or partition.get("status") != "confirmed":
+        return None
+    found: list[tuple[str, str, dict]] = [(message, "series_next", {}) for message in series_validation_findings(base, change_id)]
+    current = read_json(series_dir(base, change_id) / MAP_FILE, None)
+    scope = series_scope(project_id, change_id)
+    if scope.brief_text and not (isinstance(current, dict) and current.get("brief_sha256") == scope.brief_sha256):
+        found.append((text["series_stale"].format(change=change_id), "series_next", {}))
+    if has_units:
+        try:
+            release_units(project_id, change_id)
+        except ChangeReleaseError as exc:
+            found.append((str(exc), "series_unit_next", {}))
+        # I1: an open release derived before another closed, or whose series or change moved, is old
+        for row in stale_derivations(project_id, change_id):
+            fields = {"rid": row["release"], "closed": row["closed_since"]}
+            message = text[f"release_{row['layer']}_{row['why']}"].format(change=change_id, **fields)
+            found.append((message, f"release_{row['layer']}_next", fields))
+    return found
 
 
 def validate_change(project_id: str, change_id: str) -> dict:
@@ -169,6 +214,13 @@ def validate_change(project_id: str, change_id: str) -> dict:
                 if parse_surfaces(surface, border)[1]:
                     found.append(text["artifact_unknown_surface"].format(artifact=artifact, surface=surface))
         record("stories_inside_border", found, "border_next")
+
+    # 5. release_series (H27 inc 7d): only a change with a confirmed series has this check; the others keep their four
+    series = _series_findings(project_id, change_id, text, bool(units))
+    if series is not None:
+        found = [f"{message} {text['next']}: {text[next_key].format(**ctx, **fields)}" for message, next_key, fields in series]
+        findings.extend(found)
+        checks.append({"id": "release_series", "status": "FAIL" if found else "PASS", "detail": "; ".join(found) or text["ok"]})
 
     return {
         "project_id": project_id,

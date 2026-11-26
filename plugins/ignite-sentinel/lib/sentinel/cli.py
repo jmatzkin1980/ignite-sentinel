@@ -94,7 +94,7 @@ def check_source_exists(args) -> None:
 
 
 def run_command(args, argv: list[str]) -> int:
-    if args.command in {"specs", "backlog", "validate", "next", "status"} and getattr(args, "release", None) and getattr(args, "change", None):
+    if args.command in {"validate", "next", "status"} and getattr(args, "release", None) and getattr(args, "change", None):
         from .changes import change_language, get_change
         from .errors import InputError
 
@@ -102,14 +102,15 @@ def run_command(args, argv: list[str]) -> int:
             language = change_language(args.project_id, get_change(args.project_id, args.change))
         except Exception:  # an unknown change or workspace is reported by the command itself
             language = "es"
+        again = f"/{args.command} {args.project_id} --change {args.change}"
         if language == "en":
-            message = f"/{args.command} --change cannot be combined with --release: a change does not belong to a release series."
-            next_step = f"Run /{args.command} {args.project_id} --change {args.change} without --release."
+            message = f"--release with --change exists for /specs and /backlog; for the rest run {again}"
+            next_step = f"Run {again}."
         else:
-            message = f"/{args.command} --change no se combina con --release: un cambio no pertenece a una serie de releases."
-            next_step = f"Corré /{args.command} {args.project_id} --change {args.change} sin --release."
+            message = f"--release con --change existe para /specs y /backlog; para el resto corré {again}"
+            next_step = f"Corré {again}."
         return report_error(InputError(message, next_step=next_step))
-    if getattr(args, "release", None):
+    if getattr(args, "release", None) and not (args.command in {"specs", "backlog"} and getattr(args, "change", None)):
         try:
             from .core.paths import validate_project_id
             from .release_scope import run_release_command, scoped_argv
@@ -370,24 +371,19 @@ def _run_project_command(args) -> int:
 
             result = build_inventory(args.project_id, args.source or "", args.change)
             print_json(result)
-        elif args.command == "split" and args.change and (args.close or args.move):
-            from .changes import change_language, get_change
-            from .errors import InputError
-
-            if change_language(args.project_id, get_change(args.project_id, args.change)) == "en":
-                raise InputError("/split --close and --move with --change come with the sub-releases of a change; today: --assess, --propose or --confirm")
-            raise InputError("/split --close y --move con --change llegan con las sub-releases de un cambio; hoy: --assess, --propose o --confirm")
         elif args.command == "split" and args.close:
             from .release_guide import close_release
 
-            print_json(close_release(args.project_id, args.close, args.evidence or "", args.ba or "", args.tech or ""))
+            print_json(close_release(args.project_id, args.close, args.evidence or "", args.ba or "", args.tech or "",
+                                     change_id=args.change))
         elif args.command == "split" and args.move:
             if not (args.unit and args.from_holder and args.to_holder):
                 raise ValueError("/split --move needs --unit, --from and --to (and --reason, --ba, --tech)")
             from .release_move import move_unit
 
             print_json(move_unit(args.project_id, args.unit, args.from_holder, args.to_holder, args.reason or "",
-                                 args.ba or "", args.tech or "", finding=args.finding, criterion=args.criterion))
+                                 args.ba or "", args.tech or "", finding=args.finding, criterion=args.criterion,
+                                 change_id=args.change))
         elif args.command == "split":
             from .split import run_assess
 
@@ -707,7 +703,7 @@ def _run_project_command(args) -> int:
                 from .compilers.change_specs import compile_change_specs
 
                 get_change(args.project_id, args.change)
-                result = compile_change_specs(args.project_id, args.change)
+                result = compile_change_specs(args.project_id, args.change, release=getattr(args, "release", None))
             else:
                 from .generation import generate_specs
 
@@ -722,6 +718,7 @@ def _run_project_command(args) -> int:
                 result = compile_change_backlog(
                     args.project_id, args.change,
                     story_format=args.story_format, with_task_seeds=bool(args.with_task_seeds),
+                    release=getattr(args, "release", None),
                 )
             else:
                 from .generation import generate_backlog
