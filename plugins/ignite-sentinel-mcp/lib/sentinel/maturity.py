@@ -460,6 +460,23 @@ def refuse_change_only_brief(project_id: str) -> None:
         )
 
 
+def refuse_change_only_maturity(project_id: str) -> None:
+    """IMP-431: a workspace that only holds changes has no project brief to measure; refuse before /maturity writes anything."""
+    from .changes import is_change_only, list_changes, refusal_language
+
+    if not is_change_only(project_id):
+        return
+    first = sorted(list_changes(project_id))[0]
+    es = refusal_language(project_id, first) == "es"
+    raise GateRefusal(
+        f"{project_id} sólo tiene cambios: /maturity mide el brief del proyecto, que no existe. "
+        f"La preparación de un cambio se ve con /next {project_id} --change {first}" if es
+        else f"{project_id} only holds changes: /maturity measures the project brief, which does not exist. "
+        f"A change's readiness is shown by /next {project_id} --change {first}",
+        next_step=f"/status {project_id} --change {first}",
+    )
+
+
 def generate_project_brief(project_id: str) -> dict[str, object]:
     base = workspace_path(project_id)
     gaps_path = base / "01_discovery" / "gaps.md"

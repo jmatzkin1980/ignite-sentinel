@@ -208,6 +208,7 @@ Use this when you know what you want but not the command. Commands are in chat f
 | "Reslice these stories" | `/refine-backlog --source refinement.json` | Proposals for BA review. Refused while health is `DIRTY`, for example while implementation feedback is still open. |
 | "Implementation found a missing dependency" | `/implementation-feedback --source feedback.json` | May open `GAP-FEEDBACK-*`, kept in `01_discovery/implementation_feedback_gaps.md`, not in `gaps.md`. While a finding that blocks DoD is open, health is `DIRTY` and `/backlog`, `/quality` and `/refine-backlog` refuse. Close it with a new feedback file that gives the same finding `id` with `"status": "resolved"`, then run `/health`. |
 | "Score the stories and write test cases" | `/quality` | Needs stories. Refused while health is `DIRTY`. `--override FILE` records cited decisions to proceed despite the audit's warnings. |
+| "Check the quality of this change's stories" | `/quality --change CHG-nnn` | Audits only the change's stories into `05_quality/CHG-nnn/`; the verdict stays in the change. A workspace that only holds changes refuses `/quality` and `/maturity` without it and names the `--change` form. |
 
 ### Review, share and maintain
 

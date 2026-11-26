@@ -302,6 +302,7 @@ Valid story statuses are `Draft`, `Ready`, `In Progress`, `In Review`, `Done`, `
 | `TC-NNN.md` | A generated test-case set linked to a story. | Never edit | `/quality` |
 | `backlog_readiness_audit.md` | Per-story INVEST and SPIDR checks with a non-blocking verdict. | Never edit | `/quality` |
 | `<rN>/` | The same for one release. | Never edit | `/quality --release rN` |
+| `CHG-nnn/` | The same for the stories of one change (`TC-nnn.md`, `backlog_readiness_audit.md`), in the change's language; its verdict is kept in the change's record. | Never edit | `/quality --change CHG-nnn` |
 
 ## `06_traceability/`
 

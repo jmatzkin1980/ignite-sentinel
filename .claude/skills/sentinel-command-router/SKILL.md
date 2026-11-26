@@ -136,7 +136,7 @@ When a command leaves the user a decision or a next step, end with one short que
 - `/resolve-gaps`: use `sentinel-gap-response`.
 - `/sources --change --keep-single --reason`: use `sentinel-discovery` (keep one change); run it only with the BA's decision and their reason, and report that the escalation warning stops.
 - `/export --artifact borde|decisiones` (and `/view --artifact borde|decisiones`), always with `--change`: use `sentinel-views` (Review views of a change); report the path and never present an assumption as a decision.
-- `/maturity`: use `sentinel-maturity`.
+- `/maturity`: use `sentinel-maturity`; in a workspace that only holds changes it refuses and writes nothing, so run `/status --change` and `/next --change` instead.
 - `/brief`: use `sentinel-project-brief`.
 - `/context-request`: use `sentinel-domain-request`. A request is `CTX-NNN`: `active` -> `answered` (also when a file synced with `/sync --source` cites the id in its text; the `--note` is not read for it) -> `closed`, or `obsolete`; an `active` request cannot be closed directly, and closing needs a reason.
 - `/next`: give the step in one line with its command; it is the same decision as `next_action` in `/status`.
@@ -149,7 +149,7 @@ When a command leaves the user a decision or a next step, end with one short que
 - `/backlog`, `/backlog-status`, `/story-status`: use `sentinel-backlog` (lifecycle and board rules live there).
 - `/refine-backlog`: use `sentinel-backlog-refine`; proposals land as cited agent-origin overlays, never direct rewrites.
 - `/implementation-feedback`: use `sentinel-implementation-feedback`; accepted findings are traced feedback, not direct backlog rewrites.
-- `/quality`: use `sentinel-quality`.
+- `/quality`: use `sentinel-quality`; `/quality --change CHG-NNN` audits only that change's stories (`05_quality/CHG-nnn/`, verdict kept in the change) and a workspace that only holds changes refuses the project form.
 - `/health`, `/trace`, `/validate`, `/view`, `/doctor`: use `sentinel-health`.
 - `/setup --semantic-memory`: use `sentinel-health` (Semantic memory). It is not an MCP tool and never automatic: run it only when the user asks for it in chat, and it is the only command that downloads (one pinned model, every file's sha256 verified). Offline machine: `--offline-from DIR`; check without network: `--status`; never pip-install `model2vec` for the user, give them the pip command it prints.
 - `/status`: lead with `verdict` (`READY`, `READY_WITH_WARNINGS` or `NOT_READY`) and what blocks it, keep every `partial_coverage` entry visible, and give the next step exactly as `next_action` says. Never call a workspace ready unless the verdict is `READY`. A brief v2 that says "Ready to build: no" makes the verdict `NOT_READY` (see `ready_to_build`).

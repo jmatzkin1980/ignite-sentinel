@@ -474,8 +474,9 @@ def _run_project_command(args) -> int:
             )
             print_json(result)
         elif args.command == "maturity":
-            from .maturity import evaluate
+            from .maturity import evaluate, refuse_change_only_maturity
 
+            refuse_change_only_maturity(args.project_id)
             result = evaluate(args.project_id)
             print_json(result)
         elif args.command == "brief":
