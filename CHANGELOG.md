@@ -6,6 +6,8 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+## [0.37.0] — 2026-11-26
+
 ### Added
 
 - **`/split PROJECT_ID --change CHG-NNN --assess|--propose|--confirm` and `/view|/export --change --artifact release-guide` (IMP-427, H27 inc 7c).** A change too big for one release is split inside the change: the assessment, the proposal and the confirmation read the brief of the change (no project brief needed) and write under it (`01_discovery/CHG-nnn/split_assessment.*`, `02_requirements/CHG-nnn/series/`, `02_requirements/CHG-nnn/rN/project-brief.md`), with the series guide in the change's language and `GAP-SPLIT-CLIENT` in the change's gaps. `--close`, `--move` and `--release` with `--change` are refused until the sub-releases of a change are derived. `/split` of the project does not change.
