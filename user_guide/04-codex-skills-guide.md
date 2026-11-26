@@ -167,7 +167,7 @@ Seven skills share one shape, the proposal channel: `sentinel-annotate`, `sentin
 
 - **Use it when** the generated PRD is accurate but thin and you want better narrative that is still backed by evidence.
 - **What it does** writes agent-authored paragraphs, each with verbatim citations, and merges them into the PRD as an `Agent Composition` block tagged `origin: agent`. Blocks aimed at a still-pending section, or with citations that are not verbatim, are rejected. On a later `/specs` regeneration only still-valid blocks are reapplied.
-- **Commands it drives** `/compose` (after `/specs`).
+- **Commands it drives** `/compose` (after `/specs`), and `/compose --change CHG-NNN` onto the PRD of a change.
 - **Human-only** no.
 
 ### `sentinel-self-review`
@@ -190,14 +190,14 @@ Seven skills share one shape, the proposal channel: `sentinel-annotate`, `sentin
 
 - **Use it when** a story is too big, two should merge, one is missing, or an enabler candidate appeared.
 - **What it does** writes cited refinement proposals (`reslice`, `split-story`, `merge-stories`, `missing-story`, `enabler-candidate`) and merges them as an agent overlay for you to review. Nothing is rewritten automatically.
-- **Commands it drives** `/refine-backlog`.
+- **Commands it drives** `/refine-backlog`, and `/refine-backlog --change CHG-NNN` over the stories of a change.
 - **Human-only** no.
 
 ### `sentinel-implementation-feedback`
 
 - **Use it when** a planning, implementation or testing agent hits a blocker in a story: a new dependency, a gap, an acceptance criterion that cannot hold, or a surface no story covers.
 - **What it does** gives that agent a small contract: report the finding with evidence through the command, never patch the story. Accepted findings are traced, a gap-type finding opens `GAP-FEEDBACK-*`, affected stories may be marked Stale, and open findings can block a story's Done.
-- **Commands it drives** `/implementation-feedback`.
+- **Commands it drives** `/implementation-feedback` (a story of a change needs no flag: its units are checked against that change).
 - **Human-only** no.
 
 ### `sentinel-quality`

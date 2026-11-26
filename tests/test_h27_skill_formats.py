@@ -19,6 +19,10 @@ from sentinel.change_requirements import parse_delta, parse_surfaces
 from sentinel.compilers.change_spec_doc import BLOCKS, COPY, NO_DATA
 from sentinel.changes import parse_border
 from sentinel.assumptions import validate_assumptions
+from sentinel.backlog.refinement import validate_refinement_proposals
+from sentinel.discovery.channels import validate_agent_gaps, validate_scrutiny_gaps
+from sentinel.implementation_feedback import validate_findings
+from sentinel.prd import prd_sections, validate_composition_blocks
 from sentinel.change_assumptions import SUPUESTO_STATUSES
 from sentinel.cross_review import rules as cross_rules
 from sentinel.crosses.claims import CITATION_RULES, parse_claims
@@ -49,6 +53,12 @@ EXAMPLE_OWNERS = {
     "consolidation": "sentinel-project-brief",
     "change-functionality": "sentinel-specs",
     "change-split-proposal": "sentinel-release-split",
+    "refinement-proposals": "sentinel-backlog-refine",
+    "compose-blocks": "sentinel-compose",
+    "implementation-findings": "sentinel-implementation-feedback",
+    "change-annotation": "sentinel-annotate",
+    "change-challenge": "sentinel-challenge",
+    "change-scrutiny": "sentinel-scrutiny",
 }
 
 FENCE = re.compile(
@@ -315,7 +325,98 @@ def check_change_functionality(body: str, lang: str) -> None:
         assert header in body[trace.end():], f"traceability header is not {header!r}"
 
 
+BORRADOR = REPO / "tests" / "fixtures" / "change_borrador.md"
+CHANGE_STORIES = {"US-001": {"pending": False}, "US-002": {"pending": False}}
+CHANGE_UNITS = {"SPEC-U-001": "Guardar un borrador del alta incompleta.", "SPEC-U-002": "Retomar un borrador para terminar el alta."}
+CHANGE_PRD = "# PRD\n\n## 1. Resumen\n\nTexto.\n\n## 2. Alcance\n\nTexto.\n"
+
+
+def check_refinement_proposals(body: str) -> None:
+    """IMP-433: the example of `/refine-backlog --change` is what the refinement validator accepts against a change's own stories and units."""
+    accepted, rejected = validate_refinement_proposals(json.loads(body), BORRADOR.read_text(encoding="utf-8"), CHANGE_STORIES, CHANGE_UNITS)
+    assert rejected == [] and accepted, rejected
+
+
+def check_compose_blocks(body: str) -> None:
+    """IMP-433: the example of `/compose --change` is what the composition validator accepts on the PRD of a change."""
+    accepted, rejected = validate_composition_blocks(json.loads(body), prd_sections(CHANGE_PRD), BORRADOR.read_text(encoding="utf-8"))
+    assert rejected == [] and accepted, rejected
+
+
+def check_implementation_findings(body: str) -> None:
+    """IMP-433: the example of the feedback over a change's story names units the change owns."""
+    index = {
+        "US-002": {"acceptance_criteria": {"AC-002-01", "AC-002-02"}, "source_units": ["SPEC-U-002"], "change": "CHG-001",
+                   "valid_units": set(CHANGE_UNITS)},
+    }
+    accepted, rejected = validate_findings(json.loads(body), index)
+    assert rejected == [] and accepted, rejected
+
+
+def check_change_annotation(body: str) -> None:
+    """IMP-433: the example of a change channel is what the production validator accepts over the request of the change."""
+    assert validate_agent_gaps(json.loads(body), REQUEST.read_text(encoding="utf-8"))
+
+
+def check_change_challenge(body: str) -> None:
+    assert validate_agent_gaps(json.loads(body), REQUEST.read_text(encoding="utf-8"), origin="challenge")
+
+
+def check_change_scrutiny(body: str) -> None:
+    assert validate_scrutiny_gaps(json.loads(body), REQUEST.read_text(encoding="utf-8"))
+
+
+CHANGE_CHECKS = {
+    "refinement-proposals": check_refinement_proposals,
+    "compose-blocks": check_compose_blocks,
+    "implementation-findings": check_implementation_findings,
+    "change-annotation": check_change_annotation,
+    "change-challenge": check_change_challenge,
+    "change-scrutiny": check_change_scrutiny,
+}
+
+
+def _stale(kind: str, body: str) -> str:
+    """The example with one letter of its anchor changed: the quote, or the unit for the feedback (it has no quote)."""
+    data = json.loads(body)
+    if kind == "refinement-proposals":
+        cites = data["proposals"][0]["citations"]
+        cites[0] = cites[0][:-1] + "x"
+    elif kind == "compose-blocks":
+        cites = data["blocks"][0]["paragraphs"][0]["citations"]
+        cites[0] = cites[0][:-1] + "x"
+    elif kind == "implementation-findings":
+        data["findings"][0]["source_units"] = ["SPEC-U-009"]
+    else:
+        gap = data["gaps"][0]
+        gap["evidence"] = gap["evidence"][:-1] + "x"
+    return json.dumps(data, ensure_ascii=False)
+
+
 class SkillFormatTests(unittest.TestCase):
+    def test_change_examples_parse(self):
+        for kind, check in CHANGE_CHECKS.items():
+            found = examples_of(kind)
+            self.assertTrue(found, kind)
+            for lang, body in found:
+                with self.subTest(kind=kind, lang=lang):
+                    check(body)
+
+    def test_a_stale_change_example_fails(self):
+        for kind, check in CHANGE_CHECKS.items():
+            _, body = examples_of(kind)[0]
+            with self.subTest(kind=kind), self.assertRaises(Exception):
+                check(_stale(kind, body))
+
+    def test_skill_variants_resolve(self):
+        from sentinel.commands import skill_for_command
+
+        for command, skill in (("/compose P --source x --change CHG-001", "sentinel-compose"),
+                               ("/refine-backlog P --source x --change CHG-001", "sentinel-backlog-refine")):
+            self.assertEqual(skill_for_command(command), f"{skill} §Change")
+            self.assertRegex(skill_text(skill), r"(?m)^## Change\b")
+            self.assertRegex(skill_text(skill), r"(?m)^## Formato\s*$")
+
     def test_every_kind_has_an_example_in_its_owner(self):
         for kind, skill in EXAMPLE_OWNERS.items():
             self.assertTrue(examples(skill, kind), f"{skill} has no sentinel-example kind={kind}")

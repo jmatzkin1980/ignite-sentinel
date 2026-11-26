@@ -210,7 +210,7 @@ def preflight_command(command: str, project_id: str | None, change: str | None =
     if command in {"specs", "backlog"} and phase == "initialized" and not change:
         raise GateRefusal("Cannot generate downstream artifacts before /ingest creates discovery artifacts.")
 
-    # IMP-393/431: with `--change`, `/backlog` and `/quality` (and `/refine-backlog` once 8b gives it the flag) answer to the change's
+    # IMP-393/431: with `--change`, `/backlog` and `/quality`, and (IMP-433) `/refine-backlog`, answer to the change's
     # own gate (blocking gaps, specs current); a change-only workspace is DIRTY at project level. The exemption is explicit: only
     # these commands, and only when invoked with `--change`; without it the project's DIRTY gate applies.
     change_gated = command in {"backlog", "quality", "refine-backlog"} and bool(change)

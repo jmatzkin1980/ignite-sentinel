@@ -54,6 +54,27 @@ When the BA is working on one change (a request that modifies a system that alre
 - Gaps open in the change (`01_discovery/CHG-NNN/gaps.md`) and the log is `01_discovery/CHG-NNN/agent_annotation_log.md`; the project's gaps, readiness and health are not touched.
 - A workspace that only has changes refuses the form without `--change` and names the one to use.
 
+An example for a change whose request is the approval of supplier registrations by amount (the Compras domain is made up); the evidence is a line of that request, copied exactly:
+
+```sentinel-example kind=change-annotation lang=es
+{
+  "gaps": [
+    {
+      "id": "GAP-APROBACION-UMBRAL",
+      "lens": "business",
+      "severity": "high",
+      "question": "¿Qué monto exacto marca el umbral por encima del cual el alta pasa a la jefa de Compras?",
+      "evidence": "Si el monto supera el umbral, el alta pasa a la bandeja de la jefa de Compras.",
+      "description": "El umbral se nombra pero no se define."
+    }
+  ]
+}
+```
+
+## Formato
+
+The example of `/annotate --change` is the one above: it is parsed by the real validator against the request of a change in the test suite, so a quote that drifts from the text fails there before it reaches the BA as a rejected answer.
+
 ## Sweep protocol (IMP-271)
 
 Follow the sweep protocol (the package's `templates/agent_sweep_protocol.md`; the rules that matter are below). The runtime rejects the whole payload when:

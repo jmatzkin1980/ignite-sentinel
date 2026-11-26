@@ -77,29 +77,39 @@ CHANGE_QUALITY_TEXT = {
 }
 
 
-def _change_story_scope(project_id: str, change_id: str, stories: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], str]:
-    """IMP-431: the change's stories (gate: its backlog is there and current, and has stories) and the language of its artifacts."""
+def refuse_change_backlog_behind(project_id: str, change_id: str) -> str:
+    """IMP-431, shared with IMP-433 `/refine-backlog --change`: refuse when the change's backlog is missing or behind its units.
+    Returns the language of the change's artifacts."""
     from .change_release import series_step
     from .changes import change_language, get_change
-    from .compilers.change_backlog import _change_story_ids, read_change_units
+    from .compilers.change_backlog import read_change_units
     from .readiness_verdict import _backlog_behind
 
     change = get_change(project_id, change_id)
     language = "en" if change_language(project_id, change) == "en" else "es"
-    text = CHANGE_QUALITY_TEXT[language]
-    base = workspace_path(project_id)
     backlog = change.get("backlog")
     derived = [record for record in (change.get("backlog_releases") or {}).values()
                if isinstance(record, dict) and record.get("stories")]
     # IMP-431 M1: the same logic as readiness (`_change_build_key`): a confirmed series keeps one record per derived release
     # (a whole-change record left from before the series does not govern: no /next -> /quality -> /backlog loop)
     if backlog and series_step(project_id, change_id, change) is None:
-        behind = _backlog_behind(
-            base, change_id, read_change_units(project_id, change_id), list(backlog.get("dropped_units") or []))
+        behind = _backlog_behind(workspace_path(project_id), change_id, read_change_units(project_id, change_id),
+                                 list(backlog.get("dropped_units") or []))
     else:
         behind = not derived
     if behind:
-        raise GateRefusal(text["behind"].format(cid=change_id), next_step=f"/backlog {project_id} --change {change_id}")
+        raise GateRefusal(CHANGE_QUALITY_TEXT[language]["behind"].format(cid=change_id),
+                          next_step=f"/backlog {project_id} --change {change_id}")
+    return language
+
+
+def _change_story_scope(project_id: str, change_id: str, stories: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], str]:
+    """IMP-431: the change's stories (gate: its backlog is there and current, and has stories) and the language of its artifacts."""
+    from .compilers.change_backlog import _change_story_ids
+
+    language = refuse_change_backlog_behind(project_id, change_id)
+    text = CHANGE_QUALITY_TEXT[language]
+    base = workspace_path(project_id)
     own = set(_change_story_ids(base, change_id))
     scoped = sorted((story for story in stories if story["id"] in own), key=lambda story: story["id"])
     if not scoped:

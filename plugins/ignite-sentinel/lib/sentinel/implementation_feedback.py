@@ -6,7 +6,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from .core.markdown import table_cell
+from .core.markdown import parse_frontmatter, table_cell
 from .core.graph import add_edge, add_node, upsert_node
 from .core.markdown import parse_table_rows, split_table_row
 from .memory import ContextBroker
@@ -37,7 +37,7 @@ def apply_implementation_feedback(project_id: str, source: Path) -> dict[str, ob
     data = read_json(source, {})
     if not isinstance(data, dict):
         raise ImplementationFeedbackError("Implementation feedback source must be a JSON object with a findings array.")
-    story_index = load_story_index(base)
+    story_index = load_story_index(base, project_id)
     accepted, rejected = validate_findings(
         data, story_index, existing_feedback_ids(project_id), existing_finding_gaps(project_id)
     )
@@ -49,7 +49,7 @@ def apply_implementation_feedback(project_id: str, source: Path) -> dict[str, ob
         # only the report of why each finding was refused is written.
         from .prd import rejection_summary
 
-        write_feedback_report(project_id, accepted, rejected, source)
+        write_feedback_report(project_id, accepted, rejected, source, story_index)
         raise ImplementationFeedbackError(
             "No implementation feedback findings were accepted: " + rejection_summary(rejected)
             + " Details in 07_changes/05_implementation_feedback/feedback_report.md."
@@ -59,7 +59,7 @@ def apply_implementation_feedback(project_id: str, source: Path) -> dict[str, ob
     feedback_dir.mkdir(parents=True, exist_ok=True)
     archived = unique_path(feedback_dir / source.name)
     archive_payload(base, source, archived)
-    report_path = write_feedback_report(project_id, accepted, rejected, archived)
+    report_path = write_feedback_report(project_id, accepted, rejected, archived, story_index)
     write_feedback_gaps(project_id, accepted)
 
     run_id = add_node(
@@ -71,6 +71,8 @@ def apply_implementation_feedback(project_id: str, source: Path) -> dict[str, ob
         status="open" if any(item["status"] == "open" for item in accepted) else "resolved",
         domain="delivery",
     )
+    for change_id in sorted({story_index[item["story_id"]]["change"] for item in accepted} - {""}):
+        add_edge(project_id, change_id, run_id, "feedback_for")  # IMP-433: the change's id is its node
     for finding in accepted:
         finding["trace_id"] = run_id
         add_edge(project_id, run_id, finding["story_id"], "feedback_from_implementation")
@@ -199,6 +201,13 @@ def validate_finding_shape(finding: Any, story_index: dict[str, dict[str, Any]])
     story_id = str(finding.get("story", finding.get("story_id", ""))).strip()
     if story_id not in story_index:
         return f"story does not exist: {story_id}"
+    change_id = story_index[story_id].get("change", "")
+    if change_id:
+        # IMP-433: a story of a change answers for its units: those of the change and of its releases, never the project's.
+        valid = story_index[story_id].get("valid_units", set())
+        for unit in normalized_list(finding.get("source_units", [])):
+            if unit not in valid:
+                return f"source unit does not exist for {change_id}: {unit}"
     ac_id = str(finding.get("acceptance_criteria", "")).strip()
     if ac_id and ac_id not in story_index[story_id]["acceptance_criteria"]:
         return f"acceptance criteria does not belong to {story_id}: {ac_id}"
@@ -242,8 +251,10 @@ def normalize_finding(
     return normalized
 
 
-def load_story_index(base: Path) -> dict[str, dict[str, Any]]:
+def load_story_index(base: Path, project_id: str | None = None) -> dict[str, dict[str, Any]]:
+    """The stories a finding may name; a story of a change also carries its `change` and the units it may be judged by."""
     stories: dict[str, dict[str, Any]] = {}
+    valid_by_change: dict[str, set[str]] = {}
     readiness = read_json(base / "08_context_packs" / "implementation_readiness.json", {})
     readiness_by_story = {
         str(item.get("story_id")): item
@@ -255,11 +266,30 @@ def load_story_index(base: Path) -> dict[str, dict[str, Any]]:
         readiness_item = readiness_by_story.get(story_id, {})
         source_units = [str(readiness_item.get("source_unit", "")).strip()]
         source_units.extend(str(item).strip() for item in readiness_item.get("trace", []) if str(item).startswith("SPEC-U-"))
+        front = parse_frontmatter(text)
+        grouped = front.get("source_units")
+        if isinstance(grouped, list):
+            source_units.extend(str(item).strip() for item in grouped)  # IMP-433: a grouped story of a change covers several units
+        change_id = str(front.get("change", "")).strip()
         stories[story_id] = {
             "path": path,
             "acceptance_criteria": {item["id"] for item in acceptance_from_story_markdown(text)},
             "source_units": sorted({item for item in source_units if item}),
+            "change": change_id,
         }
+        if change_id:
+            if change_id not in valid_by_change:
+                from .compilers.change_backlog import change_unit_texts
+                from .errors import GateRefusal
+
+                # IMP-433 review I2: only the change's own units (and its releases'); a project unit would let a change-scoped
+                # finding mark project stories Stale. M6: a change no longer in state leaves its stories with no valid unit
+                # instead of refusing the whole run.
+                try:
+                    valid_by_change[change_id] = set(change_unit_texts(project_id or base.name, change_id))
+                except GateRefusal:
+                    valid_by_change[change_id] = set()
+            stories[story_id]["valid_units"] = valid_by_change[change_id]
     return stories
 
 
@@ -369,13 +399,19 @@ def write_feedback_report(
     accepted: list[dict[str, Any]],
     rejected: list[dict[str, str]],
     source: Path,
+    story_index: dict[str, dict[str, Any]] | None = None,
 ) -> Path:
     path = workspace_path(project_id) / "07_changes" / "05_implementation_feedback" / "feedback_report.md"
+    # IMP-433: the Change column appears only when an accepted finding is on a story of a change (the project's report is untouched)
+    changes = {item["id"]: str((story_index or {}).get(item["story_id"], {}).get("change", "")) for item in accepted}
+    with_change = any(changes.values())
     accepted_rows = "\n".join(
-        "| `{id}` | {type} | `{story}` | `{ac}` | {status} | {stale} | {summary} |".format(
+        ("| `{id}` | {type} | `{story}` | {change} | `{ac}` | {status} | {stale} | {summary} |" if with_change
+         else "| `{id}` | {type} | `{story}` | `{ac}` | {status} | {stale} | {summary} |").format(
             id=item["id"],
             type=item["type"],
             story=item["story_id"],
+            change=changes[item["id"]] or "N/A",
             ac=item.get("acceptance_criteria") or "N/A",
             status=item["status"],
             stale="yes" if item.get("mark_stale") else "no",
@@ -383,6 +419,9 @@ def write_feedback_report(
         )
         for item in accepted
     ) or "| N/A | N/A | N/A | N/A | N/A | N/A | N/A |"
+    header = ("| Finding | Type | Story | Change | AC | Status | Marks Stale | Summary |\n| --- | --- | --- | --- | --- | --- | --- | --- |"
+              if with_change else
+              "| Finding | Type | Story | AC | Status | Marks Stale | Summary |\n| --- | --- | --- | --- | --- | --- | --- |")
     rejected_rows = "\n".join(f"| `{item['id']}` | {item['reason']} |" for item in rejected) or "| N/A | N/A |"
     write_text(path, f"""# Implementation Feedback Report - {project_id}
 
@@ -392,8 +431,7 @@ This report records downstream implementation findings as governed feedback. Fin
 
 ## Accepted Findings
 
-| Finding | Type | Story | AC | Status | Marks Stale | Summary |
-| --- | --- | --- | --- | --- | --- | --- |
+{header}
 {accepted_rows}
 
 ## Rejected Findings

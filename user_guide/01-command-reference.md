@@ -101,7 +101,7 @@ Before running, Sentinel checks the workspace:
 
 1. The workspace exists; otherwise exit 4 with `Run /init PROJECT_ID first`. Its `state.json` exists and parses; otherwise exit 3 naming the file and the fix (see [exit codes](#exit-codes)).
 2. `/specs` and `/backlog` need discovery: in phase `initialized` (nothing ingested) they exit 4.
-3. `/backlog`, `/quality` and `/refine-backlog` refuse while project health is `DIRTY` (exit 4), and also while a knowledge change or a semantic change still waits for its downstream artifacts to be regenerated, even if `state.json` reads `CLEAN` (for example right after `/resolve-gaps` recompiled the brief: the specs are older than the brief). A new workspace starts `DIRTY`; `/maturity` sets health to `CLEAN` when readiness is `READY_FOR_SPECS`, and `/health` sets it from its own verdict. The gate re-runs the `/health` checks without writing. The message lists each finding with the command that fixes it, in the order to run them (one finding: on one line; several: numbered, ending "Run /backlog again."), and the `next step:` line chains the same commands. `/next` gives the same list. One exception: when the only finding is that knowledge changed after the backlog was generated (the brief and specs are already regenerated, so only `04_backlog/BACKLOG.md` and `08_context_packs/implementation_readiness.json` are stale), `/backlog` runs, because regenerating them is the fix. `/quality` and `/refine-backlog` still refuse until `/backlog` has run. `/quality --change` is outside this gate: it answers to the change's own backlog. If the brief or specs are stale too, the message lists the commands to run in order, for example `Run /brief, then /specs, then /backlog.`
+3. `/backlog`, `/quality` and `/refine-backlog` refuse while project health is `DIRTY` (exit 4), and also while a knowledge change or a semantic change still waits for its downstream artifacts to be regenerated, even if `state.json` reads `CLEAN` (for example right after `/resolve-gaps` recompiled the brief: the specs are older than the brief). A new workspace starts `DIRTY`; `/maturity` sets health to `CLEAN` when readiness is `READY_FOR_SPECS`, and `/health` sets it from its own verdict. The gate re-runs the `/health` checks without writing. The message lists each finding with the command that fixes it, in the order to run them (one finding: on one line; several: numbered, ending "Run /backlog again."), and the `next step:` line chains the same commands. `/next` gives the same list. One exception: when the only finding is that knowledge changed after the backlog was generated (the brief and specs are already regenerated, so only `04_backlog/BACKLOG.md` and `08_context_packs/implementation_readiness.json` are stale), `/backlog` runs, because regenerating them is the fix. `/quality` and `/refine-backlog` still refuse until `/backlog` has run. `/quality --change` and `/refine-backlog --change` are outside this gate: they answer to the change's own backlog and refuse when it is missing or behind its units. If the brief or specs are stale too, the message lists the commands to run in order, for example `Run /brief, then /specs, then /backlog.`
 4. `/backlog`, `/backlog-status`, `/quality`, `/refine-backlog`, `/implementation-feedback` and `/story-status` run the backlog privacy scan. It warns by default; with `privacy_scan.mode: block` in `sentinel.config.yaml` a finding stops the command (exit 4).
 5. `/quality` needs user stories in the traceability graph (exit 4).
 
@@ -1375,12 +1375,15 @@ The modes are mutually exclusive; giving none or two is exit 2.
 python -m sentinel /compose ACME_PORTAL --source composition.json
 ```
 
+In chat: "compose the PRD of this change"; behind it `/compose ACME_PORTAL --source composition.json --change CHG-001`.
+
 **Options.**
 
 | Flag | Values | Default | Meaning |
 |---|---|---|---|
 | `PROJECT_ID` | id | required | The workspace. |
 | `--source` | a JSON file | required | `blocks[]`, each with a PRD section and cited paragraphs. Written with the `sentinel-compose` skill. |
+| `--change` | `CHG-NNN` | none | Composes onto `03_specs/CHG-nnn/prd.md` (written by `/specs --change`; before that the command refuses and names it). Blocks and report go to `03_specs/CHG-nnn/compositions/`, and `/specs --change` keeps them when it regenerates the PRD. `/compose` without it does not touch the PRD of a change. `--release` is not accepted. |
 
 **Reads.** The JSON, `03_specs/prd.md` and the evidence in `00_raw/`, `01_discovery/`, `02_requirements/`, `07_changes/`.
 
@@ -1798,12 +1801,15 @@ Moving one story changes no other story: only a real change marks stories `Stale
 python -m sentinel /refine-backlog ACME_PORTAL --source refinement.json
 ```
 
+In chat: "refine this change's stories"; behind it `/refine-backlog ACME_PORTAL --source refinement.json --change CHG-001`.
+
 **Options.**
 
 | Flag | Values | Default | Meaning |
 |---|---|---|---|
 | `PROJECT_ID` | id | required | The workspace. |
 | `--source` | a JSON file | required | `proposals[]` with `kind` (`reslice`, `split-story`, `merge-stories`, `missing-story`, `enabler-candidate`), targets, recommendation, rationale and verbatim citations. Written with the `sentinel-backlog-refine` skill. |
+| `--change` | `CHG-NNN` | none | Refines the stories of that change with no `EPIC-001` needed: targets are stories of the change, units are those the change (and its releases) owns, citations are lines of the change's own text. Opens in `04_backlog/CHG-nnn/refinements/` and leaves the quality audit of the change stale. Refuses when the change's backlog is missing or behind its units ("The backlog of CHG-nnn is missing or behind", next `/backlog --change`). `/refine-backlog` without it ignores the stories of a change; in a workspace that only has changes it refuses (no `EPIC-001`, health not clean). `--release` is not accepted. |
 
 **Reads.** The JSON, the epic and stories, the evidence.
 
@@ -1813,7 +1819,7 @@ python -m sentinel /refine-backlog ACME_PORTAL --source refinement.json
 
 **You get.** The accepted proposals (`accepted`; the ones already on record are listed again in `unchanged`) and the refused ones.
 
-**Next step.** Decide whether to act on them upstream and regenerate with `/backlog`.
+**Next step.** Decide whether to act on them upstream and regenerate with `/backlog`. For a change, ask for `/quality --change CHG-nnn` again.
 
 **See also.** skill `sentinel-backlog-refine`.
 
@@ -1848,6 +1854,8 @@ python -m sentinel /implementation-feedback ACME_PORTAL --source feedback.json
 **Refuses when.** Privacy scan in `block` mode → exit 4. No epic in `04_backlog/` (`/backlog` has not written one yet) → exit 4. A refused payload, or no finding accepted → exit 3; the message lists why each finding was refused and only `feedback_report.md` is written: gaps, stories, state and the graph are untouched.
 
 **You get.** The recorded findings and the stories affected.
+
+**Change stories.** A story of a change needs no flag: its `source_units` are checked against the units of that change (and of its releases), a finding that names another unit, a project unit included, is refused with `source unit does not exist for CHG-nnn` (so it never marks a project story `Stale`), and the report adds a `Change` column only when an accepted finding is on a change story.
 
 **Next step.** Review with the product owner; act on each finding upstream, mark it `resolved` with a new feedback file, and regenerate.
 
