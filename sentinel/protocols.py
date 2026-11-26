@@ -311,6 +311,11 @@ def postflight_command(command: str, project_id: str | None, result: Any) -> Non
         from .release_series import refresh_series_if_stale
 
         refresh_series_if_stale(project_id)
+        # H27 inc 7d (7c review M5): the series of a change follows the change's own text the same way.
+        from .changes import list_changes
+
+        for change_id in list_changes(project_id):
+            refresh_series_if_stale(project_id, change_id)
     if command in MUTATING_COMMANDS and command != "reindex":
         # IMP-369: a node the command added to the graph is indexed now, not at the
         # next /reindex, so /health does not turn DIRTY over the command's own record.

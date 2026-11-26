@@ -15,6 +15,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
@@ -187,6 +188,26 @@ class ReleaseBacklogTest(ChangeReleaseCase):
         self.assertEqual(sorted(second["stories"]), sorted(mine["r2"]))
         self.assertFalse(set(mine["r1"]) & set(mine["r2"]))
 
+    def test_epic_lists_every_derived_release(self) -> None:
+        """Controller ruling: EPIC-CHG-nnn lists the stories of every derived release, refreshed on each derivation."""
+        self._derive_specs()
+        run_ok(["backlog", PID, "--change", CID, "--release", "r1"])
+        epic = self.base() / "04_backlog" / "EPIC-CHG-001.md"
+        first = epic.read_text(encoding="utf-8")
+        mine1 = sorted(_story_files(self.base() / "04_backlog" / CID / "r1"))
+        self.assertTrue(all(f"`{sid}`" in first for sid in mine1))
+        run_ok(["backlog", PID, "--change", CID, "--release", "r2"])
+        second = epic.read_text(encoding="utf-8")
+        mine2 = sorted(_story_files(self.base() / "04_backlog" / CID / "r2"))
+        self.assertTrue(mine2)
+        for sid in (*mine1, *mine2):
+            self.assertIn(f"`{sid}`", second, sid)
+        self.assertLess(second.index(f"`{mine1[0]}`"), second.index(f"`{mine2[0]}`"))  # release order
+        run_ok(["backlog", PID, "--change", CID, "--release", "r1"])  # a rerun of r1 keeps r2's rows
+        again = epic.read_text(encoding="utf-8")
+        for sid in (*mine1, *mine2):
+            self.assertIn(f"`{sid}`", again, sid)
+
     def test_backlog_release_needs_specs(self) -> None:
         run_ok(["specs", PID, "--change", CID, "--release", "r1"])
         code, out = cli(["backlog", PID, "--change", CID, "--release", "r2"])
@@ -241,7 +262,7 @@ class ReleaseBacklogTest(ChangeReleaseCase):
         self.assertEqual({sid: again[sid] for sid in mine}, first)
 
 
-class ReleaseCloseTest(ChangeReleaseCase):
+class ReleaseFlowCase(ChangeReleaseCase):
     def derive(self, *rids: str) -> None:
         for rid in rids:
             run_ok(["specs", PID, "--change", CID, "--release", rid])
@@ -266,6 +287,8 @@ class ReleaseCloseTest(ChangeReleaseCase):
     def partition(self) -> bytes:
         return (self.base() / "02_requirements" / CID / "series" / "partition.json").read_bytes()
 
+
+class ReleaseCloseTest(ReleaseFlowCase):
     def test_close_requires_done_stories(self) -> None:
         self.derive("r1")
         evidence = Path("evidencia.md")
@@ -320,6 +343,146 @@ class ReleaseCloseTest(ChangeReleaseCase):
         self.assertIn("abierto", rows["r2"])
         self.assertNotIn("todavía no se derivan", guide)
         self.assertIn(f"/specs {PID} --change {CID} --release r2", rows["r2"])
+
+
+class SeriesWalkTest(ReleaseFlowCase):
+    def step(self) -> dict:
+        """/next of the change as if its request were already extracted, crossed and exported (that part has its own walks)."""
+        forget_read_snapshots()
+        with patch("sentinel.readiness_verdict._change_prep_key", return_value=""):
+            return json.loads(run_ok(["next", PID, "--change", CID]))
+
+    def test_move_within_change_series(self) -> None:
+        from sentinel.change_release import release_units
+
+        self.derive("r1", "r2")
+        before = release_units(PID, CID)
+        by_surface = self.units_by_surface()
+        unit = by_surface["Tabla de proveedores"]
+        self.assertIn(unit, before["r1"])
+        code, out = cli(["split", PID, "--move", "--unit", "Tabla de proveedores", "--from", "r1", "--to", "r2",
+                         "--reason", "La tabla depende de la bandeja", "--ba", "Ana", "--tech", "Equipo", "--change", CID])
+        self.assertEqual(code, 0, out)
+        series = self.base() / "02_requirements" / CID / "series"
+        changes = json.loads((series / "scope_changes.json").read_text(encoding="utf-8"))["changes"]
+        self.assertEqual([(c["from"], c["to"]) for c in changes], [("r1", "r2")])
+        forget_read_snapshots()
+        after = release_units(PID, CID)
+        self.assertNotIn(unit, after["r1"])
+        self.assertIn(unit, after["r2"])
+        self.assertFalse((self.base() / "02_requirements" / "series").exists())
+        found = json.loads(out[out.index("{"):])
+        self.assertEqual(sorted(found["stale_derivations"]), ["r1", "r2"])
+        step = self.step()
+        self.assertEqual(step["key"], "specs")
+        self.assertEqual(step["command"], f"/specs {PID} --change {CID} --release r1")
+        run_ok(["specs", PID, "--change", CID, "--release", "r1"])
+        self.assertEqual(self.step()["command"], f"/backlog {PID} --change {CID} --release r1")  # its stories are the old ones
+        run_ok(["backlog", PID, "--change", CID, "--release", "r1"])
+        self.assertEqual(self.step()["command"], f"/split {PID} --change {CID} --close r1")  # r1 is whole again
+
+    def test_move_refuses_a_closed_release(self) -> None:
+        self.derive("r1")
+        evidence = self.finish("r1")
+        self.assertEqual(self.close("r1", evidence)[0], 0)
+        before = self.partition()
+        code, out = cli(["split", PID, "--move", "--unit", "Aprobación por monto", "--from", "r2", "--to", "r1",
+                         "--reason", "x", "--ba", "Ana", "--tech", "Equipo", "--change", CID])
+        self.assertNotEqual(code, 0, out)
+        self.assertIn("r1", out)
+        self.assertIn("cerrada", out)
+        self.assertEqual(self.partition(), before)
+
+    def test_next_walks_series_once(self) -> None:
+        """RF 5: specs r1, backlog r1, close r1, specs r2, backlog r2, close r2, then today's done; never a repeat."""
+        seen = []
+        evidence = Path("evidencia.md")
+        evidence.write_text("Evidencia sintetica.\n", encoding="utf-8")
+        for rid in ("r1", "r2"):
+            step = self.step()
+            self.assertEqual((step["key"], step["command"]), ("specs", f"/specs {PID} --change {CID} --release {rid}"), seen)
+            seen.append(step["command"])
+            run_ok(["specs", PID, "--change", CID, "--release", rid])
+            step = self.step()
+            self.assertEqual((step["key"], step["command"]), ("backlog", f"/backlog {PID} --change {CID} --release {rid}"))
+            seen.append(step["command"])
+            run_ok(["backlog", PID, "--change", CID, "--release", rid])
+            step = self.step()
+            self.assertEqual(step["key"], "done")
+            self.assertEqual(step["command"], f"/split {PID} --change {CID} --close {rid}")
+            self.assertIn(f"--close {rid}", step["text"])
+            seen.append(step["command"])
+            self.finish(rid)
+            code, out = self.close(rid, evidence)
+            self.assertEqual(code, 0, out)
+        # the integrity of each release brief has its own tests: here the synthetic briefs are taken as clean
+        with patch("sentinel.release_series.series_validation_findings", return_value=[]):
+            step = self.step()
+            self.assertEqual(self.step(), step)  # asked again, the same answer, not a new instruction
+        self.assertEqual(step["key"], "done")
+        self.assertEqual(step["command"], "")
+        self.assertNotIn("--close", step["text"])
+        self.assertEqual(len(seen), len(set(seen)))
+
+    def test_next_names_the_release_when_stories_are_not_done(self) -> None:
+        self.derive("r1")
+        step = self.step()
+        self.assertEqual(step["key"], "done")
+        self.assertIn("r1", step["text"])
+        self.assertIn("Done", step["text"])
+
+
+class SeriesRefreshAndValidateTest(ReleaseFlowCase):
+    """M5 of the 7c review: a change's series follows its text, and /validate --change reports the series."""
+
+    def series(self) -> Path:
+        return self.base() / "02_requirements" / CID / "series"
+
+    def validate(self) -> tuple[int, dict]:
+        forget_read_snapshots()
+        code, out = cli(["validate", PID, "--change", CID])
+        return code, json.loads(out[out.index("{"):])
+
+    def test_series_refreshes_when_the_change_text_changes(self) -> None:
+        run_ok(["specs", PID, "--change", CID])
+        before = (self.series() / "series_map.json").read_bytes()
+        Path("mas.md").write_text(_answer("GAP-BACKEND-SURFACE", "Cuando el comprador completa el alta, el sistema debe guardar y notificar al proveedor.",
+                                          "MODIFIED", "Alta de proveedores"), encoding="utf-8")
+        run_ok(["resolve-gaps", PID, "--source", "mas.md", "--change", CID])
+        run_ok(["brief", PID, "--change", CID])
+        forget_read_snapshots()
+        self.assertNotEqual((self.series() / "series_map.json").read_bytes(), before)
+        code, found = self.validate()
+        self.assertFalse([f for f in found["findings"] if "desactualizada" in f], found["findings"])
+
+    def test_validate_reports_a_stale_series(self) -> None:
+        run_ok(["specs", PID, "--change", CID])
+        code, found = self.validate()
+        self.assertFalse([f for f in found["findings"] if "desactualizada" in f], found["findings"])  # a fresh series is not stale
+        path = self.series() / "series_map.json"
+        data = json.loads(path.read_text(encoding="utf-8"))
+        data["brief_sha256"] = "0" * 64
+        path.write_text(json.dumps(data), encoding="utf-8")
+        code, found = self.validate()
+        self.assertEqual(found["verdict"], "INVALID")
+        series = [c for c in found["checks"] if c["id"] == "release_series"]
+        self.assertEqual(series[0]["status"], "FAIL", found)
+        self.assertIn("desactualizada", series[0]["detail"])
+
+    def test_validate_reports_a_unit_owned_twice_or_never(self) -> None:
+        run_ok(["specs", PID, "--change", CID])
+        self.edit_surface("REQ-EARS-002", "Alta de proveedores; Bandeja de aprobaciones")
+        run_ok(["specs", PID, "--change", CID])
+        code, found = self.validate()
+        series = [c for c in found["checks"] if c["id"] == "release_series"]
+        self.assertEqual(series[0]["status"], "FAIL", found)
+        for needle in ("SPEC-U-002", "r1", "r2"):
+            self.assertIn(needle, series[0]["detail"])
+        self.edit_surface("REQ-EARS-002", "Superficie ajena")
+        run_ok(["specs", PID, "--change", CID])
+        code, found = self.validate()
+        series = [c for c in found["checks"] if c["id"] == "release_series"]
+        self.assertIn("ninguna release", series[0]["detail"])
 
 
 class ProjectReleaseBytesTest(unittest.TestCase):

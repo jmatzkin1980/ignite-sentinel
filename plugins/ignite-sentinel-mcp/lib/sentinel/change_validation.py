@@ -29,6 +29,9 @@ TEXT = {
         "no_units": "Sin unidades: corré /specs {project} --change {change}.",
         "no_backlog": "Sin backlog del cambio: corré /backlog {project} --change {change}.",
         "no_rows": "Sin filas EARS del cambio.",
+        "series_stale": "La serie de releases de {change} está desactualizada: el cambio se movió desde que se compiló.",
+        "series_next": "Proponé la serie de nuevo con /split {project} --change {change} --propose --source PROPUESTA.json y confirmala con --confirm.",
+        "series_unit_next": "/split {project} --change {change} --move --unit <C-NN> --from <rA> --to <rB> --reason \"...\" --ba \"...\" --tech \"...\"",
         "ok": "Sin hallazgos.",
         "next": "Siguiente paso",
     },
@@ -48,6 +51,9 @@ TEXT = {
         "no_units": "No units: run /specs {project} --change {change}.",
         "no_backlog": "No backlog for the change: run /backlog {project} --change {change}.",
         "no_rows": "No EARS rows for the change.",
+        "series_stale": "The release series of {change} is stale: the change moved since it was compiled.",
+        "series_next": "Propose the series again with /split {project} --change {change} --propose --source PROPOSAL.json and confirm it with --confirm.",
+        "series_unit_next": "/split {project} --change {change} --move --unit <C-NN> --from <rA> --to <rB> --reason \"...\" --ba \"...\" --tech \"...\"",
         "ok": "No findings.",
         "next": "Next step",
     },
@@ -87,6 +93,30 @@ def _source_gap(row: dict) -> str:
 
 def _p2p_lines(text: str) -> list[str]:
     return [line for line in text.splitlines() if line.startswith("| AC-") and "pass-to-pass" in line]
+
+
+def _series_findings(project_id: str, change_id: str, text: dict, has_units: bool) -> list[tuple[str, str]] | None:
+    """(message, next-step key) of what is wrong with the confirmed series of the change; None when it has none."""
+    from .change_release import ChangeReleaseError, release_units
+    from .core.io import read_json
+    from .release_series import MAP_FILE, series_validation_findings
+    from .series_scope import series_dir, series_scope
+
+    base = workspace_path(project_id)
+    partition = read_json(series_dir(base, change_id) / "partition.json", None)
+    if not isinstance(partition, dict) or partition.get("status") != "confirmed":
+        return None
+    found: list[tuple[str, str]] = [(message, "series_next") for message in series_validation_findings(base, change_id)]
+    current = read_json(series_dir(base, change_id) / MAP_FILE, None)
+    scope = series_scope(project_id, change_id)
+    if scope.brief_text and not (isinstance(current, dict) and current.get("brief_sha256") == scope.brief_sha256):
+        found.append((text["series_stale"].format(change=change_id), "series_next"))
+    if has_units:
+        try:
+            release_units(project_id, change_id)
+        except ChangeReleaseError as exc:
+            found.append((str(exc), "series_unit_next"))
+    return found
 
 
 def validate_change(project_id: str, change_id: str) -> dict:
@@ -169,6 +199,13 @@ def validate_change(project_id: str, change_id: str) -> dict:
                 if parse_surfaces(surface, border)[1]:
                     found.append(text["artifact_unknown_surface"].format(artifact=artifact, surface=surface))
         record("stories_inside_border", found, "border_next")
+
+    # 5. release_series (H27 inc 7d): only a change with a confirmed series has this check; the others keep their four
+    series = _series_findings(project_id, change_id, text, bool(units))
+    if series is not None:
+        found = [f"{message} {text['next']}: {text[next_key].format(**ctx)}" for message, next_key in series]
+        findings.extend(found)
+        checks.append({"id": "release_series", "status": "FAIL" if found else "PASS", "detail": "; ".join(found) or text["ok"]})
 
     return {
         "project_id": project_id,

@@ -133,6 +133,12 @@ def _story_units(story: dict[str, Any]) -> list[str]:
     return [str(story["source_unit"])] if story.get("source_unit") else []
 
 
+def _epic_rows(stories: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """What the epic prints of a story (kept in the record of a release so the epic of the change can list every release)."""
+    return [{"id": s["id"], "delta": s.get("delta", ""), "fr": s.get("fr", ""), "source_units": _story_units(s),
+             "title": s["title"]} for s in stories]
+
+
 def _render_epic(project_id: str, change_id: str, title: str, stories: list[dict[str, Any]],
                  preserved: list[dict[str, str]], text: dict[str, Any], context_pack: str) -> str:
     header = text["header"]
@@ -571,8 +577,17 @@ def _compile_change_backlog(project_id: str, change_id: str, story_format: str |
     removed = sorted(previous_ids - current_ids)
     write_json(base / pack_rel, backlog_context)
     title = _note_title(base, change)
-    if not (release and epic_path.is_file()):  # the epic of the change is written by its first derivation; a release keeps it
-        write_text(epic_path, _render_epic(project_id, change_id, title, stories, preserved, text, pack_rel))
+    epic_rows = _epic_rows(stories)
+    epic_stories = stories
+    if release:  # IMP-429: the epic lists the stories of every derived release, refreshed on each derivation
+        from ..split_proposal import release_order
+
+        derived = (read_state(project_id).get("changes", {}).get(change_id, {}) or {}).get("backlog_releases") or {}
+        per_release = {rid: [row for row in (record.get("epic_rows") or []) if row.get("id") in other_releases]
+                       for rid, record in derived.items() if rid != release and isinstance(record, dict)}
+        per_release[release] = epic_rows
+        epic_stories = [row for rid in sorted(per_release, key=release_order) for row in per_release[rid]]
+    write_text(epic_path, _render_epic(project_id, change_id, title, epic_stories, preserved, text, pack_rel))
     story_paths: list[Path] = []
     for story in stories:
         path = base / "04_backlog" / f"{story['id']}.md"
@@ -664,6 +679,8 @@ def _compile_change_backlog(project_id: str, change_id: str, story_format: str |
         "stories": story_ids, "change_requests": change_requests, "stale": stale, "generated_at": utc_now(),
         "dropped_units": sorted(skipped),  # IMP-396: units deliberately left without a story
     }
+    if release:
+        record["epic_rows"] = epic_rows
     if release:  # the record of a release does not stand for the whole backlog of the change
         changes[change_id].setdefault("backlog_releases", {})[release] = record
     else:

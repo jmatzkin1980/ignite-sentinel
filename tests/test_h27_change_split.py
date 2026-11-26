@@ -157,7 +157,8 @@ class ChangeConfirmTest(ChangeSplitCase):
         stored = json.loads((self.base() / "02_requirements" / CID / "series" / "proposal.json").read_text(encoding="utf-8"))
         return stored["brief_sha256"]
 
-    def test_content_change_makes_series_stale(self) -> None:
+    def test_content_change_refreshes_the_series(self) -> None:
+        """IMP-429 (7c review M5): a mutating command that changes the change's text recompiles its confirmed series."""
         from sentinel.core.io import forget_read_snapshots
 
         self.confirm()
@@ -167,7 +168,7 @@ class ChangeConfirmTest(ChangeSplitCase):
         run_ok(["resolve-gaps", PID, "--source", str(answer), "--change", CID])
         forget_read_snapshots()
         series_map, _ = self._maps()
-        self.assertNotEqual(series_scope(PID, CID).brief_sha256, series_map["brief_sha256"])
+        self.assertEqual(series_scope(PID, CID).brief_sha256, series_map["brief_sha256"])
 
     def test_reconfirm_reopens_closed_client_gap(self) -> None:
         from sentinel.changes import change_gaps_path
@@ -220,7 +221,8 @@ class ChangeConfirmTest(ChangeSplitCase):
 
 
 class ChangeRefusalsTest(ChangeSplitCase):
-    """Task 4 (RF 4): what needs the sub-releases of a change (7d) is refused, and the guide shows with --change."""
+    """Task 4 (RF 4): what a change's series does not take (--release outside specs/backlog, a move of a unit it does not hold)
+    is refused, and the guide shows with --change."""
 
     @staticmethod
     def cli(argv: list[str]) -> tuple[int, str]:
@@ -239,17 +241,15 @@ class ChangeRefusalsTest(ChangeSplitCase):
 
         return hashlib.sha256((self.base() / "02_requirements" / CID / "series" / "partition.json").read_bytes()).hexdigest()
 
-    def test_close_move_release_refuse_with_change(self) -> None:
+    def test_move_and_release_refuse_with_change(self) -> None:
         self.propose()
         run_ok(["split", PID, "--confirm", "--ba", "Ana", "--tech", "Equipo", "--change", CID])
         before = self.partition_sha()
-        message = ("/split --move con --change llega con las sub-releases de un cambio; "
-                   "hoy: --assess, --propose, --confirm o --close")
-        for argv in (["split", PID, "--move", "--unit", "U", "--from", "r1", "--to", "r2", "--reason", "x", "--ba", "Ana",
-                      "--tech", "Equipo", "--change", CID],):
-            code, out = self.cli(argv)
-            self.assertNotEqual(code, 0)
-            self.assertIn(message, out)
+        code, out = self.cli(["split", PID, "--move", "--unit", "U", "--from", "r1", "--to", "r2", "--reason", "x", "--ba", "Ana",
+                              "--tech", "Equipo", "--change", CID])
+        self.assertNotEqual(code, 0)
+        self.assertIn("'U' is not a unit of r1", out)  # the series of the change answers like the project's
+        self.assertNotIn("sub-releases", out)
         self.assertEqual(self.partition_sha(), before)
         code, out = self.cli(["next", PID, "--change", CID, "--release", "r1"])
         self.assertNotEqual(code, 0)

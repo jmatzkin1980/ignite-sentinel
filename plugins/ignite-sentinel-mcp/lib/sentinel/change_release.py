@@ -173,3 +173,82 @@ def derive_release_specs(project_id: str, change_id: str, rid: str, whole: dict[
         "functionalities": [f["id"] for f in funs],
         "next_step": whole.get("next_step", ""),
     }
+
+
+def _specs_why(project_id: str, change_id: str, change: dict[str, Any], rid: str, owned: dict[str, list[str]] | None) -> str:
+    """"" when the units of `rid` are derived and current, "new" when never derived, "old" when the series or the change moved."""
+    from .compilers.change_backlog import specs_currency
+
+    base = workspace_path(project_id)
+    folder = release_dir(project_id, change_id, rid, "03_specs")
+    if not (folder / "specs.md").is_file():
+        return "new"
+    if (not change.get("specs") or not (base / "03_specs" / change_id / "specs.md").is_file()
+            or specs_currency(project_id, change_id) != "current" or owned is None):
+        return "old"
+    held = sorted(p.stem for p in (folder / "units").glob("SPEC-U-*.md"))
+    if held != sorted(owned.get(rid, [])):
+        return "old"
+    whole = base / "03_specs" / change_id / "units"
+    for uid in held:
+        if (folder / "units" / f"{uid}.md").read_bytes() != (whole / f"{uid}.md").read_bytes():
+            return "old"
+    return ""
+
+
+def _backlog_why(project_id: str, change_id: str, change: dict[str, Any], rid: str, owned: dict[str, list[str]] | None) -> str:
+    """"" when the stories of `rid` come from exactly its units, "new" when it has none, "old" when they do not."""
+    from .core.markdown import parse_frontmatter
+
+    base = workspace_path(project_id)
+    record = (change.get("backlog_releases") or {}).get(rid)
+    folder = release_dir(project_id, change_id, rid, "04_backlog")
+    if not isinstance(record, dict) or not (folder / "SLICE-PLAN.md").is_file():
+        return "new"
+    sources: set[str] = set()
+    for sid in record.get("stories") or []:
+        path = base / "04_backlog" / f"{sid}.md"
+        if not path.is_file():
+            return "old"
+        front = parse_frontmatter(path.read_text(encoding="utf-8"))
+        grouped = front.get("source_units")
+        if isinstance(grouped, list) and grouped:
+            sources.update(str(u).strip() for u in grouped)
+        elif isinstance(front.get("source_unit"), str):
+            sources.add(front["source_unit"].strip())
+    sources.discard("")
+    wanted = set((owned or {}).get(rid, [])) - set(record.get("dropped_units") or [])
+    return "" if owned is not None and sources == wanted else "old"
+
+
+def series_step(project_id: str, change_id: str, change: dict[str, Any]) -> dict[str, Any] | None:
+    """H27 inc 7d: where a change with a confirmed series stands, walking its open releases in order.
+
+    None: the change has no confirmed series (the plain `specs`/`backlog` steps apply). Else the first open release
+    that is missing its specs (`key` "specs"), its backlog ("backlog") or its closing ("done"); `key` "" when every release
+    is closed. A closed release is never asked for again."""
+    from .release_guide import release_stories
+    from .release_split import ReleaseSplitError
+
+    try:
+        releases, _held, partition = _series(project_id, change_id)
+    except ReleaseSplitError:
+        return None
+    closed = partition.get("closed") or {}
+    try:
+        owned: dict[str, list[str]] | None = release_units(project_id, change_id)
+    except (ChangeReleaseError, OSError):
+        owned = None
+    for rid in releases:
+        if rid in closed:
+            continue
+        why = _specs_why(project_id, change_id, change, rid, owned)
+        if why:
+            return {"key": "specs", "release": rid, "why": why}
+        why = _backlog_why(project_id, change_id, change, rid, owned)
+        if why:
+            return {"key": "backlog", "release": rid, "why": why}
+        stories = release_stories(workspace_path(project_id), project_id, rid, change_id)
+        return {"key": "done", "release": rid, "total": len(stories),
+                "done": sum(1 for status in stories.values() if status == "Done")}
+    return {"key": ""}

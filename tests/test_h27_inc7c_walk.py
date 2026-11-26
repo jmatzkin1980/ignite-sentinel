@@ -45,7 +45,7 @@ class Inc7cWalk(SyncCase):
         with redirect_stdout(io.StringIO()), redirect_stderr(err):
             code = main(["split", PID, "--move", "--unit", "U", "--from", "r1", "--to", "r2", "--reason", "x", "--ba", "Ana", "--tech", "Equipo", "--change", CID])
         self.assertNotEqual(code, 0)
-        self.assertIn("llega con las sub-releases de un cambio", err.getvalue())
+        self.assertIn("is not a unit of r1", err.getvalue())
 
 
 if __name__ == "__main__":
