@@ -154,7 +154,7 @@ Use packs when a workspace is too large to load fully, when a skill needs only p
 Sentinel is local-first.
 
 - `privacy_mode: local-only` is the default; the index lives under the workspace.
-- Semantic embeddings, when enabled, run only from local packages and local model files. Retrieval never calls an external embedding API. Sentinel never downloads, except /setup --semantic-memory, which you run yourself and which checks every file's sha256 before using it. Ask in chat to turn on semantic memory and the agent runs it for you; see [`/setup`](01-command-reference.md#setup).
+- Semantic embeddings, when enabled, run only from local packages and local model files. Retrieval never calls an external embedding API. Sentinel never downloads, except /setup --semantic-memory, which runs only when you ask for it (you, or your agent at your request in chat) and which checks every file's sha256 before using it. Ask in chat to turn on semantic memory and your agent runs it at your request; see [`/setup`](01-command-reference.md#setup).
 - Hash embeddings are deterministic and local, and remain the fallback for restricted environments.
 - Do not use remote MCP servers, external vector databases or external embedding APIs for client data unless that is approved outside this framework.
 

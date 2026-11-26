@@ -9,7 +9,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from sentinel import doctor, memory
+from sentinel import doctor, memory, semantic_setup
 
 
 class SemanticConfigProbeTests(unittest.TestCase):
@@ -18,14 +18,18 @@ class SemanticConfigProbeTests(unittest.TestCase):
         self.addCleanup(self.tmp.cleanup)
         self.home = Path(self.tmp.name) / "home"
         self.home.mkdir()
-        self.model = Path(self.tmp.name) / "model"
-        self.model.mkdir()
         env = {"SENTINEL_HOME": str(self.home)}
         patcher = mock.patch.dict(os.environ, env)
         patcher.start()
         self.addCleanup(patcher.stop)
         os.environ.pop("SENTINEL_MODEL2VEC_MODEL", None)
+        os.environ.pop("SENTINEL_SENTENCE_TRANSFORMERS_MODEL", None)
         self.refs: list[str] = []
+        self.st_refs: list[str] = []
+        manifest = semantic_setup.load_manifest()
+        self.pinned = semantic_setup._model(manifest)
+        self.model = semantic_setup.model_dir(self.home, self.pinned)
+        self.model.mkdir(parents=True)
 
         def fake(ref: str):
             self.refs.append(ref)
@@ -34,12 +38,18 @@ class SemanticConfigProbeTests(unittest.TestCase):
         p2 = mock.patch.object(memory, "_probe_model2vec", fake)
         p2.start()
         self.addCleanup(p2.stop)
-        p3 = mock.patch.object(memory, "_probe_sentence_transformers", lambda ref: (None, {"level": "st", "outcome": "skipped", "detail": ""}))
+        def fake_st(ref: str):
+            self.st_refs.append(ref)
+            return None, {"level": "st", "outcome": "skipped", "detail": ""}
+
+        p3 = mock.patch.object(memory, "_probe_sentence_transformers", fake_st)
         p3.start()
         self.addCleanup(p3.stop)
 
-    def _config(self, path: Path) -> None:
-        (self.home / "semantic.json").write_text(json.dumps({"path": str(path)}), encoding="utf-8")
+    def _config(self, path: Path, **override) -> None:
+        data = {"model_id": self.pinned["id"], "revision": self.pinned["revision"], "path": str(path)}
+        data.update(override)
+        (self.home / "semantic.json").write_text(json.dumps(data), encoding="utf-8")
 
     def test_config_feeds_probe(self) -> None:
         self._config(self.model)
@@ -52,9 +62,46 @@ class SemanticConfigProbeTests(unittest.TestCase):
             memory._probe_embedder()
         self.assertEqual(self.refs, ["/otro"])
 
+    def test_sentence_transformers_env_var_wins_over_config(self) -> None:
+        # IMP-425 final review I2: both variables override the installed model.
+        self._config(self.model)
+        with mock.patch.dict(os.environ, {"SENTINEL_SENTENCE_TRANSFORMERS_MODEL": "/approved-st"}):
+            memory._probe_embedder()
+        self.assertEqual(self.refs, [memory.DEFAULT_MODEL2VEC_MODEL])
+        self.assertEqual(self.st_refs, ["/approved-st"])
+
+    def test_config_for_another_revision_is_ignored(self) -> None:
+        # IMP-425 final review M7: the config is tied to the manifest's pinned revision.
+        for path, override in ((self.model, {"revision": "b" * 40}), (self.model, {"model_id": "other"}), (self.model.parent, {})):
+            self.refs.clear()
+            self._config(path, **override)
+            memory._probe_embedder()
+            self.assertEqual(self.refs, [memory.DEFAULT_MODEL2VEC_MODEL], override)
+
+    def test_config_without_revision_is_ignored(self) -> None:
+        (self.home / "semantic.json").write_text(json.dumps({"path": str(self.model)}), encoding="utf-8")
+        memory._probe_embedder()
+        self.assertEqual(self.refs, [memory.DEFAULT_MODEL2VEC_MODEL])
+
+    def test_stale_config_makes_doctor_warn(self) -> None:
+        self._config(self.model, revision="b" * 40)
+        active = {"name": "m", "level": "model2vec", "version": "1", "dimensions": 8, "detail": "", "semantic": True}
+        with mock.patch.object(doctor, "active_embedder_status", return_value=active):
+            check = doctor.semantic_embedder_check()
+        self.assertEqual(check["status"], "WARN")
+        self.assertIn("/setup --semantic-memory", check["detail"])
+        self.assertIn("semantic.json", check["detail"])
+
+    def test_current_config_keeps_doctor_pass(self) -> None:
+        self._config(self.model)
+        active = {"name": "m", "level": "model2vec", "version": "1", "dimensions": 8, "detail": "", "semantic": True}
+        with mock.patch.object(doctor, "active_embedder_status", return_value=active):
+            self.assertEqual(doctor.semantic_embedder_check()["status"], "PASS")
+
     def test_no_config_keeps_default(self) -> None:
         memory._probe_embedder()
-        self._config(Path(self.tmp.name) / "gone")
+        self.model.rmdir()
+        self._config(self.model)
         memory._probe_embedder()
         self.assertEqual(self.refs, [memory.DEFAULT_MODEL2VEC_MODEL] * 2)
 

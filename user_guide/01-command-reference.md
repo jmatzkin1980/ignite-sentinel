@@ -272,9 +272,9 @@ Claude Code has its own `/doctor`. In a Claude Code clone, if `/doctor` runs Cla
 
 ## `setup`
 
-**What it does.** Turns on semantic memory. Downloads one pinned embedding model, checks every file's sha256 and size, and only then activates it: the model goes to your model cache (`$SENTINEL_HOME` or `~/.ignite-sentinel`), the verified path is saved in `semantic.json`, and every workspace is reindexed. It is the only Sentinel command that may use the network (https only, to `huggingface.co` and `.hf.co` subdomains). Sentinel never downloads, except /setup --semantic-memory, which you run yourself and which checks every file's sha256 before using it. `/init`, `/ingest`, `/next`, `/reindex` and `/doctor` never use the network.
+**What it does.** Turns on semantic memory. Downloads one pinned embedding model, checks every file's sha256 and size, and only then activates it: the model goes to your model cache (`$SENTINEL_HOME` or `~/.ignite-sentinel`), the verified path is saved in `semantic.json`, and every workspace is reindexed. It is the only Sentinel command that may use the network (https only, to `huggingface.co` and `.hf.co` subdomains). Sentinel never downloads, except /setup --semantic-memory, which runs only when you ask for it (you, or your agent at your request in chat) and which checks every file's sha256 before using it. `/init`, `/ingest`, `/next`, `/reindex` and `/doctor` never use the network.
 
-**Type.** Exempt (no project). Not available as an MCP tool: the person runs it, not an agent.
+**Type.** Exempt (no project). Never an MCP tool and never automatic: it runs only when asked, by you or by your agent at your request in chat.
 
 **Use it when.** `/doctor` warns that the semantic embedder is not active and you want meaning-based retrieval. Needs the `memory-semantic` extra first; the command names the pip command if it is missing.
 
@@ -302,7 +302,7 @@ python -m sentinel /setup --semantic-memory --status
 
 **Refuses when.** A file is missing or its sha256 or size differs (exit 1; nothing is activated and a previous install stays intact), or the `model2vec` package is not installed. If reindexing a workspace fails, the model stays active and the result lists a warning per workspace with the command to retry.
 
-**You get.** `status` (`installed`, `missing` or `mismatch`), `path`, `revision`, the workspaces `reindexed` and any `warnings`.
+**You get.** `status` (`installed`, `missing` or `mismatch`), `path`, `revision`, the workspaces `reindexed` and any `warnings`. A workspace that another command is using is skipped with a warning naming `sentinel /reindex ID --full`. Exit code: `0` on success; with `--status`, `0` for `installed` and `missing` and `1` for `mismatch`. It also works from the `.pyz`.
 
 **Next step.** `/doctor` should now show the semantic embedder as active.
 

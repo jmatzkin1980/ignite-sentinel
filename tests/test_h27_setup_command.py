@@ -69,7 +69,7 @@ class SetupCommandTests(unittest.TestCase):
         src = self.root / "src"
         src.mkdir()
         for name, data in GOOD.items():
-            (src / name).write_bytes(data + (b"x" if bad and name == "model.safetensors" else b""))
+            (src / name).write_bytes(data[:-1] + b"x" if bad and name == "model.safetensors" else data)
         return src
 
     def test_setup_registered_exempt_no_mcp(self) -> None:
@@ -82,6 +82,18 @@ class SetupCommandTests(unittest.TestCase):
     def test_cli_status_runs_without_project(self) -> None:
         out = run_ok(["/setup", "--semantic-memory", "--status"])
         self.assertEqual(json.loads(out)["status"], "missing")
+
+    def test_status_exit_codes(self) -> None:
+        # IMP-425 final review M5: 0 for installed and missing, 1 for a mismatch.
+        self.assertEqual(run_cli_err(["/setup", "--semantic-memory", "--status"])[0], 0)
+        code, _, _ = run_cli_err(["/setup", "--semantic-memory", "--offline-from", str(self._source()), "--root", str(self.root)])
+        self.assertEqual(code, 0)
+        code, out, _ = run_cli_err(["/setup", "--semantic-memory", "--status"])
+        self.assertEqual((code, json.loads(out)["status"]), (0, "installed"))
+        target = next((self.home / "models").rglob("model.safetensors"))
+        target.write_bytes(b"tampered")
+        code, out, _ = run_cli_err(["/setup", "--semantic-memory", "--status"])
+        self.assertEqual((code, json.loads(out)["status"]), (1, "mismatch"))
 
     def test_cli_requires_flag(self) -> None:
         self.assertEqual(run_cli_err(["/setup"])[0], 2)
@@ -131,8 +143,9 @@ class SetupCommandTests(unittest.TestCase):
 
 
 class GuideExceptionTests(unittest.TestCase):
-    CANON = ("Sentinel never downloads, except /setup --semantic-memory, which you run yourself "
-             "and which checks every file's sha256 before using it.")
+    CANON = ("Sentinel never downloads, except /setup --semantic-memory, which runs only when you ask for it "
+             "(you, or your agent at your request in chat) and which checks every file's sha256 before using it.")
+    OLD = ("which you run yourself", "the person runs it, not an agent", "yourself, once")
     GUIDE = Path(__file__).resolve().parent.parent / "user_guide"
 
     def test_guide_states_the_one_exception(self) -> None:
@@ -140,6 +153,8 @@ class GuideExceptionTests(unittest.TestCase):
             text = page.read_text(encoding="utf-8")
             self.assertNotIn("never downloads a model", text, page.name)
             self.assertNotIn("never downloads one", text, page.name)
+            for old in self.OLD:
+                self.assertNotIn(old, text, page.name)
         for name in ("05-traceability-and-memory.md", "06-installation-vscode.md",
                      "09-secure-environments.md", "16-portability.md"):
             self.assertIn(self.CANON, (self.GUIDE / name).read_text(encoding="utf-8"), name)
@@ -148,6 +163,19 @@ class GuideExceptionTests(unittest.TestCase):
         for host in list(manifest["allowed_hosts"]) + list(manifest.get("allowed_host_suffixes", [])):
             self.assertIn(host, admin)
         self.assertIn("--offline-from", admin)
+
+    def test_skills_and_commands_say_the_same_thing(self) -> None:
+        # IMP-425 final review I4: asked by the person, run by the person or their agent; never automatic.
+        repo = self.GUIDE.parent
+        for relative in (".agents/skills/sentinel-health/SKILL.md", ".claude/skills/sentinel-health/SKILL.md",
+                         ".codex/skills/sentinel-health/SKILL.md", "plugins/ignite-sentinel/skills/sentinel-health/SKILL.md",
+                         ".agents/skills/sentinel-command-router/SKILL.md", ".claude/commands/setup.md",
+                         ".kilo/commands/setup.md", "sentinel/templates/commands_manifest.json"):
+            text = (repo / relative).read_text(encoding="utf-8")
+            self.assertNotIn("yourself", text.split("/setup --semantic-memory", 1)[-1][:200], relative)
+            self.assertRegex(text, r"(?i)only when the user asks|only at the user|only when asked", relative)
+        command = (self.GUIDE / "01-command-reference.md").read_text(encoding="utf-8")
+        self.assertIn("never automatic", command)
 
 
 if __name__ == "__main__":

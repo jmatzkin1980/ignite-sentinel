@@ -6,15 +6,19 @@ fetches a pinned embedding model, and only here.
 
 Fences:
 - stdlib only, no `sentinel` import; no module imports this file (a test walks
-  the AST). `semantic_setup.subprocess_fetch` runs it as `python -I setup_download.py`.
+  the AST). `semantic_setup.subprocess_fetch` runs it as `python -I setup_download.py`
+  (from a .pyz it first extracts this file to a private temporary folder).
 - https only, and the host of the URL and of every redirect must be in the list
   given on the command line. An entry starting with "." allows that domain's
   subdomains (".hf.co" allows "us.aws.cdn.hf.co", not "hf.co" nor "evilhf.co").
+- The body is never larger than MAXBYTES (the manifest's size for that file): a bigger
+  Content-Length is refused up front and the stream stops, deleting the partial file,
+  as soon as it passes the limit.
 - The body goes to `dest + ".part"` and is renamed only when complete. This file
   writes with stdlib because it cannot import `sentinel.core.io` (documented
   exemption in tests/test_safe_writer.py).
 
-Usage: python setup_download.py URL DEST HOST [HOST...]
+Usage: python setup_download.py URL DEST MAXBYTES HOST [HOST...]
 """
 
 from __future__ import annotations
@@ -63,11 +67,15 @@ def _open(url: str, hosts: list[str]):
     return opener.open(url, timeout=TIMEOUT)
 
 
+class _TooBig(Exception):
+    pass
+
+
 def main(argv: list[str]) -> int:
-    if len(argv) < 3:
-        print("usage: setup_download.py URL DEST HOST [HOST...]", file=sys.stderr)
+    if len(argv) < 4 or not argv[2].isdigit():
+        print("usage: setup_download.py URL DEST MAXBYTES HOST [HOST...]", file=sys.stderr)
         return 2
-    url, dest, hosts = argv[0], argv[1], list(argv[2:])
+    url, dest, limit, hosts = argv[0], argv[1], int(argv[2]), list(argv[3:])
     if not host_allowed(url, hosts):
         print(f"refusing {url}: only https on {', '.join(hosts)}", file=sys.stderr)
         return 2
@@ -75,13 +83,20 @@ def main(argv: list[str]) -> int:
     try:
         os.makedirs(os.path.dirname(os.path.abspath(dest)), exist_ok=True)
         with _open(url, hosts) as response, open(part, "wb") as handle:
+            declared = getattr(response, "headers", None) and response.headers.get("Content-Length")
+            if declared and declared.isdigit() and int(declared) > limit:
+                raise _TooBig(f"Content-Length {declared} is over the expected {limit} bytes")
+            received = 0
             while True:
                 chunk = response.read(CHUNK)
                 if not chunk:
                     break
+                received += len(chunk)
+                if received > limit:
+                    raise _TooBig(f"more than the expected {limit} bytes")
                 handle.write(chunk)
         os.replace(part, dest)
-    except (OSError, urllib.error.URLError) as exc:
+    except (OSError, urllib.error.URLError, _TooBig) as exc:
         print(f"download failed: {exc}", file=sys.stderr)
         try:
             os.remove(part)

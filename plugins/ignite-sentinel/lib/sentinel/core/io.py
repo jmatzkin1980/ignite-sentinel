@@ -7,7 +7,7 @@ import tempfile
 from copy import deepcopy
 from hashlib import sha256
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterable, Iterator
 
 from ..errors import InputError, WorkspaceBusy
 
@@ -240,7 +240,7 @@ def _translate_newlines(text: str, newline: str | None) -> str:
     return text if newline in ("", "\n") else text.replace("\n", newline)
 
 
-def _atomic_write(destination: Path, data: bytes) -> None:
+def _atomic_write(destination: Path, data: "bytes | Iterable[bytes]") -> None:
     destination.parent.mkdir(parents=True, exist_ok=True)
     try:
         mode = stat.S_IMODE(destination.stat().st_mode)
@@ -249,7 +249,8 @@ def _atomic_write(destination: Path, data: bytes) -> None:
     descriptor, temporary = tempfile.mkstemp(prefix=f".{destination.name}.", suffix=".tmp", dir=destination.parent)
     try:
         with os.fdopen(descriptor, "wb") as handle:
-            handle.write(data)
+            for block in (data,) if isinstance(data, (bytes, bytearray)) else data:
+                handle.write(block)
             handle.flush()
             os.fsync(handle.fileno())
         if os.name != "nt":
@@ -278,8 +279,24 @@ def write_text(
 
 
 def copy_file(source: Path | str, destination: Path | str, *, root: Path | str | None = None) -> Path:
-    """Copy `source` byte for byte into a confined destination (the source may live anywhere)."""
-    return write_bytes(destination, Path(source).read_bytes(), root=root)
+    """Copy `source` byte for byte into a confined destination (the source may live anywhere).
+
+    Streamed in blocks: a model file of hundreds of MB never sits whole in memory.
+    """
+    target = confine(destination, root)
+    _invalidate_json_cache(target)
+    _atomic_write(target, _read_blocks(Path(source)))
+    _remember_snapshot(target)
+    return target
+
+
+def _read_blocks(source: Path, size: int = 1024 * 1024) -> "Iterator[bytes]":
+    with open(source, "rb") as handle:
+        while True:
+            block = handle.read(size)
+            if not block:
+                return
+            yield block
 
 
 def write_json(path: Path, data: Any, *, root: Path | str | None = None) -> None:

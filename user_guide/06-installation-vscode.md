@@ -50,7 +50,7 @@ Install an extra only if your environment allows it. Without them Sentinel works
 | Extra | Adds | Without it |
 |-------|------|------------|
 | `.[memory]` | LanceDB, a local vector index for `/retrieve` | `json-hybrid` mode: lexical retrieval, same traceability. `/doctor` shows a `WARN`, which is healthy. |
-| `.[memory-semantic]` | Local multilingual embeddings (then ask in chat to turn on semantic memory. Sentinel never downloads, except /setup --semantic-memory, which you run yourself and which checks every file's sha256 before using it.) | A deterministic hash embedding. |
+| `.[memory-semantic]` | Local multilingual embeddings (then ask in chat to turn on semantic memory. Sentinel never downloads, except /setup --semantic-memory, which runs only when you ask for it (you, or your agent at your request in chat) and which checks every file's sha256 before using it.) | A deterministic hash embedding. |
 | `.[mcp]` | The `mcp` package, to run Sentinel as an MCP server | Everything else keeps working. |
 
 A fourth extra, `.[embeddings]`, installs the same two packages as `.[memory-semantic]` and has its own lock file. Use either one; you do not need both.

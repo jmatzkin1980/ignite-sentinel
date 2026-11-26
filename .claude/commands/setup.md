@@ -7,7 +7,7 @@ argument-hint: --semantic-memory [--offline-from DIR | --status]
 
 Arguments received from the user invocation: `$ARGUMENTS`
 
-Run this command only when the user asks to turn on semantic memory. It is the one Sentinel command that may use the network, and only to download one pinned model whose files are checked by sha256 before anything is activated.
+Run this command only when the user asks to turn on semantic memory, in chat or by typing it. It is never automatic and not an MCP tool. It is the one Sentinel command that may use the network, and only to download one pinned model whose files are checked by sha256 before anything is activated.
 
 ```powershell
 python -m sentinel /setup --semantic-memory

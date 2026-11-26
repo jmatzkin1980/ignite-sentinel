@@ -35,7 +35,7 @@ Use this skill as the final gate for any Sentinel workflow.
 
 ## Semantic memory (/setup)
 
-When `/doctor` warns that the semantic embedder is not active and the user wants better memory search, run `/setup --semantic-memory` yourself (it is not an MCP tool). It is the only download in Sentinel: the model `minishlab/potion-multilingual-128M` at its pinned revision, https only, hosts `huggingface.co` and `.hf.co` subdomains, every file's sha256 and size verified before activation. Never download or place a model by other means.
+When `/doctor` warns that the semantic embedder is not active and the user wants better memory search, run `/setup --semantic-memory` only when the user asks you to turn it on (it is never automatic and not an MCP tool). It is the only download in Sentinel: the model `minishlab/potion-multilingual-128M` at its pinned revision, https only, hosts `huggingface.co` and `.hf.co` subdomains, every file's sha256 and size verified before activation. Never download or place a model by other means.
 
 - Without network use `--offline-from DIR` (same checks); `--status` checks the install without network.
 - `/setup` does not pip-install `model2vec`: if missing it refuses before downloading and prints the pip command with `constraints/memory-semantic.txt`; give it to the user, who runs it through the organization's index or proxy.

@@ -126,7 +126,7 @@ class SetupDownloaderFenceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp, mock.patch.object(module, "_open") as opened:
             dest = Path(tmp) / "x.bin"
             with mock.patch("sys.stderr"):
-                self.assertEqual(module.main(["https://evil.example/a", str(dest), "huggingface.co"]), 2)
+                self.assertEqual(module.main(["https://evil.example/a", str(dest), "10", "huggingface.co"]), 2)
             opened.assert_not_called()
             self.assertFalse(dest.exists())
 
@@ -136,9 +136,39 @@ class SetupDownloaderFenceTests(unittest.TestCase):
         module = _load_downloader()
         with tempfile.TemporaryDirectory() as tmp, mock.patch.object(module, "_open", return_value=io.BytesIO(b"abc")):
             dest = Path(tmp) / "x.bin"
-            self.assertEqual(module.main(["https://huggingface.co/a", str(dest), "huggingface.co"]), 0)
+            self.assertEqual(module.main(["https://huggingface.co/a", str(dest), "3", "huggingface.co"]), 0)
             self.assertEqual(dest.read_bytes(), b"abc")
             self.assertFalse(Path(str(dest) + ".part").exists())
+
+    def test_downloader_stops_past_the_declared_size(self) -> None:
+        import io
+
+        module = _load_downloader()
+        module.CHUNK = 4
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(module, "_open", return_value=io.BytesIO(b"x" * 100)):
+            dest = Path(tmp) / "x.bin"
+            with mock.patch("sys.stderr"):
+                self.assertEqual(module.main(["https://huggingface.co/a", str(dest), "10", "huggingface.co"]), 1)
+            self.assertFalse(dest.exists())
+            self.assertFalse(Path(str(dest) + ".part").exists())
+
+    def test_downloader_refuses_a_bigger_content_length_up_front(self) -> None:
+        import io
+
+        module = _load_downloader()
+        response = io.BytesIO(b"abc")
+        response.headers = {"Content-Length": "999"}
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(module, "_open", return_value=response):
+            dest = Path(tmp) / "x.bin"
+            with mock.patch("sys.stderr"):
+                self.assertEqual(module.main(["https://huggingface.co/a", str(dest), "10", "huggingface.co"]), 1)
+            self.assertFalse(dest.exists())
+
+    def test_downloader_needs_a_numeric_size(self) -> None:
+        module = _load_downloader()
+        with mock.patch.object(module, "_open") as opened, mock.patch("sys.stderr"):
+            self.assertEqual(module.main(["https://huggingface.co/a", "x", "huggingface.co", "huggingface.co"]), 2)
+        opened.assert_not_called()
 
     def test_downloader_imports_only_stdlib(self) -> None:
         tops = set()

@@ -1892,18 +1892,31 @@ def memory_dependency_check() -> dict[str, str]:
     }
 
 
+def _stale_semantic_config_note() -> str:
+    """IMP-425: semantic.json that no longer matches the pinned model is ignored; say so."""
+    try:
+        from .semantic_setup import configured_model
+
+        state = configured_model()[1]
+    except Exception:  # noqa: BLE001 - best-effort, never breaks /doctor
+        return ""
+    if state != "stale":
+        return ""
+    return (
+        "semantic.json does not match the model this Sentinel pins (another revision, a changed path or a "
+        "missing folder), so it is ignored; run sentinel /setup --semantic-memory to install the pinned model. "
+    )
+
+
 def semantic_embedder_check() -> dict[str, str]:
     status = active_embedder_status()
+    stale = _stale_semantic_config_note()
     if status["semantic"]:
-        return {
-            "name": "memory embedder: semantic local (optional)",
-            "status": "PASS",
-            "detail": (
-                f"{status['level']} active; dimensions={status['dimensions']}; "
-                f"version={status['version']}"
-            ),
-        }
-    detail = "semantic embedder not active; deterministic hash_embedding fallback is active. "
+        detail = f"{status['level']} active; dimensions={status['dimensions']}; version={status['version']}"
+        if stale:
+            return {"name": "memory embedder: semantic local (optional)", "status": "WARN", "detail": f"{detail}. {stale}".strip()}
+        return {"name": "memory embedder: semantic local (optional)", "status": "PASS", "detail": detail}
+    detail = "semantic embedder not active; deterministic hash_embedding fallback is active. " + stale
     try:
         diagnostics = embedder_diagnostics()
     except Exception:  # noqa: BLE001 - diagnosis is best-effort and must never break /doctor

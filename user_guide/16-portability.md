@@ -72,7 +72,7 @@ To give IT more to review, add the [threat model](19-threat-model.md) (what is p
 To avoid misunderstandings with Security:
 
 - Do not promise that GitHub, VS Code, Codex, Claude Code or Kilo Code use no network. Those tools have their own approvals and policies.
-- Do not promise "no network, ever". Sentinel never downloads, except /setup --semantic-memory, which you run yourself and which checks every file's sha256 before using it.
+- Do not promise "no network, ever". Sentinel never downloads, except /setup --semantic-memory, which runs only when you ask for it (you, or your agent at your request in chat) and which checks every file's sha256 before using it.
 - Do not promise that the user will never install an extra. LanceDB and semantic embeddings are optional and should be installed only if IT allows it.
 - Do not treat `workspaces/` as public. It holds project material and is ignored by git in the framework repository.
 
