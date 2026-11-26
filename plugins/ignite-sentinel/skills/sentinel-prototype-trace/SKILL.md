@@ -65,3 +65,12 @@ The runtime checks it with `sentinel.prototype_trace.validate_trace`.
 - Marking a screen `demo` because it looks unfinished, without a source that says it will not be built.
 - Calling a state `not_built` when you only failed to reach it.
 - Checking a field against a mapping table instead of the contract that carries it.
+
+## Trace of a change
+
+The prototype of a change is the `diseno_nuevo` source of that change, and its trace is written the same way with `--change CHG-001`:
+
+1. `/prototype PROJECT_ID --inventory --change CHG-001` writes `02_requirements/CHG-001/prototype/inventory.md` from the rows of that change only (never the project's or another change's).
+2. Write the trace JSON as above, reading the inventory of the change. The anchor is a literal quote of the deliverable of the change (`/brief --change`), never of the project brief; the open gap of a trace is a gap of the change (`01_discovery/CHG-001/gaps.md`), and a gap of the project or of another change is refused.
+3. Submit with `/prototype PROJECT_ID --trace --source trace.json --change CHG-001`; the result is `02_requirements/CHG-001/prototype/trace.md`, and `/view PROJECT_ID --artifact prototype-trace --change CHG-001` shows it.
+4. If the prototype has no visible text, the render or transcript loaded with `--derived-from F-NN` is a derived source of the change: inventory it like any other `diseno_nuevo` row, and cite the derived row, never the origin.

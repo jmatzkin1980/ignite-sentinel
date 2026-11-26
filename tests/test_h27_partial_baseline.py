@@ -94,6 +94,33 @@ class PartialBaselineTests(PartialCase):
         pending = [c for c in new_surface_candidates(self.PID, CID) if c["decision"] is None]
         self.assertFalse(any(c["text"].startswith(ABSENCE) for c in pending))
 
+    def test_dropped_duplicate_id_resolves_to_kept(self):
+        twice = Path.cwd() / "harvest_dos_refs.md"
+        twice.write_text(
+            "# Harvest\n\n## B0 Inventario\n- doc: manual-compras - 00_raw/06_baseline/manual-compras.md\n\n"
+            "## B1 Arquitectura y componentes\n"
+            f"- [NO ENCONTRADO manual-compras:manual-compras.md] {ABSENCE} de altas para la jefatura.\n"
+            f"- [NO ENCONTRADO sad-compras:sad-compras.md] {ABSENCE.upper()} DE ALTAS PARA LA JEFATURA.\n",
+            encoding="utf-8")
+        run_ok(["harvest", self.PID, "--source", "harvest_dos_refs.md", "--change", CID])
+        forget_read_snapshots()
+        from sentinel.crosses.surfaces import candidate_id
+        from sentinel.harvest import load_harvest
+        from sentinel.workspace import workspace_path
+        ids = [candidate_id(e) for e in load_harvest(workspace_path(self.PID)).get("entries", [])
+               if e.get("kind") == "not_found" and "JEFATURA" in str(e.get("text", "")).upper()]
+        self.assertEqual(len(set(ids)), 2)
+        kept = [c for c in new_surface_candidates(self.PID, CID) if "JEFATURA" in c["text"].upper()]
+        self.assertEqual(len(kept), 1)
+        dropped = [i for i in ids if i != kept[0]["id"]][0]
+        run_ok(["cross", self.PID, "--change", CID, "--decline-new", dropped, "--reason", "ya existe"])
+        forget_read_snapshots()
+        after = [c for c in new_surface_candidates(self.PID, CID) if "JEFATURA" in c["text"].upper()]
+        self.assertEqual(len(after), 1)
+        self.assertEqual(after[0]["decision"], "declined")
+        self.assertEqual(after[0]["id"], kept[0]["id"])
+        self.assertIn(dropped, after[0]["aliases"])
+
     def test_reload_marks_partial(self):
         run_ok(["sources", self.PID, "--load", str(SAD), "--role", "linea_de_base", "--change", CID,
                 "--reliability", "codigo"])

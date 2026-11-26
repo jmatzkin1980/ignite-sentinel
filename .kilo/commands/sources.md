@@ -1,5 +1,5 @@
 ---
-description: List the F-NN source registry, record who delivered a source and whether it still governs, close impact cells, settle precedence by scope and write the closing report.
+description: List the F-NN source registry, record who delivered a source and whether it still governs, close impact cells, settle precedence by scope and write the closing report, and load a document by role, with its origin when derived (--derived-from) or with its reliability when it is a baseline (--reliability).
 agent: sentinel-sync
 ---
 

@@ -132,6 +132,8 @@ Use this when you know what you want but not the command. Commands are in chat f
 | "This person owns billing questions" | `/stakeholders --add --name NAME --domain DOMAIN` | List with plain `/stakeholders`. |
 | "Read the existing codebase" | `sentinel-brownfield-harvest` skill → `/harvest --source harvest.md` | Tags `[HECHO repo:file]` / `[FACT ...]`, `[INFERIDO]` / `[INFERRED]`, and others. |
 | "We have an HTML prototype" | `/sync --source FILE` (or `/ingest` if it is the first material) → `/prototype --inventory` → `/prototype --trace --source trace.json` | Traces are written with `sentinel-prototype-trace`. |
+| "My prototype is built with JavaScript" / "the prototype is in Figma" (a change) | Ask the BA for a readable render or transcript, then `/sources --load RENDER --role diseno_nuevo --change CHG-nnn --derived-from F-NN` → `/cross --change CHG-nnn --kind diseno --claims FILE` → `/prototype --inventory --change CHG-nnn` | The render is a derived source of the prototype `F-NN`: quotes verify against it and `crosses.md` shows its origin. The manual and the technical backing of that prototype are `/prototype --manual\|--trace --change CHG-nnn`. |
+| "The baseline is only documentation" / "nobody read the code" (a change) | `/sources --load DOC --role linea_de_base --change CHG-nnn --reliability documental` → `/harvest --source HARVEST.md --change CHG-nnn` | What the documents do not mention reads "not found in a partial baseline: confirm" and is asked once, as a new-surface candidate: `/cross --change CHG-nnn --accept-new` or `--decline-new`. |
 | "Write a user manual from the prototype" | `/prototype --manual --source manual.json` | Written with `sentinel-prototype-manual`. |
 
 ### Deepen discovery
@@ -210,6 +212,7 @@ Use this when you know what you want but not the command. Commands are in chat f
 | You say | Run | Notes |
 |---|---|---|
 | "Show me what is missing per item and from whom" | `/view --artifact readiness` | Read-only HTML. |
+| "Show me the diagrams of the change" | `/view --artifact diagrams --change CHG-nnn` | The to-be diagrams with the as-is; a component's status only when the deliverable says it. Also `prototype`, `prototype-manual`, `prototype-trace` with `--change`. |
 | "Show me the brief / PRD / backlog as a page" | `/view --artifact brief` | 11 artifacts: `gaps`, `brief`, `prd`, `specs`, `backlog`, `readiness`, `release-guide`, `prototype`, `prototype-trace`, `prototype-manual`, `diagrams`. `--open` opens it in the browser, `--theme NAME` restyles it, `--release rN` shows one release. |
 | "Show me the portfolio dashboard" | `/dashboard` | `--theme NAME` to restyle, `--open` to open it in the browser, `--root PATH` to scan another folder (terminal only). |
 | "Export the brief for the client" | `/export --artifact brief --format md` | Stamped draft while marks remain; `--final` refuses then. |

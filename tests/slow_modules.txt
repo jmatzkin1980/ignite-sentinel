@@ -56,3 +56,4 @@ test_h27_derived_source  # 20 s
 test_h27_partial_baseline  # 23 s
 test_h27_change_prototype  # 13 s
 test_h27_change_diagrams  # 13 s
+test_h27_inc7a_walk  # 12 s

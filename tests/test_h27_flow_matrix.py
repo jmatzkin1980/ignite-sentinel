@@ -91,6 +91,16 @@ class FlowMatrixTest(unittest.TestCase):
                     with self.subTest(section=section, cell=cell[:40]):
                         self.assertNotIn("inc 6", cell)
 
+    def test_rows_d_f_no_longer_promise_inc_7(self):
+        rows = {cells[0][:1]: cells for cells in _sections()["Starting points"] if re.match(r"^[A-J]\. ", cells[0])}
+        for letter in "DF":
+            for cell in rows[letter]:
+                with self.subTest(row=letter, cell=cell[:40]):
+                    self.assertNotIn("inc 7", cell)
+        self.assertIn("--derived-from", " ".join(rows["F"]))
+        self.assertIn("--change CHG-001", rows["F"][4])
+        self.assertIn("not found in a partial baseline: confirm", rows["D"][3])
+
     def test_starting_points_a_to_j(self):
         letters = set()
         for cells in _sections()["Starting points"]:

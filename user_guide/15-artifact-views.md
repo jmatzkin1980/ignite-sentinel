@@ -80,6 +80,10 @@ Both are read-only views of the change's files: nothing in them closes a questio
 
 `/export PROJECT_ID --artifact brief --change CHG-001` is the working brief (the request, the EARS rows and the closed decisions). With `--final` the brief is the consolidated one, and in chat you ask "Give me the final consolidated brief": the decisions applied with their `GAP` reference, the requirements as the literal text of the request without EARS rows, what was left out only under 6.2 "No entra", and the annex `A.decisions` ("Registro de decisiones"), which lists each decision with who decided and where it landed in the text. It is refused while an element is pending to consolidate; the internal table `01_discovery/CHG-001/consolidation_control.md` is not part of the deliverable.
 
+### Diagrams and prototype views of a change
+
+`/view PROJECT_ID --artifact diagrams --change CHG-001` writes `08_context_packs/views/CHG-001-diagrams.html` from the deliverable of the change; it needs no project brief. The architecture card is the to-be of the change, and the as-is card lists the systems the harvests of the change registered. A component's status (`new`, `extends`, `unchanged`, `retired`) comes only from the `Name (status)` notation of section 5.1 of the deliverable; a system without that notation reads `sin dato registrado`, never a guessed status. `--artifact prototype`, `prototype-manual` and `prototype-trace` with `--change` show what `/prototype --change CHG-001` wrote.
+
 ## Readiness
 
 ```bash

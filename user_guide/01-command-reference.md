@@ -860,8 +860,10 @@ When the answers change what the project knows (a knowledge unit moves) or chang
 | `--precedence` | a scope: `business`, `scope`, `stack_to_be`, `behavior`, `api`, `compliance`, `legacy`, `design`, `rule` | none | Ask which row governs in this scope. Goes with `--between`. |
 | `--between` | `F-NN,F-NN` | none | The rows to compare. |
 | `--report` | flag | off | Write the closing report. Takes no other option. |
-| `--load` | path | none | Register a document with the role it plays. Needs `--role`; takes only `--role` and `--change`. A file already inside a `00_raw/` context folder is registered in place; otherwise Sentinel copies it into the folder of its role. The same content reuses its `F-NN`. The harvest folder and Sentinel's own outputs are refused. |
+| `--load` | path | none | Register a document with the role it plays. Needs `--role`; takes only `--role`, `--change` and, by role, `--derived-from` or `--reliability`. A file already inside a `00_raw/` context folder is registered in place; otherwise Sentinel copies it into the folder of its role. The same content reuses its `F-NN`. The harvest folder and Sentinel's own outputs are refused. |
 | `--role` | `pedido`, `linea_de_base`, `plan_previo`, `diseno_nuevo` | none | What the document is: the request, the system as it stands (SAD, survey of what is built), the plan of an earlier release, or the design of what is new. Goes with `--load PATH` or `--id F-NN` (to correct a role). Folders: `00_raw/09_request`, `06_baseline`, `07_prior_plan`, `08_new_design`. The harvest has no role. |
+| `--derived-from` | `F-NN` | none | With `--load` and `--role diseno_nuevo` (and `--change`): the file is a readable render or transcript of a prototype that has no visible text (Figma, images, a JavaScript app), and `F-NN` is the prototype it comes from: a current `diseno_nuevo` row of the same change, not the row itself. Citations verify word for word against the derived file, `crosses.md` and the brief of the change show `(derived from F-NN)`, and the origin is never replaced. The derived row is not a new version of the origin. |
+| `--reliability` | `documental`, `codigo`, `mixta` | `codigo` | With `--load` and `--role linea_de_base`: how complete the baseline is. `codigo` is complete (the default). `documental` (only documents, nobody read the code) and `mixta` are partial: a NOT FOUND reads "not found in a partial baseline: confirm" and is asked once, as a new-surface candidate. Loading the same file again with the flag marks it afterwards. |
 | `--change` | `CHG-NNN` | none | With `--load`: the change the document belongs to (required for `pedido`). With `--no-baseline`: the change that waives its baseline. |
 | `--keep-single` | flag | off | The BA decides to keep the request as one change despite the escalation warning. Needs `--change` and `--reason`; takes no other option. The warning stops repeating for the size it had; if the same trigger grows or a new one appears it warns again. It does not combine with `--no-baseline`. Its threshold follows the size of the request. |
 | `--no-baseline` | flag | off | The change has no baseline to load (a system with nothing built). Needs `--change` and `--reason`; takes no other option. |
@@ -884,7 +886,8 @@ Pass one validity change at a time. The newest source never wins by default: an 
 - `--precedence` without `--between`, or the reverse, or `--precedence --between` with another option → exit 3.
 - `--report` with another option → exit 3.
 - `--cell` without `--mark`, or an invalid value (unknown row, cycle, missing reason) → exit 3.
-- `--load` without `--role`, with another option besides `--role` and `--change`, or with a role that is not one of the four; `--role pedido` without `--change`; `--no-baseline` or `--keep-single` without `--change` or `--reason`, or with another option → exit 3.
+- `--derived-from` without `--load`, with a role other than `diseno_nuevo`, or with an origin that is not a current `diseno_nuevo` row of the same change (or is the row itself); `--reliability` with a role other than `linea_de_base` or a value other than `documental`, `codigo` or `mixta` → exit 3, nothing is registered.
+- `--load` without `--role`, with another option besides `--role`, `--change`, `--derived-from` and `--reliability`, or with a role that is not one of the four; `--role pedido` without `--change`; `--no-baseline` or `--keep-single` without `--change` or `--reason`, or with another option → exit 3.
 - `--load` of a file that is the harvest (or has the same content as a harvest draft), a Sentinel output or not UTF-8 text, or whose content already has another declared role → exit 3, the message says why; nothing is registered.
 - `--id F-NN --role ROLE` on a row the harvest registered → exit 3: the harvest is Sentinel's reading and has no role.
 
@@ -1183,7 +1186,7 @@ The modes are mutually exclusive; giving none or two is exit 2.
 
 ## `prototype`
 
-**What it does.** Works with an HTML prototype registered as a source (with `/ingest` when it was the first material, or `/sync --source`), in three modes:
+**What it does.** Works with an HTML prototype registered as a source (with `/ingest` when it was the first material, or `/sync --source`), in three modes, for the project or, with `--change`, for one change:
 
 - `--inventory`: lists every visible element per screen and the user-facing strings in its scripts, each with a stable id (`S1-E01`, `JS-01`).
 - `--trace`: validates and stores the trace of one screen (element, data, contract, rule), written with the `sentinel-prototype-trace` skill.
@@ -1200,6 +1203,7 @@ The modes are mutually exclusive; giving none or two is exit 2.
 /prototype ACME_PORTAL --inventory --source F-04
 /prototype ACME_PORTAL --trace --source trace.json
 /prototype ACME_PORTAL --manual --source manual.json
+/prototype ACME_PORTAL --inventory --change CHG-001
 ```
 
 **Options.**
@@ -1210,17 +1214,18 @@ The modes are mutually exclusive; giving none or two is exit 2.
 | `--inventory` | flag | | Mode: inventory. Exactly one mode is required. |
 | `--trace` | flag | | Mode: store one screen's trace. Needs `--source`. |
 | `--manual` | flag | | Mode: merge the user manual. Needs `--source`. |
-| `--source` | `F-NN` (`--inventory`) or a JSON file (`--trace`, `--manual`) | none | `--inventory`: only this prototype. `--trace`/`--manual`: the payload. |
+| `--source` | `F-NN` (`--inventory`) or a JSON file (`--trace`, `--manual`) | none | `--inventory`: only this prototype (with `--change`, a row of that change). `--trace`/`--manual`: the payload. |
+| `--change` | `CHG-NNN` | none | Works the prototype of one change: only the `diseno_nuevo` rows of that change (a render loaded with `--derived-from` counts as one), and the files go under `02_requirements/CHG-nnn/prototype/`. The trace anchors cite the deliverable of the change and a trace's open gap is a gap of the change. Without it the project command is unchanged. |
 
 **Reads.** The redacted prototype copies under `00_raw/`; the inventory; for `--trace`, the brief v2.
 
-**Writes.** `02_requirements/prototype/inventory.json` and `inventory.md`; `02_requirements/prototype/trace/F-NN-SN.json` and `trace.md`; `02_requirements/prototype/manual.md`.
+**Writes.** `02_requirements/prototype/inventory.json` and `inventory.md`; `02_requirements/prototype/trace/F-NN-SN.json` and `trace.md`; `02_requirements/prototype/manual.md`. With `--change`, the same files under `02_requirements/CHG-nnn/prototype/`.
 
 **Refuses when.** No ingested HTML prototype for `--inventory`, `--manual` or `--trace` before an inventory, or `--trace` without a compiled brief → exit 4. `--trace`/`--manual` without `--source`, a `--source` file that does not exist, or a refused payload (every finding listed) → exit 3. With `--inventory`, `--source` is a source id (`F-NN`), not a path.
 
 **You get.** Screens and elements; the screen verdict (`supported`, `has_gaps`, `not_executed`) and questions; the screens with and without a manual.
 
-**Next step.** `/view PROJECT_ID --artifact prototype` (or `prototype-trace`, `prototype-manual`).
+**Next step.** `/view PROJECT_ID --artifact prototype` (or `prototype-trace`, `prototype-manual`; with `--change CHG-nnn` for a change).
 
 **See also.** [Workflows: prototype available](03-workflows.md) · skills `sentinel-prototype-trace`, `sentinel-prototype-manual`.
 
@@ -2102,7 +2107,7 @@ Every next step also carries `skill`: the skill that holds the format and the ru
 | `--open` | flag | off | Open the view in the browser. MCP: `open_browser`. |
 | `--theme` | a built-in theme name or a path to a local theme JSON | the workspace config theme, else `neutral` | Visual theme. |
 | `--release` | `r<N>` or `r<N>.<M>` | none | The artifact of one release. |
-| `--change` | `CHG-NNN` | none | The brief, the gaps, the border (`borde`) or the decisions (`decisiones`) of one change, written to `08_context_packs/views/CHG-nnn-<artifact>.html`. Another artifact is refused. A workspace that only has changes refuses a view without it. |
+| `--change` | `CHG-NNN` | none | The brief, the gaps, the border (`borde`), the decisions (`decisiones`), the diagrams (`diagrams`: the to-be of the change with its as-is, written to `CHG-nnn-diagrams.html`; a component's status comes only from the `Name (new\|extends\|unchanged\|retired)` notation of the deliverable's section 5.1, else `sin dato registrado`) or the prototype (`prototype`, `prototype-manual`, `prototype-trace`) of one change, written to `08_context_packs/views/CHG-nnn-<artifact>.html`. Another artifact is refused. A workspace that only has changes refuses a view without it. |
 
 **Reads.** The artifact's Markdown, `state.json`, gaps, assumptions, readiness and the graph.
 

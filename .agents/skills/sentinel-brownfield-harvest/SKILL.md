@@ -82,6 +82,8 @@ When the workspace has open changes (state `changes`, or `01_discovery/CHG-nnn/`
 python -m sentinel /harvest PROJECT_ID --source harvest.md --change CHG-001
 ```
 
+   **A harvest whose B0 lists only `doc:` lines** (nobody read the code) rests on a baseline that is only documentation: load that baseline with `/sources PROJECT_ID --load PATH --role linea_de_base --change CHG-001 --reliability documental` (`mixta` if some code was read). Then every `[NO ENCONTRADO]` of the change reads "not found in a partial baseline: confirm": it is not an absence but a question, asked once to the BA as a new-surface candidate (`/cross --accept-new` if it has to be built, `--decline-new` with the reason if it exists). The same absence read in two harvests is one question, and either candidate id works.
+
 5. **Report** the coverage per tag, the gaps opened (out of code, divergences) and any rejected line with its reason. Then recompile the brief: `/brief PROJECT_ID`.
 
 ## Rules

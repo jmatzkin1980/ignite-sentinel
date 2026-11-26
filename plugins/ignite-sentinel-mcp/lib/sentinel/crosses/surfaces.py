@@ -35,6 +35,7 @@ def new_surface_candidates(project_id: str, change_id: str) -> list[dict]:
         key = _fold_name(entry["text"])
         if key in first:
             kept = first[key]
+            kept["aliases"].append(cid)  # a BA using either id reaches the kept candidate
             again = decided.get(cid) if isinstance(decided.get(cid), dict) else {}
             if kept["decision"] is None and again:  # a decision taken on the later copy still counts
                 kept.update(decision=again.get("decision"), type=again.get("type"), name=again.get("name"),
@@ -45,7 +46,7 @@ def new_surface_candidates(project_id: str, change_id: str) -> list[dict]:
             "id": cid, "text": entry["text"], "ref": entry["ref"], "source_id": str(entry["source_id"]),
             "line": entry.get("line"), "block": entry.get("block", ""),
             "decision": saved.get("decision"), "type": saved.get("type"), "name": saved.get("name"),
-            "reason": saved.get("reason"), "partial": partial,
+            "reason": saved.get("reason"), "partial": partial, "aliases": [],
         })
         first[key] = out[-1]
     out.sort(key=lambda c: (c["block"], int(c["line"] or 0)))
@@ -59,7 +60,7 @@ def _msg(language: str, es: str, en: str) -> str:
 def _find(project_id: str, change_id: str, candidate: str, language: str) -> dict:
     candidates = new_surface_candidates(project_id, change_id)
     for item in candidates:
-        if item["id"] == candidate:
+        if item["id"] == candidate or candidate in item.get("aliases", ()):
             return item
     known = ", ".join(c["id"] for c in candidates) or "-"
     raise InputError(
@@ -113,6 +114,7 @@ def accept_new_surface(project_id: str, change_id: str, candidate: str, surface_
         found = solo_en_diseno_item(project_id, change_id, candidate, language)
     else:
         found = _find(project_id, change_id, candidate, language)
+        candidate = found["id"]
     if found["decision"] == "accepted":
         raise InputError(_msg(language, f"{candidate} ya está aceptada como «{found['name']}»",
                               f"{candidate} is already accepted as «{found['name']}»"))
@@ -163,6 +165,7 @@ def decline_new_surface(project_id: str, change_id: str, candidate: str, reason:
     change = get_change(project_id, change_id)
     language = change_language(project_id, change)
     found = _find(project_id, change_id, candidate, language)
+    candidate = found["id"]
     text = str(reason or "").strip()
     if not text:
         raise InputError(_msg(language, "El motivo del descarte es obligatorio.", "The reason for declining is required."),
