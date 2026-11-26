@@ -100,6 +100,10 @@ class ChangeQualityWithProject(SnapshotWorkspaceCase):
         self.assertTrue((base / "05_quality" / self.cid / "backlog_readiness_audit.md").is_file())
         self.assertEqual(len(list((base / "05_quality" / self.cid).glob("TC-*.md"))), len(own))
 
+    def test_maturity_mixed_workspace_unchanged(self):
+        run_ok(["maturity", "MIX"])
+        self.assertTrue((workspace_path("MIX") / "01_discovery" / "requirement_maturity_report.md").is_file())
+
     def test_project_audit_skips_change_stories(self):
         base = workspace_path("MIX")
         generate_quality("MIX", change_id=self.cid)
@@ -242,6 +246,19 @@ class ChangeQualityOnly(SnapshotWorkspaceCase):
         code, out = cli(["quality", "BORR"])
         self.assertNotEqual(code, 0, out)
         self.assertIn("/quality BORR --change CHG-001", out)
+
+    def test_maturity_refuses_change_only_without_writing(self):
+        state = read_json(workspace_path("BORR") / "state.json", {})
+        report = workspace_path("BORR") / "01_discovery" / "requirement_maturity_report.md"
+        self.assertFalse(report.exists())
+        code, out = cli(["maturity", "BORR"])
+        self.assertNotEqual(code, 0, out)
+        self.assertIn("/status BORR --change CHG-001", out)
+        self.assertIn("/next BORR --change CHG-001", out)
+        self.assertFalse(report.exists())
+        after = read_json(workspace_path("BORR") / "state.json", {})
+        for key in ("phase", "health", "maturity_metrics"):
+            self.assertEqual(after.get(key), state.get(key), key)
 
     def test_quality_change_with_release_refused(self):
         before = self.audit_files()
