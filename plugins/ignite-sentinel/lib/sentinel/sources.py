@@ -13,8 +13,12 @@ from .source_registry import (
     close_row,
     SourceRegistryError,
     ensure_registry,
+    RELIABILITY_VALUES,
+    set_derived,
+    set_reliability,
     set_role,
     find_row,
+    row_role,
     harvest_role_message,
     is_harvested,
     open_row,
@@ -184,7 +188,14 @@ def _text(language: str, es: str, en: str) -> str:
     return es if language == "es" else en
 
 
-def load_source(project_id: str, source: Path, role: str, change_id: str | None = None) -> dict[str, Any]:
+def load_source(
+    project_id: str,
+    source: Path,
+    role: str,
+    change_id: str | None = None,
+    derived_from: str | None = None,
+    reliability: str | None = None,
+) -> dict[str, Any]:
     """IMP-400: register `source` with the role it plays in a change.
 
     A file outside 00_raw gets a redacted copy in the role's folder; a context file already
@@ -219,6 +230,10 @@ def load_source(project_id: str, source: Path, role: str, change_id: str | None 
         )
     if change_id:
         get_change(project_id, change_id)
+    if derived_from:
+        _check_derived_origin(project_id, change_id, role, derived_from, language)
+    if reliability:
+        _check_reliability(role, reliability, language)
     if not source.is_file():
         raise InputError(_text(language, f"--load debe ser un archivo: {source}", f"--load must be a file: {source}"))
 
@@ -243,6 +258,14 @@ def load_source(project_id: str, source: Path, role: str, change_id: str | None 
     existing = row_for_hash(manifest, file_hash(source))
     if existing is not None and is_harvested(existing):  # the same content as a harvest draft
         raise _harvest_refusal(source.name, language)
+    if derived_from and existing is not None and str(existing["id"]) == derived_from:
+        raise InputError(_text(language, "una fuente no puede derivar de sí misma", "a source cannot derive from itself"))
+    if derived_from and existing is not None and existing.get("derived_from") and str(existing["derived_from"]) != derived_from:
+        raise InputError(_text(  # the shared row keeps its first origin: another view may be showing it
+            language,
+            f"{existing['id']} ya deriva de {existing['derived_from']}; no se cambia a {derived_from}",
+            f"{existing['id']} already derives from {existing['derived_from']}; it is not changed to {derived_from}",
+        ))
     if existing is not None and role_is_declared(existing) and existing["role"] != role:
         raise InputError(
             _text(
@@ -292,6 +315,10 @@ def load_source(project_id: str, source: Path, role: str, change_id: str | None 
     manifest = load_source_manifest(project_id)
     row = find_row(manifest, source_id)
     set_role(row, role, language)
+    if derived_from:
+        set_derived(row, derived_from)
+    if reliability:  # H27 inc 7a: declared on load, or on a reload of the same file (the row is `reused`)
+        set_reliability(row, reliability)
     if row_authority(row) == "unclassified":
         by_role = default_authority(source_kind(f"{ROLE_FOLDERS[role]}/x"), "")
         if by_role != "unclassified":
@@ -310,7 +337,7 @@ def load_source(project_id: str, source: Path, role: str, change_id: str | None 
 
     # IMP-400: with --change, that change; a non-request source without --change, every change.
     version_gaps = check_versions_for(project_id, change_id) if (change_id or role != "pedido") else []
-    return {
+    result = {
         "source_id": source_id,
         "role": role,
         "path": source_key(target),
@@ -321,6 +348,46 @@ def load_source(project_id: str, source: Path, role: str, change_id: str | None 
         "validity": str(row.get("validity") or "current"),
         "replaced_by": row.get("superseded_by") or row.get("replacement"),
     }
+    if derived_from:
+        result["derived_from"] = derived_from
+    if reliability:
+        result["reliability"] = reliability
+    return result
+
+
+def _check_reliability(role: str, reliability: str, language: str) -> None:
+    """`--reliability documental|codigo|mixta` goes with `--role linea_de_base`; nothing is written."""
+    from .errors import InputError
+
+    if reliability not in RELIABILITY_VALUES:
+        raise InputError(_text(language, "--reliability es documental, codigo o mixta",
+                               "--reliability is documental, codigo or mixta"))
+    if role != "linea_de_base":
+        raise InputError(_text(language, "--reliability va con --role linea_de_base",
+                               "--reliability goes with --role linea_de_base"))
+
+
+def _check_derived_origin(project_id: str, change_id: str | None, role: str, origin_id: str, language: str) -> None:
+    """`--derived-from` names a current `diseno_nuevo` source of the same view (change or project); nothing is written."""
+    from .changes import resolve_scope
+    from .errors import InputError
+
+    if role != "diseno_nuevo":
+        raise InputError(_text(language, "--derived-from va con --role diseno_nuevo", "--derived-from goes with --role diseno_nuevo"))
+    scope = resolve_scope(project_id, change_id)
+    row = find_row(load_source_manifest(project_id), origin_id)
+    if (
+        row is None
+        or origin_id not in {str(i) for i in scope.entry.get("sources") or []}
+        or row.get("validity", "current") != "current"
+        or row_role(row) != "diseno_nuevo"
+    ):
+        view = change_id or project_id
+        raise InputError(_text(
+            language,
+            f"{origin_id} no es un prototipo vigente de {view}: --derived-from nombra la fuente original",
+            f"{origin_id} is not a current prototype of {view}: --derived-from names the original source",
+        ))
 
 
 def _harvest_refusal(name: str, language: str) -> Exception:

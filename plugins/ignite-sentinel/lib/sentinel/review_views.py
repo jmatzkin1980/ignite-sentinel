@@ -176,15 +176,26 @@ def _decided_surfaces(project_id: str, change_id: str, change: dict, t: dict) ->
             out.append(f"- {decision.get('name', key)} ({decision.get('type', '')}) — {t['accepted']} ({key})")
         elif decision.get("decision") == "declined":
             text = _candidate_text(project_id, change_id, str(key)) or str(key)
+            if _candidate_partial(project_id, change_id, str(key)):  # H27 inc 7a: the absence was asked, not asserted
+                from .crosses.state import PARTIAL_NOT_FOUND
+
+                text += f" [{PARTIAL_NOT_FOUND['es' if change_language(project_id, change) == 'es' else 'en']}]"
             out.append(f"- {text} — {t['declined']} ({key}): {_squash(decision.get('reason'))}")
     return out
+
+
+def _candidate_partial(project_id: str, change_id: str, key: str) -> bool:
+    from .crosses.surfaces import new_surface_candidates
+
+    return any((key == item["id"] or key in item["aliases"]) and item["partial"]  # a decision saved in 0.34 may use an alias id
+               for item in new_surface_candidates(project_id, change_id))
 
 
 def _candidate_text(project_id: str, change_id: str, key: str) -> str:
     from .crosses.surfaces import new_surface_candidates, solo_en_diseno_item
 
     for item in new_surface_candidates(project_id, change_id):
-        if item["id"] == key:
+        if key == item["id"] or key in item["aliases"]:
             return _squash(item["text"])
     try:
         return _squash(solo_en_diseno_item(project_id, change_id, key, "es")["text"])

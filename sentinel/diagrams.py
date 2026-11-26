@@ -103,6 +103,7 @@ COPY = {
         "summary_state": "{states} states, {transitions} transitions", "summary_sequence": "{participants} participants, {messages} messages",
         "summary_architecture": "{components} components ({statuses}), {edges} integrations",
         "summary_series": "{releases} releases in {waves} waves", "summary_asis": "{components} components exist today",
+        "no_status": "no recorded data",
         "conditional": "{n} conditional or optional (dashed)",
         "status": {"new": "new", "extends": "extends", "unchanged": "unchanged", "retired": "retired"},
         "release_status": {"closed": "closed", "open": "open", "waiting": "waiting on a dependency"},
@@ -132,6 +133,7 @@ COPY = {
         "summary_state": "{states} estados, {transitions} transiciones", "summary_sequence": "{participants} participantes, {messages} mensajes",
         "summary_architecture": "{components} componentes ({statuses}), {edges} integraciones",
         "summary_series": "{releases} releases en {waves} olas", "summary_asis": "{components} componentes existen hoy",
+        "no_status": "sin dato registrado",
         "conditional": "{n} condicionales u opcionales (punteados)",
         "status": {"new": "nuevo", "extends": "extiende", "unchanged": "sin cambios", "retired": "se retira"},
         "release_status": {"closed": "cerrado", "open": "abierto", "waiting": "esperando una dependencia"},
@@ -387,7 +389,20 @@ def architecture_mermaid(components: list[dict[str, str]], edges: list[dict[str,
     return "\n".join(lines + _class_defs(used)) + "\n"
 
 
-def asis_mermaid(components: list[dict[str, str]]) -> str:
+def asis_mermaid(components: list[dict[str, str]], copy: dict[str, Any] | None = None) -> str:
+    """What exists today. With `copy` (a change), the components are the ones its harvests registered:
+    a status is drawn only when the deliverable's notation gave one, otherwise the node says it has no data."""
+    if copy is not None:
+        used: set[str] = set()
+        lines = ["flowchart LR"]
+        for index, c in enumerate(components, start=1):
+            if c["status"] in STATUSES:
+                klass, label = f"st_{c['status']}", f"{c['name']} · {copy['status'][c['status']]}"
+            else:
+                klass, label = "st_external", f"{c['name']} · {copy['no_status']}"
+            used.add(klass)
+            lines.append(f'  a{index}["{clean_label(label)}"]:::{klass}')
+        return "\n".join(lines + _class_defs(used)) + "\n"
     existing = [c for c in components if c["status"] != "new"]
     lines = ["flowchart LR"]
     lines += [f'  a{index}["{c["name"]}"]:::st_unchanged' for index, c in enumerate(existing, start=1)]
@@ -475,16 +490,35 @@ def _edge_cards(kind: str, copy: dict[str, Any], sid: str, facts: dict[str, Any]
     return cards
 
 
-def _architecture_cards(copy: dict[str, Any], text: str) -> list[dict[str, Any]]:
+def _architecture_cards(copy: dict[str, Any], text: str, asis: list[dict[str, str]] | None = None) -> list[dict[str, Any]]:
+    """The to-be card(s) of §5.1/§5.6 and, beside them, what exists today.
+
+    `asis` (a change): the components its harvests registered; None (the project): the ones the notation marks as existing."""
+    cards, components, sources = _architecture_to_be(copy, text)
+    if asis is not None:
+        if asis:
+            cards.append(_card("architecture-asis", copy, ["5.1"], {"gaps": [], "sources": sources},
+                               mermaid=asis_mermaid(asis, copy), changes=[copy["summary_asis"].format(components=len(asis))],
+                               missing=[]))
+    elif any(c["status"] != "new" for c in components):  # compared mode: what exists today
+        existing = [c for c in components if c["status"] != "new"]
+        cards.append(_card("architecture-asis", copy, ["5.1"], {"gaps": [], "sources": sources},
+                           mermaid=asis_mermaid(components), changes=[copy["summary_asis"].format(components=len(existing))],
+                           missing=[]))
+    return cards
+
+
+def _architecture_to_be(copy: dict[str, Any], text: str) -> tuple[list[dict[str, Any]], list[dict[str, str]], list[str]]:
     facts = read_section(text, ("5.1", "5.6"))
     components = parse_components(read_section(text, ("5.1",)))
     edges = parse_edges(read_section(text, ("5.6",)))
     if not components and not edges:
         undrawn = _undrawn("architecture", copy, ["5.1", "5.6"], facts)
         if undrawn:
-            return [undrawn]
+            return [undrawn], components, facts["sources"]
         return [_card("architecture", copy, ["5.1", "5.6"], facts, status="no_notation",
-                      missing=[copy["no_notation"] + ": " + copy["how"]["architecture"]] + [copy["gap"].format(gap=g) for g in facts["gaps"]])]
+                      missing=[copy["no_notation"] + ": " + copy["how"]["architecture"]] + [copy["gap"].format(gap=g) for g in facts["gaps"]])], \
+            components, facts["sources"]
     known = {c["name"] for c in components}
     external = [n for n in _order(edges) if n not in known]
     counts = ", ".join(f"{sum(1 for c in components if c['status'] == s)} {copy['status'][s]}"
@@ -510,12 +544,34 @@ def _architecture_cards(copy: dict[str, Any], text: str) -> list[dict[str, Any]]
             card["id"] = f"architecture-{index}"
             card["title"] = f"{copy['architecture']} — {copy['part'].format(n=index, total=parts)}"
         cards.append(card)
-    if any(c["status"] != "new" for c in components):  # compared mode: what exists today
-        existing = [c for c in components if c["status"] != "new"]
-        cards.append(_card("architecture-asis", copy, ["5.1"], {"gaps": [], "sources": facts["sources"]},
-                           mermaid=asis_mermaid(components), changes=[copy["summary_asis"].format(components=len(existing))],
-                           missing=[]))
-    return cards
+    return cards, components, facts["sources"]
+
+
+def change_asis_components(project_id: str, change_id: str, to_be: list[dict[str, str]]) -> list[dict[str, str]]:
+    """The as-is of a change: the systems its harvests registered (the name before `:` of a fact or inferred `ref`).
+
+    Each takes the status of the deliverable's notation when the same name has one there, else "" (no data): the
+    border describes surfaces, not components, so a status is never derived (decision 10)."""
+    from .changes import resolve_scope
+    from .harvest import load_harvest
+
+    harvests = {str(i) for i in resolve_scope(project_id, change_id).entry.get("harvests") or []}
+    status = {c["name"]: c["status"] for c in to_be}
+    names: list[str] = []
+    record = load_harvest(workspace_path(project_id))
+    docs = {str(d) for d in record.get("docs") or []}
+    repos = {str(r) for r in record.get("repos") or []}
+    for entry in record.get("entries") or []:
+        ref = str(entry.get("ref") or "")
+        if str(entry.get("source_id")) not in harvests or entry.get("kind") not in ("fact", "inferred") or ":" not in ref:
+            continue
+        prefix = ref.split(":", 1)[0]
+        if prefix in docs and prefix not in repos:  # a document that was read is a source, not a component that exists today
+            continue
+        name = clean_label(prefix)
+        if name and name not in names:
+            names.append(name)
+    return [{"name": name, "status": status.get(name, "")} for name in names]
 
 
 def _series_card(project_id: str, copy: dict[str, Any]) -> dict[str, Any] | None:
@@ -544,39 +600,72 @@ def _series_card(project_id: str, copy: dict[str, Any]) -> dict[str, Any] | None
     return card
 
 
-def build_cards(project_id: str, text: str, language: str) -> list[dict[str, Any]]:
+def build_cards(project_id: str, text: str, language: str, *, asis: list[dict[str, str]] | None = None,
+                series: bool = True) -> list[dict[str, Any]]:
     copy = COPY[language]
     cards = _edge_cards("state", copy, "3.4", read_section(text, ("3.4",)))
     cards += _edge_cards("sequence", copy, "3.3", read_section(text, ("3.3",)))
-    cards += _architecture_cards(copy, text)
-    series = _series_card(project_id, copy)
-    if series:
-        cards.append(series)
+    cards += _architecture_cards(copy, text, asis)
+    serie = _series_card(project_id, copy) if series else None
+    if serie:
+        cards.append(serie)
     return cards
 
 
-def collect_diagrams_model(project_id: str) -> dict[str, Any]:
+def _file_fingerprint(base: Path, project_id: str, path: Path) -> dict[str, str]:
+    return {"path": f"workspaces/{project_id}/{path.relative_to(base).as_posix()}", "sha256": content_fingerprint(path.read_bytes())}
+
+
+def _change_diagrams_input(project_id: str, change_id: str) -> tuple[list[dict[str, Any]], str, list[dict[str, str]], list[Path]]:
+    """(cards, language, fingerprints, files whose mtime dates it) of a change.
+
+    The cards come from its deliverable text through `build_cards` (as-is from its harvests); the fingerprint is of the
+    live text that was drawn, not of the last compiled file, plus the harvest it read."""
+    from .changes import resolve_scope
+    from .compilers.change_deliverable import render_change_deliverable
+
     base = workspace_path(project_id)
-    brief = base / "02_requirements" / "project-brief.md"
-    if not brief.is_file():
-        raise DiagramsError(
-            f"/view diagrams needs the brief: workspaces/{project_id}/02_requirements/project-brief.md does not exist.",
-            next_step=f"Run /brief {project_id} first.",
-            gate=True,
-        )
-    text = brief.read_text(encoding="utf-8")
-    if parse_brief(text).version != 2:
-        raise DiagramsError("/view diagrams reads the v2 brief (its §3.3, §3.4, §5.1 and §5.6); this workspace compiles v1")
-    state = read_json(base / "state.json", {})
-    language = "es" if str(state.get("project_language", "")).lower().startswith("es") else "en"
-    cards = build_cards(project_id, text, language)
-    sources = [brief]
-    series_dir = base / "02_requirements" / "series"
-    sources += sorted(p for p in (series_dir / "partition.json", series_dir / "proposal.json") if p.is_file())
-    fingerprints = [{"path": f"workspaces/{project_id}/{p.relative_to(base).as_posix()}", "sha256": content_fingerprint(p.read_bytes())}
-                    for p in sources]
+    scope = resolve_scope(project_id, change_id)  # an unknown change refuses here
+    text = render_change_deliverable(project_id, change_id, final=False)
+    asis = change_asis_components(project_id, change_id, parse_components(read_section(text, ("5.1",))))
+    cards = build_cards(project_id, text, scope.language, asis=asis, series=False)
+    fingerprints = [{"path": f"{change_id} deliverable (working)", "sha256": content_fingerprint(text.encode("utf-8"))}]
+    dated: list[Path] = []
+    for path in (base / "02_requirements" / change_id / "project-brief.md", base / "01_discovery" / "harvest.json",
+                 base / "01_discovery" / change_id / "gaps.md"):
+        if path.is_file():
+            dated.append(path)
+            if path.name == "harvest.json":
+                fingerprints.append(_file_fingerprint(base, project_id, path))
+    return cards, scope.language, fingerprints, dated
+
+
+def collect_diagrams_model(project_id: str, change_id: str | None = None) -> dict[str, Any]:
+    base = workspace_path(project_id)
+    if change_id is not None:
+        cards, language, fingerprints, dated = _change_diagrams_input(project_id, change_id)
+    else:
+        brief = base / "02_requirements" / "project-brief.md"
+        if not brief.is_file():
+            raise DiagramsError(
+                f"/view diagrams needs the brief: workspaces/{project_id}/02_requirements/project-brief.md does not exist.",
+                next_step=f"Run /brief {project_id} first.",
+                gate=True,
+            )
+        text = brief.read_text(encoding="utf-8")
+        if parse_brief(text).version != 2:
+            raise DiagramsError("/view diagrams reads the v2 brief (its §3.3, §3.4, §5.1 and §5.6); this workspace compiles v1")
+        state = read_json(base / "state.json", {})
+        language = "es" if str(state.get("project_language", "")).lower().startswith("es") else "en"
+        cards = build_cards(project_id, text, language)
+        sources = [brief]
+        series_dir = base / "02_requirements" / "series"
+        sources += sorted(p for p in (series_dir / "partition.json", series_dir / "proposal.json") if p.is_file())
+        fingerprints = [_file_fingerprint(base, project_id, p) for p in sources]
+        dated = sources
     return {
         "project_id": project_id,
+        **({"change_id": change_id} if change_id is not None else {}),
         "artifact": "diagrams",
         "label": COPY[language]["label"],
         "language": language,
@@ -588,7 +677,8 @@ def collect_diagrams_model(project_id: str) -> dict[str, Any]:
             "no_notation": sum(1 for c in cards if c["status"] == "no_notation"),
         },
         "provenance": {
-            "cutoff": max(datetime.fromtimestamp(int(p.stat().st_mtime), timezone.utc).isoformat() for p in sources),
+            "cutoff": max((datetime.fromtimestamp(int(p.stat().st_mtime), timezone.utc) for p in dated),
+                          default=datetime.now(timezone.utc).replace(microsecond=0)).isoformat(),
             "source_sha256": content_fingerprint("\n".join(f"{f['path']}:{f['sha256']}" for f in fingerprints).encode("utf-8")),
             "sources": fingerprints,
         },
@@ -715,7 +805,8 @@ def _provenance_html(model: dict[str, Any], theme_arg: str, copy: dict[str, Any]
     provenance = model["provenance"]
     return provenance_section(
         language=model["language"],
-        command=f"python -m sentinel /view {model['project_id']} --artifact diagrams --theme {theme_argument_for_display(theme_arg)}",
+        command=f"python -m sentinel /view {model['project_id']} --artifact diagrams"
+                f"{' --change ' + model['change_id'] if model.get('change_id') else ''} --theme {theme_argument_for_display(theme_arg)}",
         cutoff=provenance["cutoff"],
         sources=list(provenance["sources"]),
         digest=provenance["source_sha256"],
@@ -740,11 +831,12 @@ def render_diagrams_view(model: dict[str, Any], theme: dict[str, Any], *, theme_
     else:
         renderer = copy["no_renderer"].format(why=copy.get(f"why_{reason}", copy["why_missing"]))
     summary = model["summary"]
+    scope = f"{model['project_id']} {model['change_id']}" if model.get("change_id") else model["project_id"]
     toc = "".join(f'<li><a href="#dg-{html.escape(c["id"])}">{html.escape(c["title"])}</a></li>' for c in model["cards"])
     nav = (f'<div class="view-nav"><div class="stats">{summary["drawn"]} / {summary["cards"]}</div>'
            f'<ol class="toc">{toc}</ol></div>')
     content = (
-        f'<header class="view-header"><div class="eyebrow">{html.escape(model["project_id"])}</div>'
+        f'<header class="view-header"><div class="eyebrow">{html.escape(scope)}</div>'
         f'<h1>{html.escape(model["label"])}</h1><p class="render-status" id="renderStatus" data-ok="{1 if library else 0}">{html.escape(renderer)}</p></header>'
         + '<div class="diagram-cards">' + "\n".join(_card_html(c, copy) for c in model["cards"]) + "</div>"
         + _legend_html(theme, copy, language)
@@ -753,7 +845,7 @@ def render_diagrams_view(model: dict[str, Any], theme: dict[str, Any], *, theme_
     )
     page = render_shell(
         theme=theme,
-        title=f"{model['project_id']} · {model['label']} — Ignite Artifact View",
+        title=f"{scope} · {model['label']} — Ignite Artifact View",
         heading=html.escape(str(model["label"])),
         nav=nav,
         content=content,
@@ -764,20 +856,21 @@ def render_diagrams_view(model: dict[str, Any], theme: dict[str, Any], *, theme_
     return page, library or ""
 
 
-def generate_diagrams_view(project_id: str, open_browser: bool = False, theme: str | Path | None = None) -> dict[str, Any]:
+def generate_diagrams_view(project_id: str, open_browser: bool = False, theme: str | Path | None = None,
+                           change_id: str | None = None) -> dict[str, Any]:
     from .view import resolve_view_theme
 
     loaded, theme_arg, theme_warning = resolve_view_theme(project_id, theme)
     if theme_warning:
         print(f"sentinel warning: {theme_warning}", file=sys.stderr)
-    model = collect_diagrams_model(project_id)
+    model = collect_diagrams_model(project_id, change_id)
     page, library = render_diagrams_view(model, loaded, theme_arg=theme_arg)
     # The leak scan reads the page the workspace produced; the library is third-party code pinned by sha256.
     assert_no_leaks(project_id, page, workspace_path(project_id), "/view diagrams")
     rendered = page.replace(LIB_PLACEHOLDER, library, 1) if library else page
     out_dir = workspace_path(project_id) / "08_context_packs" / "views"
     out_dir.mkdir(parents=True, exist_ok=True)
-    out = out_dir / "diagrams.html"
+    out = out_dir / (f"{change_id}-diagrams.html" if change_id else "diagrams.html")
     write_text(out, rendered, newline="\n")
     if open_browser:
         open_local_file(out)

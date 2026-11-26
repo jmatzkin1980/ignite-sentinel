@@ -22,6 +22,9 @@ HARVEST_NAMES = {
     "en": {"fact": "FACT", "inferred": "INFERRED", "not_found": "NOT FOUND",
            "out_of_code": "OUT OF CODE", "divergence": "DIVERGENCE"},
 }
+# H27 inc 7a: `codigo` = the code was read (complete); `documental` and `mixta` are partial
+PARTIAL_NOT_FOUND = {"es": "no encontrado en una línea de base parcial: confirmar",
+                     "en": "not found in a partial baseline: confirm"}
 KIND_LABELS = {
     "es": {"linea_de_base": "línea de base", "diseno": "diseño nuevo", "contradicciones": "contradicciones internas"},
     "en": {"linea_de_base": "baseline", "diseno": "new design", "contradicciones": "internal contradictions"},
@@ -59,7 +62,33 @@ def _late_baseline(project_id: str, change: dict) -> list[str]:
             and r.get("validity", "current") == "current" and row_role(r) == "linea_de_base"]
 
 
+def _entry_reliability(project_id: str, entry: dict) -> str:
+    mine = {str(i) for i in entry.get("sources") or []}
+    seen = {str(r.get("reliability")) for r in load_source_manifest(project_id).get("registry", [])
+            if str(r.get("id")) in mine and r.get("validity", "current") == "current" and row_role(r) == "linea_de_base"}
+    return next((value for value in ("documental", "mixta") if value in seen), "codigo")
+
+
+def baseline_reliability(project_id: str, change_id: str | None) -> str:
+    """H27 inc 7a: `documental`, `mixta` or `codigo` (the default) for the baseline sources current in the view.
+
+    The view is as partial as its least reliable current `linea_de_base` row; a row with no
+    `reliability` (every workspace of 0.34) reads as `codigo`.
+    """
+    return _entry_reliability(project_id, resolve_scope(project_id, change_id).entry)
+
+
+def is_partial_baseline(project_id: str, change_id: str | None) -> bool:
+    return baseline_reliability(project_id, change_id) != "codigo"
+
+
 def _baseline_state(project_id: str, base: Path, change: dict, record: dict | None) -> dict[str, Any]:
+    state = _baseline_state_of(project_id, base, change, record)
+    state["reliability"] = _entry_reliability(project_id, change)
+    return state
+
+
+def _baseline_state_of(project_id: str, base: Path, change: dict, record: dict | None) -> dict[str, Any]:
     harvests = [str(i) for i in change.get("harvests") or []]
     if harvests:
         counts = {kind: 0 for kind in HARVEST_KINDS}
@@ -131,6 +160,8 @@ def cross_summary(status: dict[str, Any], language: str) -> str:
         counts = info.get("counts") or {}
         if counts:
             names = HARVEST_NAMES[lang] if kind == "linea_de_base" else TAG_NAMES[lang]
+            if kind == "linea_de_base" and info.get("reliability", "codigo") != "codigo":
+                names = {**names, "not_found": PARTIAL_NOT_FOUND[lang]}  # H27 inc 7a: a partial baseline asks, it does not assert
             order = HARVEST_KINDS if kind == "linea_de_base" else tuple(TAG_NAMES[lang])
             text += " (" + ", ".join(f"{names[tag]} {counts[tag]}" for tag in order if counts.get(tag)) + ")"
         elif info["state"] == "waived":
@@ -161,13 +192,15 @@ def crosses_fingerprint(project_id: str, change_id: str) -> str:
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:12]
 
 
-def _cite_text(cite: dict, lang: str) -> str:
+def _cite_text(cite: dict, lang: str, origins: dict[str, str] | None = None) -> str:
     side = "Pedido" if lang == "es" else "Request"
     if cite["side"] == "diseno":
         side = "Diseño" if lang == "es" else "Design"
     where = f":{cite['line']}" if cite["side"] == "pedido" and cite.get("line") else ""
     opening, closing = ("«", "»") if lang == "es" else ("“", "”")
-    return f"{side} {cite['source_id']}{where} {opening}{_squash(cite['quote'])}{closing}"
+    origin = (origins or {}).get(str(cite["source_id"]))  # H27 inc 7a: a derived source shows where it comes from
+    derived = (f" (derivado de {origin})" if lang == "es" else f" (derived from {origin})") if origin else ""
+    return f"{side} {cite['source_id']}{where}{derived} {opening}{_squash(cite['quote'])}{closing}"
 
 
 def write_cross_report(project_id: str, change_id: str | None) -> Path:
@@ -178,6 +211,8 @@ def write_cross_report(project_id: str, change_id: str | None) -> Path:
     what = change_id or project_id
     title = f"# Cruces del pedido — {what}" if lang == "es" else f"# Cross-reads of the request — {what}"
     lines = [title, "", status["text"], ""]
+    origins = {sid: str(row["derived_from"]) for sid, row in cross_sources(project_id, change_id)["diseno"].items()
+               if row.get("derived_from")}
     for kind in CROSS_KINDS:
         info = status["kinds"][kind]
         lines += [f"## {KIND_LABELS[lang][kind]}", "",
@@ -200,7 +235,7 @@ def write_cross_report(project_id: str, change_id: str | None) -> Path:
             lines.append("")
             names = TAG_NAMES[lang]
             for claim in record.get("claims", []):
-                cites = "; ".join(_cite_text(c, lang) for c in claim.get("citations", []))
+                cites = "; ".join(_cite_text(c, lang, origins) for c in claim.get("citations", []))
                 arrow = f" → {claim['gap']}" if claim.get("gap") else ""
                 tail = f" — {cites}{arrow}" if cites or arrow else ""
                 lines.append(f"- [{names[claim['tag']]}] {_squash(claim['text'])}{tail}")
@@ -222,8 +257,11 @@ def write_cross_report(project_id: str, change_id: str | None) -> Path:
 
     candidates = new_surface_candidates(project_id, change_id) if change_id else []  # new surfaces are the change's
     if candidates:
-        lines += ["## Candidatas a superficie nueva (del harvest)" if lang == "es"
-                  else "## New surface candidates (from the harvest)", ""]
+        partial = any(item["partial"] for item in candidates)
+        head = "## Candidatas a superficie nueva (del harvest)" if lang == "es" else "## New surface candidates (from the harvest)"
+        if partial:
+            head = head[:-1] + (", línea de base parcial)" if lang == "es" else ", partial baseline)")
+        lines += [head, ""]
         for item in candidates:
             if item["decision"] == "accepted":
                 verdict = (f"aceptada como {item['type']} «{item['name']}»" if lang == "es"
@@ -232,7 +270,8 @@ def write_cross_report(project_id: str, change_id: str | None) -> Path:
                 verdict = f"{'descartada' if lang == 'es' else 'declined'}: {item['reason']}"
             else:
                 verdict = "pendiente" if lang == "es" else "pending"
-            lines.append(f"- {item['id']} «{item['text']}» ({item['source_id']}:{item['line']}): {verdict}")
+            confirm = f" [{PARTIAL_NOT_FOUND[lang]}]" if item["partial"] else ""  # the label travels with each copied line
+            lines.append(f"- {item['id']} «{item['text']}»{confirm} ({item['source_id']}:{item['line']}): {verdict}")
         lines.append("")
     path = crosses_dir(base, change_id) / "crosses.md" if change_id else base / "01_discovery" / "crosses.md"
     write_text(path, "\n".join(lines).rstrip() + "\n")

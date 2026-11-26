@@ -42,7 +42,15 @@ def _place(cite: dict) -> str:
     return f"{cite['source_id']}:{cite['line']}" if cite.get("line") else str(cite["source_id"])
 
 
-def _gap_texts(tag: str, claim: dict, es: bool) -> tuple[str, str]:
+def _design_place(cite: dict, origins: dict[str, str] | None, es: bool) -> str:
+    """The cited design source, with where it comes from when it is a derived copy (H27 inc 7a)."""
+    origin = (origins or {}).get(str(cite["source_id"]))
+    if not origin:
+        return str(cite["source_id"])
+    return f"{cite['source_id']}, {'derivado de' if es else 'derived from'} {origin}"
+
+
+def _gap_texts(tag: str, claim: dict, es: bool, origins: dict[str, str] | None = None) -> tuple[str, str]:
     cites = claim["citations"]
     pedido = [c for c in cites if c["side"] == "pedido"]
     diseno = [c for c in cites if c["side"] == "diseno"]
@@ -56,12 +64,12 @@ def _gap_texts(tag: str, claim: dict, es: bool) -> tuple[str, str]:
         qp, qd = pedido[0], diseno[0]
         if es:
             return (f"⚠ Divergencia entre el pedido y el diseño nuevo: el pedido dice {q(qp)} ({_place(qp)}) y el prototipo muestra "
-                    f"{q(qd)} ({qd['source_id']}). {text}",
+                    f"{q(qd)} ({_design_place(qd, origins, es)}). {text}",
                     "¿Qué rige? Opciones: (A) rige el diseño: el pedido se corrige en la extracción; "
                     "(B) rige el pedido: el prototipo se corrige; "
                     "(C) se corrigen los dos: escribí en la respuesta el comportamiento que va.")
         return (f"⚠ Divergence between the request and the new design: the request says {q(qp)} ({_place(qp)}) and the prototype shows "
-                f"{q(qd)} ({qd['source_id']}). {text}",
+                f"{q(qd)} ({_design_place(qd, origins, es)}). {text}",
                 "Which one governs? Options: (A) the design governs: the request is corrected in the extraction; "
                 "(B) the request governs: the prototype is corrected; "
                 "(C) both are corrected: write the behavior that applies in the answer.")
@@ -77,10 +85,10 @@ def _gap_texts(tag: str, claim: dict, es: bool) -> tuple[str, str]:
     if tag == "solo_en_diseno":
         qd = diseno[0]
         if es:
-            return (f"Sólo en el diseño nuevo: el prototipo muestra {q(qd)} ({qd['source_id']}) y el pedido no lo menciona. {text}",
+            return (f"Sólo en el diseño nuevo: el prototipo muestra {q(qd)} ({_design_place(qd, origins, es)}) y el pedido no lo menciona. {text}",
                     "¿Entra en este cambio? Opciones: (A) entra: sumalo al borde con /cross --accept-new este id --type TIPO --name NOMBRE y al pedido; "
                     "(B) no entra: el prototipo se adelanta; (C) ya existe en lo construido.")
-        return (f"Only in the new design: the prototype shows {q(qd)} ({qd['source_id']}) and the request does not mention it. {text}",
+        return (f"Only in the new design: the prototype shows {q(qd)} ({_design_place(qd, origins, es)}) and the request does not mention it. {text}",
                 "Does it belong in this change? Options: (A) it does: add it to the border with /cross --accept-new this id --type TYPE --name NAME, and to the request; "
                 "(B) it does not: the prototype is ahead; (C) it already exists in what is built.")
     first, second = pedido[0], pedido[1]
@@ -93,7 +101,7 @@ def _gap_texts(tag: str, claim: dict, es: bool) -> tuple[str, str]:
             "(C) neither: write the behavior that applies in the answer.")
 
 
-def cross_gap(change_id: str | None, claim: dict, language: str) -> dict | None:
+def cross_gap(change_id: str | None, claim: dict, language: str, origins: dict[str, str] | None = None) -> dict | None:
     """The question a claim raises, or None for a backed claim."""
     tag = claim["tag"]
     if tag not in GAP_PREFIXES:
@@ -104,7 +112,7 @@ def cross_gap(change_id: str | None, claim: dict, language: str) -> dict | None:
     ).hexdigest()[:8].upper()
     side = "diseno" if tag == "solo_en_diseno" else "pedido"
     mention = " // ".join(_squash(c["quote"]) for c in cites if c["side"] == side)
-    description, question = _gap_texts(tag, claim, language == "es")
+    description, question = _gap_texts(tag, claim, language == "es", origins)
     return {
         "id": f"{GAP_PREFIXES[tag]}{digest}", "lens": _LENS[tag], "severity": _SEVERITY[tag], "status": "OPEN",
         "description": description, "question": question, "evidence_mention": mention,
@@ -288,8 +296,10 @@ def record_cross(project_id: str, change_id: str, kind: str, claims_path: Path, 
     gaps: list[dict] = []
     candidates: dict[str, dict] = {}
     refs: dict[str, dict] = {}
+    origins = {sid: str(row["derived_from"]) for sid, row in cross_sources(project_id, change_id)["diseno"].items()
+               if row.get("derived_from")}
     for claim in claims:
-        gap = cross_gap(change_id, claim, language)
+        gap = cross_gap(change_id, claim, language, origins)
         if gap is not None:
             claim["gap"] = gap["id"]
             candidates[gap["id"]] = candidate_from_claim(gap, claim)

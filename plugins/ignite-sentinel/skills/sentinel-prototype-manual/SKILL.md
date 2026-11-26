@@ -46,3 +46,12 @@ The runtime checks it with `sentinel.prototype_manual.validate_manual`.
 - Typing the button's label instead of citing it: when the prototype changes, the manual lies.
 - Describing behaviour the prototype does not show, such as a confirmation screen that does not exist.
 - Filling a hole with generic prose so that no screen looks empty.
+
+## Manual of a change
+
+The prototype of a change is the `diseno_nuevo` source of that change, and its manual is written the same way with `--change CHG-001`:
+
+1. `/prototype PROJECT_ID --inventory --change CHG-001` writes `02_requirements/CHG-001/prototype/inventory.md` from the rows of that change only (never the project's or another change's).
+2. Write the manual JSON as above, reading the inventory of the change. The purpose of each screen comes from the brief of the change (`/brief --change`).
+3. Submit with `/prototype PROJECT_ID --manual --source manual.json --change CHG-001`; the result is `02_requirements/CHG-001/prototype/manual.md`, and `/view PROJECT_ID --artifact prototype-manual --change CHG-001` shows it.
+4. If the prototype has no visible text, the render or transcript loaded with `--derived-from F-NN` is a derived source of the change: inventory it like any other `diseno_nuevo` row, and cite the derived row, never the origin.

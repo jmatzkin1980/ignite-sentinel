@@ -39,10 +39,13 @@ def list_changes(project_id: str) -> dict[str, dict]:
     return read_state(project_id).get("changes", {})
 
 
-CHANGE_DELIVERABLES: tuple[str, ...] = ("brief", "gaps", "borde", "decisiones")  # IMP-386: what /view and /export take with --change
+CHANGE_DELIVERABLES: tuple[str, ...] = ("brief", "gaps", "borde", "decisiones", "diagrams", "prototype", "prototype-manual",
+                                        "prototype-trace")  # IMP-386: what /view and /export take with --change
+CHANGE_ONLY_REFUSED: tuple[str, ...] = ("brief", "gaps", "borde", "decisiones")  # the 0.34 set: a project /view of the rest is not refused
 REVIEW_DELIVERABLES: tuple[str, ...] = ("borde", "decisiones")  # IMP-412: review views of a change (only md; only with --change)
 CHANGE_FORMATS: dict[str, tuple[str, ...]] = {"gaps": ("md", "interview", "faq"), "brief": ("md", "interview"),
-                                              "borde": ("md",), "decisiones": ("md",)}
+                                              "borde": ("md",), "decisiones": ("md",), "diagrams": ("md",), "prototype": ("md",),
+                                              "prototype-manual": ("md",), "prototype-trace": ("md",)}
 
 
 def check_change_deliverable(project_id: str, command: str, artifact: str, change_id: str, fmt: str | None = None) -> None:
@@ -75,7 +78,7 @@ def refuse_change_only_deliverable(project_id: str, command: str, artifact: str)
     if artifact.lower() in REVIEW_DELIVERABLES:  # IMP-412: a review view is always of one change
         raise InputError(f"/{command} --artifact {artifact} goes with --change CHG-NNN",
                          next_step=f"/{command} {project_id} --artifact {artifact} --change CHG-NNN")
-    if artifact.lower() not in CHANGE_DELIVERABLES:
+    if artifact.lower() not in CHANGE_ONLY_REFUSED:
         return
     if not is_change_only(project_id):
         return

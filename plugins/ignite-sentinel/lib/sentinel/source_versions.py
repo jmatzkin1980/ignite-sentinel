@@ -147,7 +147,9 @@ def check_change_versions(project_id: str, change_id: str, write: bool = True) -
         return result
     rows = {str(r.get("id")): r for r in load_source_manifest(project_id).get("registry", [])}
     pedidos = [rows[i] for i in entry.get("sources") or [] if i in rows and row_role(rows[i]) == "pedido"]
-    loaded = [r for r in rows.values() if r.get("validity", "current") == "current" and row_role(r) in COMPARED_ROLES]
+    # H27 inc 7a: a derived copy adds provenance to its origin; it is never a version of anything
+    loaded = [r for r in rows.values() if r.get("validity", "current") == "current" and row_role(r) in COMPARED_ROLES
+              and not r.get("derived_from")]
     own = [(n, p) for p in pedidos for n in _basenames(p)]
     own_names = {n for n, _ in own}
     own_families = {version_key(n) for n in own_names} - {""}

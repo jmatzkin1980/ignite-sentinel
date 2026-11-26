@@ -257,6 +257,7 @@ Created when a prototype is among your sources. See the [prototype workflow](03-
 | `prototype/inventory.md` and `.json` | Visible elements and texts per screen of an ingested HTML prototype. | Never edit | `/prototype --inventory` |
 | `prototype/trace/F-NN-SN.json`, `prototype/trace.md` | Element to data to contract to rule, one screen at a time. | Never edit | `/prototype --trace` |
 | `prototype/manual.md` | The printable user manual of the prototype. | Never edit | `/prototype --manual` |
+| `CHG-nnn/prototype/` | The same files (`inventory.json`, `inventory.md`, `trace/`, `trace.md`, `manual.md`) for the prototype of one change, from the `diseno_nuevo` rows of that change only. | Never edit | `/prototype --change CHG-nnn` |
 
 ## `03_specs/`: PRD and specs
 

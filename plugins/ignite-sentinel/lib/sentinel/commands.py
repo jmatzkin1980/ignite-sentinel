@@ -205,6 +205,8 @@ def _prototype(p: argparse.ArgumentParser) -> None:  # IMP-274/275/276 (H17b): H
     mode.add_argument("--manual", action="store_true",
                       help="IMP-276: validate and merge the user manual (--source MANUAL.json, sentinel-prototype-manual skill)")
     p.add_argument("--source", help="--inventory: only this source (F-NN); --trace/--manual: the JSON")
+    p.add_argument("--change", metavar="CHG-NNN",
+                   help="H27 inc 7a: the prototype of this change (its diseno_nuevo rows) instead of the project's")
 
 
 def _self_review(p: argparse.ArgumentParser) -> None:
@@ -269,6 +271,11 @@ def _sources(p: argparse.ArgumentParser) -> None:  # IMP-250a: F-NN source regis
     p.add_argument("--load", metavar="PATH", help="IMP-400: register this file with --role (a redacted copy in the role's folder)")
     p.add_argument("--role", help="IMP-400: pedido, linea_de_base, plan_previo or diseno_nuevo")
     p.add_argument("--change", metavar="CHG-NNN", help="IMP-400: with --load, the change this source belongs to")
+    p.add_argument("--derived-from", dest="derived_from", metavar="F-NN",
+                   help="H27 inc 7a: with --load --role diseno_nuevo, the original prototype this readable copy derives from")
+    p.add_argument("--reliability", metavar="documental|codigo|mixta",
+                   help="H27 inc 7a: with --load --role linea_de_base, how the baseline was read; documental and mixta are partial: "
+                        "a NOT FOUND against them asks to confirm")
     p.add_argument("--no-baseline", action="store_true", dest="no_baseline",
                    help="IMP-400: with --change and --reason, the change has no baseline to load")
     p.add_argument("--keep-single", action="store_true", dest="keep_single",
