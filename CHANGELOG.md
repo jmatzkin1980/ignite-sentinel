@@ -10,13 +10,17 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 - **`/split PROJECT_ID --change CHG-NNN --assess|--propose|--confirm` and `/view|/export --change --artifact release-guide` (IMP-427, H27 inc 7c).** A change too big for one release is split inside the change: the assessment, the proposal and the confirmation read the brief of the change (no project brief needed) and write under it (`01_discovery/CHG-nnn/split_assessment.*`, `02_requirements/CHG-nnn/series/`, `02_requirements/CHG-nnn/rN/project-brief.md`), with the series guide in the change's language and `GAP-SPLIT-CLIENT` in the change's gaps. `--close`, `--move` and `--release` with `--change` are refused until the sub-releases of a change are derived. `/split` of the project does not change.
 
+- **`/specs|/backlog PROJECT_ID --change CHG-NNN --release rN` and `/split --change --close|--move` (IMP-429, H27 inc 7d).** The confirmed series of a change is derived release by release: `rN` gets the `SPEC-U` units it owns (same ids) in `03_specs/CHG-nnn/rN/` and its stories in `04_backlog/CHG-nnn/rN/` (canonical `US-nnn.md`; `EPIC-CHG-nnn` lists every derived release). A unit owned by two releases or by none stops the derivation before anything is written. `--close rN` needs the stories Done and turns what `rN` delivered into preserved behavior ("entregado en rN") of the later releases; `--move` moves a unit inside the series, never touching a closed release, and the derivations it makes old are asked for again. `/validate --change` reports a stale series and a unit with two owners or none, and a confirmed series follows the text of its change (`refresh_series_if_stale`).
+
 ### Changed
 
+- `/next --change` walks the series: `specs`, `backlog` and `done` name the release (`--release rN`, then `--close rN`), one open release after another, and never ask twice for what is done.
 - The escalation notice of a change offers `/split P --change CHG --propose`, or keeping it as one change, instead of moving to the project path.
 
 ### Fixed
 
 - T2-D2 (first part): a change that is too big can be split into releases without a project brief.
+- T2-D2 (second part): what a release of a change delivered is preserved behavior of the next ones, not new units built again.
 
 ## [0.36.0] — 2026-11-26
 

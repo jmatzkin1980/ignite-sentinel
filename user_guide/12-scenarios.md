@@ -2286,7 +2286,7 @@ command: /resolve-gaps COMPRAS_PORTAL --source PATH --change CHG-001
 warnings: new_actors: The change border adds new roles: Draft approver. The BA decides: split the change into releases with /split COMPRAS_PORTAL --change CHG-001 --propose, or keep it as one change
 ```
 
-The warning does not stop any command. Splitting the change into releases (one for the base flow, another for the approval; ask "split this change into releases" and the agent runs `/split COMPRAS_PORTAL --assess --change CHG-001`, then `--propose` and `--confirm`) or keeping it as one change (`--keep-single`) is your call; the warning stays visible while the border says it.
+The warning does not stop any command. Splitting the change into releases (one for the base flow, another for the approval; ask "split this change into releases" and the agent runs `/split COMPRAS_PORTAL --assess --change CHG-001`, then `--propose` and `--confirm`) or keeping it as one change (`--keep-single`) is your call; the warning stays visible while the border says it. Once the series is confirmed, say "build the specs of r1" and "slice r1 into stories" (`/specs` and `/backlog COMPRAS_PORTAL --change CHG-001 --release r1`); when its stories are Done, "close r1" (`/split --close r1 --change CHG-001`) turns what r1 delivered into preserved behavior of r2, whose specs are then built the same way. `/next` names the release it waits for.
 </details>
 
 ### Variant: the project already has stories

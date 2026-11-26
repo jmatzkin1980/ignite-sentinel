@@ -194,7 +194,7 @@ Use this when you know what you want but not the command. Commands are in chat f
 | You say | Run | Notes |
 |---|---|---|
 | "Is this too big for one release?" | `/split --assess` | Brief v2 only; nothing is split. |
-| "This change is too big for one release" | `/split --assess --change CHG-nnn`, then `/split --propose --source proposal.json --change CHG-nnn` and `/split --confirm --ba NAME --tech TEAM --change CHG-nnn` | The escalation notice offers it; `--close` and `--move` are not available for a change yet. See it with `/view --artifact release-guide --change CHG-nnn`. |
+| "This change is too big for one release" | `/split --assess --change CHG-nnn`, then `/split --propose --source proposal.json --change CHG-nnn` and `/split --confirm --ba NAME --tech TEAM --change CHG-nnn` | The escalation notice offers it. Then "build the specs of r1" and "slice r1 into stories" run `/specs` and `/backlog --change CHG-nnn --release r1`; "close r1" runs `/split --close r1 --change CHG-nnn --evidence PATH --ba NAME --tech TEAM`, and `--move` adjusts the cut. See it with `/view --artifact release-guide --change CHG-nnn`. |
 | "Propose how to split it" | `sentinel-release-split` skill → `/split --propose --source proposal.json` | Stored as a proposal. |
 | "Confirm the release series" | `/split --confirm --ba NAME --tech TEAM` | Names come from the people, not the agent. |
 | "Move this unit to the next release" | `/split --move --unit C-NN --from r1 --to r2 --reason TEXT --ba NAME --tech TEAM` | |
