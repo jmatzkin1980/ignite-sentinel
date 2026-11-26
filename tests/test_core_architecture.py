@@ -30,6 +30,7 @@ class CoreArchitectureTests(unittest.TestCase):
             SENTINEL_ROOT / "core" / "local_browser.py",  # IMP-284: the single file:// browser opener.
             SENTINEL_ROOT / "core" / "lock.py",  # IMP-299: os.open of the workspace lock file.
             SENTINEL_ROOT / "sources.py",  # binary hashing reader.
+            SENTINEL_ROOT / "setup_download.py",  # IMP-425: the fenced downloader (urllib opener, not a file open).
         }
         offenders = [
             path.relative_to(SENTINEL_ROOT.parent).as_posix()
