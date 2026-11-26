@@ -133,7 +133,7 @@ class BorradorDone(SnapshotWorkspaceCase):
         complete_extraction("BORR", CID)
         run_ok(["brief", "BORR", "--change", CID])
         export_final_brief("BORR", CID)
-        for command in ("specs", "backlog", "validate"):
+        for command in ("specs", "backlog", "quality", "validate"):
             run_ok([command, "BORR", "--change", CID])
 
     def test_done_says_coverage(self):
@@ -173,7 +173,7 @@ class Keys(unittest.TestCase):
         self.assertEqual(set(CHANGE_COMMANDS), {
             "scope", "baseline", "lenses", "crosses", "cross_new_surfaces", "coherence", "coherence_view", "extract_inventory", "extract_unreadable", "extract_proposals", "extract_confirm",
             "extract_confirm_flagged", "extract_partial", "extract_orphans", "preserved", "preserved_answer", "preserved_source",
-            "brief", "requirements", "consolidate", "consolidate_confirm", "export_final", "export_not_ready", "extract_verify", "extract_verify_result", "specs", "backlog", "validate", "done"})
+            "brief", "requirements", "consolidate", "consolidate_confirm", "export_final", "export_not_ready", "extract_verify", "extract_verify_result", "specs", "backlog", "quality", "validate", "done"})
         for language in ("es", "en"):
             self.assertNotIn("pending_extraction", CHANGE_TEXT[language])
 

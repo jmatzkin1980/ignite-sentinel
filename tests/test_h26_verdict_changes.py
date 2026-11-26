@@ -59,7 +59,7 @@ class ChangeOnly(SnapshotWorkspaceCase):
         complete_extraction("BORR", CID)
         run_ok(["brief", "BORR", "--change", CID])
         export_final_brief("BORR", CID)
-        for command in ("specs", "backlog"):
+        for command in ("specs", "backlog", "quality"):
             run_ok([command, "BORR", "--change", CID])
         verdict = build_readiness_verdict("BORR")
         self.assertEqual(verdict["changes"][0]["next_step"]["key"], "done")

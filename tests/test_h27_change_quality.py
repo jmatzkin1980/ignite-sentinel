@@ -113,8 +113,97 @@ class ChangeQualityWithProject(SnapshotWorkspaceCase):
         own = set(_change_story_ids(base, self.cid))
         self.assertFalse(own & set(result["story_quality"]))
         self.assertEqual(set(result["story_quality"]), set(project_stories(base, self.cid)))
-        self.assertFalse(own & set(self.state()["story_quality"]))
+        # I2: the project audit keeps the change stories' entries (their DoR gate keeps its INVEST check)
+        self.assertTrue(own <= set(self.state()["story_quality"]))
         self.assertEqual({p.name: p.read_bytes() for p in (base / "05_quality" / self.cid).iterdir()}, before)
+
+    def test_project_audit_keeps_the_invest_check_of_change_stories(self):
+        from sentinel.backlog.gates import evaluate_story_gates
+        from sentinel.backlog.status import story_for_gate
+        base = workspace_path("MIX")
+        generate_quality("MIX", change_id=self.cid)
+        forget_read_snapshots()
+        generate_quality("MIX")
+        forget_read_snapshots()
+        story_id = _change_story_ids(base, self.cid)[0]
+        gate = evaluate_story_gates("MIX", story_for_gate("MIX", story_id, "ana"))
+        self.assertIn("story_quality_invest", [item["key"] for item in gate["dor"]["items"]])
+
+    def test_story_status_move_keeps_the_change_audit_current(self):
+        """I1: moving a change story (status, owner, lifecycle) does not make its audit old; a content edit does."""
+        from sentinel.readiness_verdict import _change_quality_old
+        base = workspace_path("MIX")
+        generate_quality("MIX", change_id=self.cid)
+        forget_read_snapshots()
+        self.assertFalse(_change_quality_old("MIX", self.cid, get_change("MIX", self.cid)))
+        story_id = _change_story_ids(base, self.cid)[0]
+        run_ok(["story-status", "MIX", "--story", story_id, "--set", "Blocked", "--owner", "ana"])
+        forget_read_snapshots()
+        self.assertIn("Status: Blocked.", (base / "04_backlog" / f"{story_id}.md").read_text(encoding="utf-8"))
+        self.assertFalse(_change_quality_old("MIX", self.cid, get_change("MIX", self.cid)))
+        run_ok(["story-status", "MIX", "--story", story_id, "--set", "Draft", "--owner", "luis"])
+        forget_read_snapshots()
+        self.assertFalse(_change_quality_old("MIX", self.cid, get_change("MIX", self.cid)))
+        path = base / "04_backlog" / f"{story_id}.md"
+        path.write_text(path.read_text(encoding="utf-8") + "\nnota\n", encoding="utf-8")
+        self.assertTrue(_change_quality_old("MIX", self.cid, get_change("MIX", self.cid)))
+
+    def test_override_is_recorded_with_the_change(self):
+        """M2: `/quality --change --override` is the change's, not a project override."""
+        base = workspace_path("MIX")
+        story = base / "04_backlog" / f"{_change_story_ids(base, self.cid)[0]}.md"
+        story.write_text("\n".join(line for line in story.read_text(encoding="utf-8").splitlines() if not line.startswith("| AC-")),
+                         encoding="utf-8")
+        brief = (base / "02_requirements" / "project-brief.md").read_text(encoding="utf-8").splitlines()
+        quote = next(line.strip() for line in brief if len(line.strip()) > 30 and not line.startswith(("#", "|", "-", "*", ">")))
+        source = Path("override.json")
+        source.write_text(json.dumps({"decisions": [{
+            "id": "DEC-CHANGE-QUALITY", "title": "Change quality", "lens": "product", "risk": "high",
+            "reversibility": "hard-to-reverse", "decision": "Proceed with the change below PASS.", "evidence": quote,
+            "consequence": "The finding stays visible."}]}), encoding="utf-8")
+        result = generate_quality("MIX", override_source=source, change_id=self.cid)
+        forget_read_snapshots()
+        self.assertEqual(result["override"]["change_id"], self.cid)
+        entry = self.state()["gate_override_decisions"][-1]
+        self.assertEqual((entry["gate"], entry["change"]), ("quality", self.cid))
+        overrides = base / "06_traceability" / "gate_overrides"
+        self.assertTrue(list(overrides.glob(f"quality-{self.cid}-*.json")))
+        (report,) = overrides.glob(f"quality-{self.cid}-override-report*.md")
+        self.assertIn(f"- Change: `{self.cid}`", report.read_text(encoding="utf-8"))
+        record = self.state()["changes"][self.cid]["quality"]
+        self.assertEqual(record["override"]["report"], report.relative_to(base).as_posix())
+
+    def test_reaudit_removes_stale_test_cases_of_the_change_only(self):
+        """M3: stale TC files and edges of the change's stories go; the project's own stay."""
+        from sentinel.core.graph import add_edge, add_node, load_graph
+        base = workspace_path("MIX")
+        generate_quality("MIX", change_id=self.cid)
+        generate_quality("MIX")
+        forget_read_snapshots()
+        own = _change_story_ids(base, self.cid)
+        mine = project_stories(base, self.cid)[0]
+        folder = base / "05_quality" / self.cid
+        stale_in_scope = folder / f"TC-{len(own) + 1:03d}.md"
+        stale_in_scope.write_text("# stale\n", encoding="utf-8")
+        old_038 = base / "05_quality" / "TC-900.md"  # what a 0.38 project run gave a change story
+        old_038.write_text("# old\n", encoding="utf-8")
+        scoped = add_node("MIX", "TC", "test_case", stale_in_scope, "stale", domain="quality")
+        leftover = add_node("MIX", "TC", "test_case", old_038, "old", domain="quality")
+        add_edge("MIX", own[0], scoped, "covered_by")
+        add_edge("MIX", own[0], leftover, "covered_by")
+        project_tc = next(e["to"] for e in load_graph("MIX")["edges"] if e["from"] == mine and e["relation"] == "covered_by")
+        generate_quality("MIX", change_id=self.cid)
+        forget_read_snapshots()
+        graph = load_graph("MIX")
+        ids = {node["id"] for node in graph["nodes"]}
+        self.assertFalse(stale_in_scope.exists() or old_038.exists())
+        self.assertFalse({scoped, leftover} & ids)
+        self.assertFalse([e for e in graph["edges"] if scoped in (e["from"], e["to"]) or leftover in (e["from"], e["to"])])
+        self.assertIn(project_tc, ids)  # the project's own test case and edge stay
+        self.assertTrue([e for e in graph["edges"] if e["from"] == mine and e["to"] == project_tc])
+        for story_id in own:  # the change stories keep exactly their own current coverage
+            covered = [e["to"] for e in graph["edges"] if e["from"] == story_id and e["relation"] == "covered_by"]
+            self.assertEqual(len(covered), 1, (story_id, covered))
 
     def test_change_quality_leaves_project_state(self):
         generate_quality("MIX")
@@ -308,6 +397,19 @@ class SeriesQuality(ReleaseFlowCase):
         path = self.base() / "04_backlog" / f"{self.stories('r1')[0]}.md"
         path.write_text(path.read_text(encoding="utf-8") + "\nNota.\n", encoding="utf-8")
         self.assertEqual(self.step()["key"], "quality")
+
+    def test_series_ignores_a_whole_backlog_record_from_before_the_series(self):
+        """M1: the gate follows `series_step` like readiness; no /next -> /quality -> /backlog loop."""
+        from sentinel.readiness_verdict import _backlog_behind
+        self.derive("r1", "r2")
+        changes = read_json(workspace_path(PID) / "state.json", {})["changes"]
+        changes[CID]["backlog"] = {"dropped_units": []}  # a record of `/backlog --change` made before the series was confirmed
+        update_state(PID, changes=changes)
+        forget_read_snapshots()
+        self.assertTrue(_backlog_behind(self.base(), CID, read_change_units(PID, CID), []))  # the old comparison would refuse
+        found = self.quality()
+        self.assertEqual(found["change_id"], CID)
+        self.assertEqual(sorted(get_change(PID, CID)["quality"]["stories"]), sorted(_change_story_ids(self.base(), CID)))
 
     def step(self) -> dict:
         forget_read_snapshots()

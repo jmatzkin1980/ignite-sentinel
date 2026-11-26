@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from .backlog.gates import evaluate_story_gates, update_story_gate_state
-from .core.graph import add_edge, add_node, nodes_by_type
+from .core.graph import add_edge, add_node, load_graph, nodes_by_type, save_graph
 from .decisions import register_gate_override
 from .memory import ContextBroker
 from .workspace import read_json, state_path, update_state, workspace_path
@@ -79,6 +79,7 @@ CHANGE_QUALITY_TEXT = {
 
 def _change_story_scope(project_id: str, change_id: str, stories: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], str]:
     """IMP-431: the change's stories (gate: its backlog is there and current, and has stories) and the language of its artifacts."""
+    from .change_release import series_step
     from .changes import change_language, get_change
     from .compilers.change_backlog import _change_story_ids, read_change_units
     from .readiness_verdict import _backlog_behind
@@ -90,10 +91,12 @@ def _change_story_scope(project_id: str, change_id: str, stories: list[dict[str,
     backlog = change.get("backlog")
     derived = [record for record in (change.get("backlog_releases") or {}).values()
                if isinstance(record, dict) and record.get("stories")]
-    if backlog:
+    # IMP-431 M1: the same logic as readiness (`_change_build_key`): a confirmed series keeps one record per derived release
+    # (a whole-change record left from before the series does not govern: no /next -> /quality -> /backlog loop)
+    if backlog and series_step(project_id, change_id, change) is None:
         behind = _backlog_behind(
             base, change_id, read_change_units(project_id, change_id), list(backlog.get("dropped_units") or []))
-    else:  # a confirmed series (7d) keeps one record per derived release: audit the stories of all of them
+    else:
         behind = not derived
     if behind:
         raise GateRefusal(text["behind"].format(cid=change_id), next_step=f"/backlog {project_id} --change {change_id}")
@@ -104,14 +107,54 @@ def _change_story_scope(project_id: str, change_id: str, stories: list[dict[str,
     return scoped, language
 
 
-def _project_stories(project_id: str, stories: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """IMP-431: the project's own stories: the ones a change wrote (frontmatter `change:`) are audited by `/quality --change`."""
+def _stories_of_changes(project_id: str) -> set[str]:
+    """The ids of the stories any change wrote (frontmatter `change:`)."""
     from .changes import list_changes
     from .compilers.change_backlog import _change_story_ids
 
     base = workspace_path(project_id)
-    theirs = {sid for change_id in list_changes(project_id) for sid in _change_story_ids(base, change_id)}
+    return {sid for change_id in list_changes(project_id) for sid in _change_story_ids(base, change_id)}
+
+
+def _project_stories(project_id: str, stories: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """IMP-431: the project's own stories: the ones a change wrote (frontmatter `change:`) are audited by `/quality --change`."""
+    theirs = _stories_of_changes(project_id)
     return [story for story in stories if story["id"] not in theirs]
+
+
+def _prune_change_audit(project_id: str, out_dir: Path, stories: list[dict[str, Any]], created: list[str], audit_id: str) -> None:
+    """IMP-431 M3: a re-audit of a change leaves nothing stale of its own: the TC files and the `covered_by`/`audited_by`
+    edges of its stories that this run did not write (stories dropped by `/backlog --change`, renumbering, the project TCs
+    a 0.38 project run gave them). Only the edges of this change's stories and the TC nodes left without a story."""
+    from .core.io import remove
+    from .core.paths import workspace_relative
+
+    base = workspace_path(project_id)
+    graph = load_graph(project_id)
+    ids = {story["id"] for story in stories}
+    keep = set(created)
+    nodes = {node["id"]: node for node in graph.get("nodes", [])}
+    stale = [edge for edge in graph.get("edges", []) if edge.get("from") in ids and (
+        (edge.get("relation") == "covered_by" and edge.get("to") not in keep)
+        or (edge.get("relation") == "audited_by" and edge.get("to") != audit_id))]
+    folder = workspace_relative(project_id, out_dir.as_posix()).rstrip("/") + "/"
+    candidates = {edge["to"] for edge in stale if edge.get("relation") == "covered_by"}
+    candidates |= {nid for nid, node in nodes.items() if node.get("type") == "test_case" and nid not in keep
+                   and workspace_relative(project_id, node.get("path")).startswith(folder)}
+    stale_ids = {id(edge) for edge in stale}
+    edges = [edge for edge in graph.get("edges", []) if id(edge) not in stale_ids]
+    orphans = {nid for nid in candidates if nid in nodes and nodes[nid].get("type") == "test_case"
+               and not any(edge.get("to") == nid and edge.get("relation") == "covered_by" for edge in edges)}
+    for nid in orphans:
+        remove(base / workspace_relative(project_id, nodes[nid].get("path")))
+    for path in sorted(out_dir.glob("TC-*.md")):  # files above the new count that never had a node
+        match = re.fullmatch(r"TC-(\d+)\.md", path.name)
+        if match and int(match.group(1)) > len(stories):
+            remove(path)
+    if stale or orphans:
+        graph["nodes"] = [node for node in graph["nodes"] if node.get("id") not in orphans]
+        graph["edges"] = [edge for edge in edges if edge.get("from") not in orphans and edge.get("to") not in orphans]
+        save_graph(project_id, graph)
 
 
 def generate_quality(project_id: str, override_source: Path | None = None, change_id: str | None = None) -> dict[str, object]:
@@ -155,8 +198,11 @@ def generate_quality(project_id: str, override_source: Path | None = None, chang
     if change_id:  # the project's own entries stay
         previous = read_json(state_path(project_id), {}).get("story_quality", {})
         update_state(project_id, story_quality={**(previous if isinstance(previous, dict) else {}), **quality_results})
-    else:
-        update_state(project_id, story_quality=quality_results)
+    else:  # IMP-431 I2: the change stories' entries stay (their DoR gate keeps its INVEST check)
+        previous = read_json(state_path(project_id), {}).get("story_quality", {})
+        theirs = _stories_of_changes(project_id)
+        kept = {key: value for key, value in (previous if isinstance(previous, dict) else {}).items() if key in theirs}
+        update_state(project_id, story_quality={**kept, **quality_results})
     state = read_json(state_path(project_id), {})
     lifecycle = state.get("story_lifecycle", {}) if isinstance(state.get("story_lifecycle", {}), dict) else {}
     for story in stories:
@@ -174,6 +220,8 @@ def generate_quality(project_id: str, override_source: Path | None = None, chang
     audit_id = add_node(project_id, "QA", "backlog_readiness_audit", audit_path, "Backlog readiness audit", domain="quality")
     for story in stories:
         add_edge(project_id, story["id"], audit_id, "audited_by")
+    if change_id:
+        _prune_change_audit(project_id, out_dir, stories, created, audit_id)
     ContextBroker(project_id).index_artifact(
         audit_id,
         "backlog_readiness_audit",
@@ -200,18 +248,21 @@ def generate_quality(project_id: str, override_source: Path | None = None, chang
             override_source,
             verdict=verdict,
             findings=quality_override_findings(quality_results),
+            change_id=change_id,  # IMP-431 M2: the override belongs to the change
         )
     if change_id:
-        _record_change_quality(project_id, change_id, stories, quality_results, created, audit_path, verdict)
+        _record_change_quality(project_id, change_id, stories, quality_results, created, audit_path, verdict,
+                               result.get("override"))
     else:
         update_state(project_id, phase="quality_completed")
     return result
 
 
 def _record_change_quality(project_id: str, change_id: str, stories: list[dict[str, Any]], quality_results: dict[str, dict[str, Any]],
-                           test_cases: list[str], audit_path: Path, verdict: str) -> None:
+                           test_cases: list[str], audit_path: Path, verdict: str, override: Any = None) -> None:
     """IMP-431: the verdict of the change lives in the change (never `phase` or `health`); the digest says which backlog it audited."""
     from .compilers.change_backlog import change_backlog_digest
+    from .core.paths import workspace_relative
     from .core.time import utc_now
 
     counts = {"PASS": 0, "PARTIAL": 0, "FAIL": 0}
@@ -227,6 +278,11 @@ def _record_change_quality(project_id: str, change_id: str, stories: list[dict[s
         "backlog_digest": change_backlog_digest(project_id, change_id),
         "audited_at": utc_now(),
     }
+    if isinstance(override, dict):  # M2: the verdict was proceeded over, on the record
+        changes[change_id]["quality"]["override"] = {
+            "report": workspace_relative(project_id, override["report"]),
+            "recorded_at": override["recorded_at"],
+        }
     update_state(project_id, changes=changes)
 
 
