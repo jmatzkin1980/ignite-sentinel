@@ -8,6 +8,8 @@ model the probe degrades with a message instead of downloading.
 
 from __future__ import annotations
 
+import ast
+import importlib.util
 import os
 import socket
 import sys
@@ -70,6 +72,114 @@ class NetworkImportTests(unittest.TestCase):
     def test_packaged_build_without_sources_is_not_a_failure(self) -> None:
         with mock.patch("sentinel.doctor._package_dir", return_value=Path("sentinel.pyz") / "sentinel"):
             self.assertEqual(network_isolation_check()["status"], "WARN")
+
+
+DOWNLOADER = PACKAGE_DIR / "setup_download.py"
+
+
+def _load_downloader():
+    spec = importlib.util.spec_from_file_location("setup_download_under_test", DOWNLOADER)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+class SetupDownloaderFenceTests(unittest.TestCase):
+    """IMP-425: the one declared exception to zero network lives in one file."""
+
+    def test_only_the_setup_downloader_may_import_network(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertEqual(network_import_violations(_package(tmp, "import urllib.request\n", name="setup_download.py")), [])
+        with tempfile.TemporaryDirectory() as tmp:
+            violations = network_import_violations(_package(tmp, "import urllib.request\n", name="other.py"))
+            self.assertEqual(len(violations), 1, violations)
+        self.assertEqual(network_import_violations(PACKAGE_DIR), [])
+
+    def test_no_module_imports_the_downloader(self) -> None:
+        offenders = []
+        for path in sorted(PACKAGE_DIR.rglob("*.py")):
+            for node in ast.walk(ast.parse(path.read_text(encoding="utf-8-sig"))):
+                names: list[str] = []
+                if isinstance(node, ast.Import):
+                    names = [alias.name for alias in node.names]
+                elif isinstance(node, ast.ImportFrom):
+                    names = [node.module or ""] + [alias.name for alias in node.names]
+                if any(name.endswith("setup_download") for name in names):
+                    offenders.append(f"{path.name}:{node.lineno}")
+        self.assertEqual(offenders, [])
+
+    def test_downloader_refuses_foreign_hosts(self) -> None:
+        module = _load_downloader()
+        hosts = ["huggingface.co", ".hf.co"]
+        self.assertTrue(module.host_allowed("https://huggingface.co/a", ["huggingface.co"]))
+        self.assertTrue(module.host_allowed("https://us.aws.cdn.hf.co/a", hosts))
+        for url in (
+            "https://evil.example/a",
+            "http://huggingface.co/a",
+            "https://huggingface.co.evil.example/a",
+            "https://hf.co/a",
+            "https://evilhf.co/a",
+            "https://huggingface.co@evil.example/a",
+        ):
+            with self.subTest(url=url):
+                self.assertFalse(module.host_allowed(url, hosts))
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(module, "_open") as opened:
+            dest = Path(tmp) / "x.bin"
+            with mock.patch("sys.stderr"):
+                self.assertEqual(module.main(["https://evil.example/a", str(dest), "10", "huggingface.co"]), 2)
+            opened.assert_not_called()
+            self.assertFalse(dest.exists())
+
+    def test_downloader_streams_to_part_then_renames(self) -> None:
+        import io
+
+        module = _load_downloader()
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(module, "_open", return_value=io.BytesIO(b"abc")):
+            dest = Path(tmp) / "x.bin"
+            self.assertEqual(module.main(["https://huggingface.co/a", str(dest), "3", "huggingface.co"]), 0)
+            self.assertEqual(dest.read_bytes(), b"abc")
+            self.assertFalse(Path(str(dest) + ".part").exists())
+
+    def test_downloader_stops_past_the_declared_size(self) -> None:
+        import io
+
+        module = _load_downloader()
+        module.CHUNK = 4
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(module, "_open", return_value=io.BytesIO(b"x" * 100)):
+            dest = Path(tmp) / "x.bin"
+            with mock.patch("sys.stderr"):
+                self.assertEqual(module.main(["https://huggingface.co/a", str(dest), "10", "huggingface.co"]), 1)
+            self.assertFalse(dest.exists())
+            self.assertFalse(Path(str(dest) + ".part").exists())
+
+    def test_downloader_refuses_a_bigger_content_length_up_front(self) -> None:
+        import io
+
+        module = _load_downloader()
+        response = io.BytesIO(b"abc")
+        response.headers = {"Content-Length": "999"}
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(module, "_open", return_value=response):
+            dest = Path(tmp) / "x.bin"
+            with mock.patch("sys.stderr"):
+                self.assertEqual(module.main(["https://huggingface.co/a", str(dest), "10", "huggingface.co"]), 1)
+            self.assertFalse(dest.exists())
+
+    def test_downloader_needs_a_numeric_size(self) -> None:
+        module = _load_downloader()
+        with mock.patch.object(module, "_open") as opened, mock.patch("sys.stderr"):
+            self.assertEqual(module.main(["https://huggingface.co/a", "x", "huggingface.co", "huggingface.co"]), 2)
+        opened.assert_not_called()
+
+    def test_downloader_imports_only_stdlib(self) -> None:
+        tops = set()
+        for node in ast.walk(ast.parse(DOWNLOADER.read_text(encoding="utf-8"))):
+            if isinstance(node, ast.Import):
+                tops.update(alias.name.split(".")[0] for alias in node.names)
+            elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
+                tops.add(node.module.split(".")[0])
+        self.assertTrue(tops)
+        self.assertLessEqual(tops, set(sys.stdlib_module_names))
+        self.assertNotIn("sentinel", tops)
 
 
 class LocalBrowserTests(unittest.TestCase):

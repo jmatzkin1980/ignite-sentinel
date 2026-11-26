@@ -73,7 +73,7 @@ Swap `memory.txt` for the lock of the extra you need.
 
 ### Semantic embeddings
 
-Semantic embeddings (better paraphrase and Spanish/English retrieval) are optional and local. Sentinel **never downloads a model**. It tries, in order: `model2vec` with a local multilingual model, `sentence-transformers` with a local model, then the deterministic hash fallback. Install the `memory-semantic` extra as in [offline extras](#offline-extras), with `constraints/memory-semantic.txt`. Prepare the model on an approved machine, move it in, and point Sentinel at it:
+Semantic embeddings (better paraphrase and Spanish/English retrieval) are optional and local. Sentinel never downloads, except /setup --semantic-memory, which runs only when you ask for it (you, or your agent at your request in chat) and which checks every file's sha256 before using it. On a machine with no access to the model host, `/setup --semantic-memory --offline-from FOLDER` installs from a folder you prepared on an approved machine, with the same sha256 and size checks. `/setup` never pip-installs `model2vec`: if it is missing it stops before downloading and prints the pip command (with `constraints/memory-semantic.txt`), which goes through your organization's own index or proxy. Retrieval tries, in order: `model2vec` with a local multilingual model, `sentence-transformers` with a local model, then the deterministic hash fallback. Install the `memory-semantic` extra as in [offline extras](#offline-extras), with `constraints/memory-semantic.txt`. Or prepare the model yourself on an approved machine, move it in, and point Sentinel at it (these variables override the model `/setup` installed):
 
 ```powershell
 $env:SENTINEL_MODEL2VEC_MODEL="C:\approved-models\model2vec-multilingual"

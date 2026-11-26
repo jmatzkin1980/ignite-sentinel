@@ -108,6 +108,15 @@ def _doctor(p: argparse.ArgumentParser) -> None:
     p.add_argument("--root", default=".")
 
 
+def _setup(p: argparse.ArgumentParser) -> None:
+    p.add_argument("--semantic-memory", action="store_true", required=True,
+                   help="install the pinned local semantic model (the one command that may use the network)")
+    group = p.add_mutually_exclusive_group()
+    group.add_argument("--offline-from", metavar="DIR", help="copy the model files from DIR instead of downloading")
+    group.add_argument("--status", action="store_true", help="re-verify the installed model, no network")
+    p.add_argument("--root", default=".")
+
+
 def _dashboard(p: argparse.ArgumentParser) -> None:
     p.add_argument("--root", default=".")
     p.add_argument("--open", action="store_true")
@@ -397,6 +406,9 @@ ROOT_OMIT = {"root": "the MCP server runs at the repository root; --root is a CL
 REGISTRY: tuple[Command, ...] = (
     Command("doctor", EXEMPT, _doctor, exempt_reason="environment check over the repository, no project workspace",
             mcp_omits=ROOT_OMIT, skill="sentinel-health"),
+    Command("setup", EXEMPT, _setup,
+            exempt_reason="installs the pinned semantic model in the user's model cache, no project workspace",
+            mcp=False, skill="sentinel-health"),
     Command("dashboard", EXEMPT, _dashboard, exempt_reason="read-only portfolio view across workspaces, no single project",
             mcp_params={"open_browser": ("open",)}, mcp_omits=ROOT_OMIT, skill="sentinel-views"),
     Command("view", READ_ONLY, _view, release=True, mcp_params={"open_browser": ("open",)}, skill="sentinel-views"),

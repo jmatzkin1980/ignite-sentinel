@@ -127,7 +127,16 @@ class AtomicityTests(_Tmp):
 
 # Modules allowed to write outside core/io.py, each with its reason.
 WRITER_EXEMPT = {
+    "sentinel/setup_download.py": "IMP-425: stdlib-only downloader script, cannot import sentinel.core.io; writes <dest>.part then renames",
     "sentinel/build.py": "builds dist/sentinel.pyz from a private staging tempdir (maintainer tool, not runtime)",
+}
+# IMP-425 final review M3: core.io has no directory move. `/setup --semantic-memory` activates a
+# verified model by renaming whole folders (staging -> model dir, previous install aside and back)
+# with os.replace. Each destination is first passed through core_io.confine(..., home); no other
+# module outside core/io.py may move or rename paths.
+DIRECTORY_MOVE_EXEMPT = {
+    "sentinel/semantic_setup.py": "atomic activation of a verified model folder, destinations confined to the Sentinel home",
+    "sentinel/setup_download.py": "renames <dest>.part to <dest> once the download is complete",
 }
 _WRITE_ATTRS = {"write_text", "write_bytes", "write_json_text"}
 _COPY_FUNCS = {"copyfile", "copy", "copy2", "copytree", "move", "rmtree"}
@@ -184,6 +193,29 @@ class WriterGuardTests(unittest.TestCase):
             "p.unlink()\nd.rmdir()\nos.remove(p)\nos.unlink(p)\nshutil.rmtree(d)\n"
         )
         self.assertEqual(len(_write_calls(ast.parse(sample))), 11)
+
+
+class DirectoryMoveGuardTests(unittest.TestCase):
+    def test_only_declared_modules_move_paths(self) -> None:
+        offenders = []
+        for path in sorted((REPO_ROOT / "sentinel").rglob("*.py")):
+            relative = path.relative_to(REPO_ROOT).as_posix()
+            if relative == "sentinel/core/io.py" or relative in DIRECTORY_MOVE_EXEMPT:
+                continue
+            for node in ast.walk(ast.parse(path.read_text(encoding="utf-8-sig"))):
+                if (
+                    isinstance(node, ast.Call)
+                    and isinstance(node.func, ast.Attribute)
+                    and isinstance(node.func.value, ast.Name)
+                    and node.func.value.id == "os"
+                    and node.func.attr in {"replace", "rename", "renames"}
+                ):
+                    offenders.append(f"{relative}:{node.lineno} os.{node.func.attr}(")
+        self.assertEqual(offenders, [], "move paths through sentinel.core.io, or declare the module in DIRECTORY_MOVE_EXEMPT")
+
+    def test_activation_confines_its_destinations(self) -> None:
+        source = (REPO_ROOT / "sentinel" / "semantic_setup.py").read_text(encoding="utf-8")
+        self.assertIn("core_io.confine(", source)
 
 
 if __name__ == "__main__":

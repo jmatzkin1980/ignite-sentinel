@@ -75,8 +75,8 @@ class RegistryShapeTests(unittest.TestCase):
                     self.assertTrue(reason.strip())
 
     def test_protocol_classification(self) -> None:
-        # IMP-244: only these three are outside the protocol; /stakeholders writes, so it is mutating.
-        self.assertEqual({c.name for c in REGISTRY if c.protocol == EXEMPT}, {"doctor", "dashboard", "init"})
+        # IMP-244: only these are outside the protocol (IMP-425 added /setup); /stakeholders writes, so it is mutating.
+        self.assertEqual({c.name for c in REGISTRY if c.protocol == EXEMPT}, {"doctor", "dashboard", "init", "setup"})
         self.assertEqual(BY_NAME["stakeholders"].protocol, MUTATING)
         from sentinel import protocols
 
