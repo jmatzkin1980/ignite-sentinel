@@ -63,13 +63,13 @@ Translate short chat commands into Sentinel CLI executions.
 - `/specs PROJECT_ID [--change CHG-NNN]`
 - `/self-review PROJECT_ID --source FINDINGS.json`
 - `/self-review PROJECT_ID --crosses --change CHG-NNN [--source CROSSES.json | --skip --reason TEXT]`
-- `/compose PROJECT_ID --source PATH`
+- `/compose PROJECT_ID --source PATH [--change CHG-NNN]`
 - `/backlog PROJECT_ID [--change CHG-NNN]`
 - `/backlog PROJECT_ID --with-task-seeds`
 - `/backlog PROJECT_ID --story-format user|job`
 - `/backlog-status PROJECT_ID`
 - `/story-status PROJECT_ID --story US-NNN --set STATE [--owner "NAME"] [--evidence PATH]`
-- `/refine-backlog PROJECT_ID --source PROPOSALS.json`
+- `/refine-backlog PROJECT_ID --source PROPOSALS.json [--change CHG-NNN]`
 - `/implementation-feedback PROJECT_ID --source PATH`
 - `/quality PROJECT_ID`
 - `/trace PROJECT_ID`
@@ -145,10 +145,10 @@ When a command leaves the user a decision or a next step, end with one short que
 - `/specs`: use `sentinel-specs`.
 - `/self-review`: use `sentinel-self-review` to author the cited findings/decisions JSON before executing.
 - `/self-review --crosses --change`: use `sentinel-self-review` (Change coherence); report only crosses the BA confirms with verbatim quotes of the lens view, never waive for the BA.
-- `/compose`: use `sentinel-compose`.
+- `/compose`: use `sentinel-compose`; `/compose --change CHG-NNN` composes onto the PRD of that change (`03_specs/CHG-nnn/compositions/`, kept by `/specs --change`).
 - `/backlog`, `/backlog-status`, `/story-status`: use `sentinel-backlog` (lifecycle and board rules live there).
-- `/refine-backlog`: use `sentinel-backlog-refine`; proposals land as cited agent-origin overlays, never direct rewrites.
-- `/implementation-feedback`: use `sentinel-implementation-feedback`; accepted findings are traced feedback, not direct backlog rewrites.
+- `/refine-backlog`: use `sentinel-backlog-refine`; proposals land as cited agent-origin overlays, never direct rewrites; `/refine-backlog --change CHG-NNN` refines the stories of that change (`04_backlog/CHG-nnn/refinements/`) and leaves its quality audit stale.
+- `/implementation-feedback`: use `sentinel-implementation-feedback`; accepted findings are traced feedback, not direct backlog rewrites; a story of a change needs no flag, its units are checked against that change.
 - `/quality`: use `sentinel-quality`; `/quality --change CHG-NNN` audits only that change's stories (`05_quality/CHG-nnn/`, verdict kept in the change) and a workspace that only holds changes refuses the project form.
 - `/health`, `/trace`, `/validate`, `/view`, `/doctor`: use `sentinel-health`.
 - `/setup --semantic-memory`: use `sentinel-health` (Semantic memory). It is not an MCP tool and never automatic: run it only when the user asks for it in chat, and it is the only command that downloads (one pinned model, every file's sha256 verified). Offline machine: `--offline-from DIR`; check without network: `--status`; never pip-install `model2vec` for the user, give them the pip command it prints.

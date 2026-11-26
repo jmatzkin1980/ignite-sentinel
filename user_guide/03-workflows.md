@@ -1668,6 +1668,16 @@ In an answer file, an assumption is `Estado de decisión: supuesto` with `Valida
    Skill `sentinel-backlog-refine`; a report is written under `04_backlog/refinements/`.
    </details>
 
+   For a change to something built, say it the same way: **Tell the assistant:** "Refine this change's stories" (and, once the PRD of the change exists, "Compose the PRD of this change"). The proposals open in `04_backlog/CHG-nnn/refinements/` and the PRD blocks in `03_specs/CHG-nnn/compositions/`; the project's files do not change, and the quality audit of the change goes stale until you ask for it again.
+
+   <details><summary>In a terminal</summary>
+
+   ```text
+   /refine-backlog ACME_PORTAL --source refinement.json --change CHG-001
+   /compose ACME_PORTAL --source composition.json --change CHG-001
+   ```
+   </details>
+
 4. Check again ("check the quality and the traceability").
 
    <details><summary>In a terminal</summary>
