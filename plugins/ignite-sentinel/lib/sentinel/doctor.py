@@ -78,6 +78,7 @@ def _runtime_installs() -> tuple[tuple[str, str], ...]:
     # PowerShell (the docs' shell on Windows) needs the call operator before a quoted path
     pip = (f'& "{exe}"' if os.name == "nt" else f'"{exe}"') + " -m pip install"
     return (
+        ("python -m pip install -c constraints/memory-semantic.txt -e .[memory-semantic]", f"{pip} model2vec sentence-transformers"),
         ("python -m pip install -e .[memory-semantic]", f"{pip} model2vec sentence-transformers"),
         ("python -m pip install -e .[memory]", f"{pip} lancedb"),
         ("python -m pip install -e .[mcp]", f'{pip} "mcp>=1.2,<3"'),
@@ -586,6 +587,10 @@ NETWORK_MODULES = frozenset(
      "requests", "httpx", "aiohttp", "urllib3", "websockets", "websocket"}
 )
 BROWSER_MODULE_HOME = "core/local_browser.py"
+# IMP-425 (H27 inc 7b): the one declared exception. `sentinel/setup_download.py`
+# is a stdlib-only script that no module imports; `/setup --semantic-memory` runs
+# it as a subprocess. Its network imports are not violations; anyone else's are.
+NETWORK_MODULE_HOME = "setup_download.py"
 
 
 def _package_dir() -> Path:
@@ -618,6 +623,8 @@ def network_import_violations(package_dir: Path) -> list[str]:
                     names = [node.args[0].value]
             for name in names:
                 top = name.split(".")[0]
+                if top in NETWORK_MODULES and relative == NETWORK_MODULE_HOME:
+                    continue
                 if top in NETWORK_MODULES:
                     violations.append(f"{relative}:{node.lineno} imports {name} (network)")
                 elif top == "webbrowser" and relative != BROWSER_MODULE_HOME:
@@ -1909,9 +1916,9 @@ def semantic_embedder_check() -> dict[str, str]:
     if reasons:
         detail += f"Candidates — {reasons}. "
     detail += diagnostics.get("recommendation") or (
-        "Install optional local models with `python -m pip install -e .[memory-semantic]` "
-        "and pre-seed the model cache or set SENTINEL_MODEL2VEC_MODEL / "
-        "SENTINEL_SENTENCE_TRANSFORMERS_MODEL to a local model path."
+        "Install optional local models with `python -m pip install -c constraints/memory-semantic.txt "
+        "-e .[memory-semantic]`, then run sentinel /setup --semantic-memory (or --offline-from DIR "
+        "without network)."
     )
     return {
         "name": "memory embedder: semantic local (optional)",

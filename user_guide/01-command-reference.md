@@ -270,6 +270,44 @@ Claude Code has its own `/doctor`. In a Claude Code clone, if `/doctor` runs Cla
 
 **See also.** [Install: choose your path](06-installation-vscode.md) · [Admin guide](20-admin-guide.md).
 
+## `setup`
+
+**What it does.** Turns on semantic memory. Downloads one pinned embedding model, checks every file's sha256 and size, and only then activates it: the model goes to your model cache (`$SENTINEL_HOME` or `~/.ignite-sentinel`), the verified path is saved in `semantic.json`, and every workspace is reindexed. It is the only Sentinel command that may use the network; `/init`, `/ingest`, `/next`, `/reindex` and `/doctor` never do.
+
+**Type.** Exempt (no project). Not available as an MCP tool: the person runs it, not an agent.
+
+**Use it when.** `/doctor` warns that the semantic embedder is not active and you want meaning-based retrieval. Needs the `memory-semantic` extra first; the command names the pip command if it is missing.
+
+**Syntax.**
+
+```text
+/setup --semantic-memory
+python -m sentinel /setup --semantic-memory
+python -m sentinel /setup --semantic-memory --offline-from path/to/model-files
+python -m sentinel /setup --semantic-memory --status
+```
+
+**Options.**
+
+| Flag | Values | Default | Meaning |
+|---|---|---|---|
+| `--semantic-memory` | (required) | | Install the pinned semantic model. |
+| `--offline-from` | a folder | | Copy the model files from this folder instead of downloading (air-gapped machines). Still verified by sha256. |
+| `--status` | | | Re-verify the installed model without network. Cannot be combined with `--offline-from`. |
+| `--root` | a folder | `.` | Repository whose workspaces are reindexed. |
+
+**Reads.** The pinned model list (`templates/semantic_models.json`), the downloaded or supplied files.
+
+**Writes.** The model cache folder and `semantic.json` under the Sentinel home; each workspace's memory index. Nothing else.
+
+**Refuses when.** A file is missing or its sha256 or size differs (exit 1; nothing is activated and a previous install stays intact), or the `model2vec` package is not installed. If reindexing a workspace fails, the model stays active and the result lists a warning per workspace with the command to retry.
+
+**You get.** `status` (`installed`, `missing` or `mismatch`), `path`, `revision`, the workspaces `reindexed` and any `warnings`.
+
+**Next step.** `/doctor` should now show the semantic embedder as active.
+
+**See also.** [Admin guide](20-admin-guide.md).
+
 ## `init`
 
 **What it does.** Creates the workspace `workspaces/PROJECT_ID/` with its folders, `state.json`, `sentinel.config.yaml`, an empty traceability graph and the memory metadata.

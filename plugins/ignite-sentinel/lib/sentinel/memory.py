@@ -310,6 +310,20 @@ def _probe_sentence_transformers(model_ref: str) -> tuple[Embedder | None, dict[
         return None, diag
 
 
+def _configured_model_ref() -> str | None:
+    """Verified model folder written by `/setup --semantic-memory`, or None."""
+    from .semantic_setup import config_path, sentinel_home
+
+    try:
+        data = read_json(config_path(sentinel_home()), {})
+        path = data.get("path") if isinstance(data, dict) else None
+        if isinstance(path, str) and path and Path(path).is_dir():
+            return path
+    except Exception:  # noqa: BLE001 - a broken config must never break memory detection
+        pass
+    return None
+
+
 def _probe_embedder() -> tuple[Embedder, list[dict[str, str]]]:
     """Resolve the active local embedder and the per-candidate diagnostic trail.
 
@@ -319,7 +333,7 @@ def _probe_embedder() -> tuple[Embedder, list[dict[str, str]]]:
     """
     diagnostics: list[dict[str, str]] = []
 
-    model2vec_ref = os.environ.get("SENTINEL_MODEL2VEC_MODEL", DEFAULT_MODEL2VEC_MODEL)
+    model2vec_ref = os.environ.get("SENTINEL_MODEL2VEC_MODEL") or _configured_model_ref() or DEFAULT_MODEL2VEC_MODEL
     embedder, diag = _probe_model2vec(model2vec_ref)
     diagnostics.append(diag)
     if embedder is not None:
@@ -343,15 +357,15 @@ def _embedder_recommendation(candidates: list[dict[str, str]]) -> str:
     outcomes = {candidate.get("outcome") for candidate in candidates}
     if "package-missing" in outcomes:
         return (
-            "Install optional local models with `python -m pip install -e .[memory-semantic]`, "
-            "then pre-seed the model cache offline or set SENTINEL_MODEL2VEC_MODEL / "
-            "SENTINEL_SENTENCE_TRANSFORMERS_MODEL to a local model path."
+            "Install optional local models with `python -m pip install -c constraints/memory-semantic.txt "
+            "-e .[memory-semantic]`, then run sentinel /setup --semantic-memory "
+            "(or --offline-from DIR without network)."
         )
     if outcomes & {"model-not-local", "model-unavailable"}:
         return (
-            "Semantic packages are installed but no model is available locally. Pre-seed the model "
-            "cache offline or set SENTINEL_MODEL2VEC_MODEL / SENTINEL_SENTENCE_TRANSFORMERS_MODEL to a "
-            "local model path. Sentinel never downloads a model at runtime."
+            "Semantic packages are installed but no model is available locally. Run sentinel /setup "
+            "--semantic-memory, which downloads one pinned model and checks every file's sha256, or "
+            "--offline-from DIR on an air-gapped machine."
         )
     if outcomes and outcomes <= {"skipped"}:
         return (
@@ -359,8 +373,8 @@ def _embedder_recommendation(candidates: list[dict[str, str]]) -> str:
             "SENTINEL_MODEL2VEC_MODEL / SENTINEL_SENTENCE_TRANSFORMERS_MODEL at a local model path."
         )
     return (
-        "Install optional local models with `python -m pip install -e .[memory-semantic]` and provide "
-        "a local model path or pre-seeded cache."
+        "Install optional local models with `python -m pip install -c constraints/memory-semantic.txt "
+        "-e .[memory-semantic]`, then run sentinel /setup --semantic-memory (or --offline-from DIR)."
     )
 
 

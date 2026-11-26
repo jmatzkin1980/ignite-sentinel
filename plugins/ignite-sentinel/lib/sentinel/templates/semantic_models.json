@@ -1,0 +1,21 @@
+{
+  "schema": 1,
+  "default": "potion-multilingual-128M",
+  "allowed_hosts": ["huggingface.co"],
+  "allowed_host_suffixes": [".hf.co"],
+  "models": [
+    {
+      "id": "potion-multilingual-128M",
+      "embedder": "model2vec",
+      "repo": "minishlab/potion-multilingual-128M",
+      "revision": "73908c3438cf03b6a01bcb9611d62b23d0726f08",
+      "url_template": "https://huggingface.co/{repo}/resolve/{revision}/{name}",
+      "files": [
+        {"name": "config.json", "sha256": "595e4cab2093732efd5dbe084fd5c1826b5eea693b73b4c1fd971672867d2e54", "size": 271},
+        {"name": "modules.json", "sha256": "a68dcbed0429dcdd5bfdca92b0b03cc30d09122c0a3fcf4758787d4b244e45b2", "size": 278},
+        {"name": "model.safetensors", "sha256": "14b5eb39cb4ce5666da8ad1f3dc6be4346e9b2d601c073302fa0a31bf7943397", "size": 512361560},
+        {"name": "tokenizer.json", "sha256": "19f1909063da3cfe3bd83a782381f040dccea475f4816de11116444a73e1b6a1", "size": 18616131}
+      ]
+    }
+  ]
+}

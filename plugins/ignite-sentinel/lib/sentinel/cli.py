@@ -149,6 +149,19 @@ def _run_project_command(args) -> int:
             result = run_doctor(Path(args.root))
             print_json(result)
             return EXIT_OK if result["verdict"] == "PASS" else EXIT_VERDICT
+        elif args.command == "setup":
+            from . import semantic_setup
+
+            try:
+                if args.status:
+                    result = semantic_setup.semantic_status()
+                else:
+                    offline = Path(args.offline_from) if args.offline_from else None
+                    result = semantic_setup.install_semantic_memory(offline_from=offline, root=Path(args.root))
+            except semantic_setup.SetupError as exc:
+                print(f"sentinel error: {exc}", file=sys.stderr)
+                return EXIT_BUG
+            print_json(result)
         elif args.command == "dashboard":
             from .dashboard import generate_dashboard
 

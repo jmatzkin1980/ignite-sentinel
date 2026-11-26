@@ -154,17 +154,21 @@ def install_semantic_memory(
         },
         root=home,
     )
-    reindexed = _reindex_all(root)
-    return {"status": "installed", "path": str(destination), "revision": model["revision"], "reindexed": reindexed}
+    reindexed, warnings = _reindex_all(root)
+    result = {"status": "installed", "path": str(destination), "revision": model["revision"], "reindexed": reindexed}
+    if warnings:
+        result["warnings"] = warnings
+    return result
 
 
-def _reindex_all(root: Path | None) -> list[str]:
+def _reindex_all(root: Path | None) -> tuple[list[str], list[str]]:
     """Every workspace, walked as dashboard.py walks them, with a full rebuild."""
     root_path = (Path(root) if root is not None else Path.cwd()).resolve()
     workspaces = root_path / "workspaces"
     if not workspaces.is_dir():
-        return []
+        return [], []
     done: list[str] = []
+    warnings: list[str] = []
     old_cwd = Path.cwd()
     os.chdir(root_path)
     try:
@@ -173,11 +177,18 @@ def _reindex_all(root: Path | None) -> list[str]:
                 continue
             if not is_valid_project_id(candidate.name):
                 continue
-            memory.reindex_workspace(candidate.name, full=True)
+            try:
+                memory.reindex_workspace(candidate.name, full=True)
+            except Exception as exc:  # noqa: BLE001 - the model is already active; report, do not crash
+                warnings.append(
+                    f"{candidate.name}: reindex failed ({exc.__class__.__name__}: {exc}); "
+                    f"retry with: sentinel /reindex {candidate.name} --full"
+                )
+                continue
             done.append(candidate.name)
     finally:
         os.chdir(old_cwd)
-    return done
+    return done, warnings
 
 
 def semantic_status(*, home: Path | None = None, manifest: dict[str, Any] | None = None) -> dict[str, Any]:
