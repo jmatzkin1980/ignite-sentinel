@@ -866,6 +866,7 @@ def confirmed_answers(text: str, registry: list[dict[str, Any]]) -> list[dict[st
 
 
 def collect_inputs(project_id: str, settings: dict[str, Any], language: str) -> BriefInputs:
+    from ..extraction.coverage import extraction_fingerprint, extraction_view
     from ..harvest import load_harvest
     from ..assumptions import assumption_rows
     from ..workspace import workspace_path
@@ -906,6 +907,13 @@ def collect_inputs(project_id: str, settings: dict[str, Any], language: str) -> 
         first = next((line for line in log_path.read_text(encoding="utf-8").splitlines() if line.startswith("# ")), "")
         title = first[2:].strip()
     brief_path = base / "02_requirements" / "project-brief.md"
+    place_facts: dict[str, list[dict[str, str]]] = {}
+    place_blocks: dict[str, list[str]] = {}
+    if extraction_fingerprint(base, None):  # IMP-420: with an inventory the confirmed extraction is transcribed
+        from .change_deliverable import extraction_places
+
+        place_facts, place_blocks = extraction_places(
+            project_id, None, extraction_view(project_id, None), language, border=[], tags=False)
     return BriefInputs(
         project_id=project_id,
         language=language,
@@ -921,12 +929,16 @@ def collect_inputs(project_id: str, settings: dict[str, Any], language: str) -> 
         registry=registry,
         source_log_title=title,
         previous_text=brief_path.read_text(encoding="utf-8") if brief_path.exists() else "",
+        place_facts=place_facts,
+        place_blocks=place_blocks,
     )
 
 
 def compile_brief_v2(project_id: str, settings: dict[str, Any], language: str) -> dict[str, Any]:
     from ..core.io import write_text
     from ..workspace import workspace_path
+
+    from ..extraction.coverage import extraction_fingerprint
 
     inputs = collect_inputs(project_id, settings, language)
     text, report = render_brief_v2(inputs)
@@ -936,6 +948,9 @@ def compile_brief_v2(project_id: str, settings: dict[str, Any], language: str) -
         inputs = collect_inputs(project_id, settings, language)
         inputs.previous_text = previous
         text, report = render_brief_v2(inputs)
+    fingerprint = extraction_fingerprint(workspace_path(project_id), None)
+    if fingerprint:  # IMP-420: only a project with an inventory records which extraction the brief transcribed
+        report["extraction_fingerprint"] = fingerprint
     base = workspace_path(project_id) / "02_requirements"
     write_text(base / "project-brief.md", text)
     write_text(base / "brief_compile_report.json", json.dumps(report, ensure_ascii=False, indent=2) + "\n")

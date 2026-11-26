@@ -69,6 +69,8 @@ def _coherence_claims(project_id: str, change_id: str) -> list[tuple[str, dict]]
     from .core.io import read_json
     from .workspace import workspace_path
 
+    if change_id is None:  # the lens view is the change's: the project has none (IMP-420)
+        return []
     record = read_json(coherence_dir(workspace_path(project_id), change_id) / "coherence.json", None)
     if not isinstance(record, dict) or record.get("status") != "done":
         return []
@@ -80,7 +82,7 @@ def _coherence_claims(project_id: str, change_id: str) -> list[tuple[str, dict]]
 
 def closed_decisions(project_id: str, change_id: str) -> list[dict]:
     """The closed questions of a change that someone decided (not the ones a re-recording withdrew)."""
-    from .changes import change_gaps_path, get_change
+    from .changes import change_gaps_path, resolve_scope
     from .compilers.change_brief import _answers
     from .crosses.record import RETIRE_NOTE
     from .extraction.inventory import element_lines, match_element_id
@@ -91,7 +93,7 @@ def closed_decisions(project_id: str, change_id: str) -> list[dict]:
     from .workspace import workspace_path
 
     base = workspace_path(project_id)
-    change = get_change(project_id, change_id)
+    change = resolve_scope(project_id, change_id).entry
     path = change_gaps_path(base, change_id)
     if not path.exists():
         return []
@@ -236,13 +238,13 @@ def _surface_text(candidate: str, decision: dict, change_id: str, language: str)
 
 
 def _index_change(project_id: str, change_id: str, broker: ContextBroker, full: bool) -> tuple[list[str], list[str], set[str]]:
-    from .changes import change_gaps_path, change_language, get_change
+    from .changes import change_gaps_path, change_language, resolve_scope
     from .crosses import CROSS_KINDS, cross_path, crosses_dir
     from .crosses.record import load_cross
     from .workspace import workspace_path
 
     base = workspace_path(project_id)
-    change = get_change(project_id, change_id)
+    change = resolve_scope(project_id, change_id).entry
     language = "es" if change_language(project_id, change) == "es" else "en"
     gaps_path = change_gaps_path(base, change_id)
     indexed: list[str] = []

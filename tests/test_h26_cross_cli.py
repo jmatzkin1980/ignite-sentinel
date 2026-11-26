@@ -78,9 +78,8 @@ class CrossCli(NextCase):
 
 
 class CrossArguments(unittest.TestCase):
-    def test_cli_requires_change(self):
-        with self.assertRaises(SystemExit):
-            run_cli(["cross", "P"])
+    def test_cli_change_is_optional(self):  # IMP-420: parsed without --change; the project path decides what it means
+        self.assertNotEqual(run_cli(["cross", "P"])[0], 0)  # no workspace P: a refusal, not a parse error (SystemExit)
 
     def test_mcp_cross_passes_arguments(self):
         captured: list[list[str]] = []

@@ -11,8 +11,10 @@ import re
 from pathlib import Path
 from typing import Any
 
-from ..change_requirements import load_change_ears, reconcile_extraction_ears
-from ..changes import change_language, get_change
+from ..change_requirements import (
+    load_change_ears, reconcile_extraction_ears, reconcile_project_extraction_ears,
+)
+from ..changes import change_language, resolve_scope
 from ..core.io import write_json
 from ..core.paths import workspace_path
 from ..errors import GateRefusal, InputError
@@ -34,7 +36,7 @@ def sections_path(base: Path, change_id: str) -> Path:
 def _context(
     project_id: str, change_id: str, allow_stale: bool = False,
 ) -> tuple[Path, dict, dict[str, dict], dict, str]:
-    change = get_change(project_id, change_id)
+    change = resolve_scope(project_id, change_id).entry
     language = change_language(project_id, change)
     state = inventory_state(project_id, change_id)
     if state == "missing" or (state == "stale" and not allow_stale):
@@ -101,6 +103,15 @@ def _element_rows(project_id: str, change_id: str, element_id: str) -> list[str]
     return rows
 
 
+def _reconcile(project_id: str, change_id: str | None, element_id: str, statements: list[dict], cite: str,
+               language: str, a_confirmar: bool = False) -> dict[str, list[str]]:
+    """The rows of an element, in the change's table or, with no change, in the project's 4-column table."""
+    if change_id is None:
+        rows = reconcile_project_extraction_ears(project_id, element_id, statements, cite, a_confirmar)
+        return {"added": rows["added"], "delta_updated": [], "superseded": rows["retired"]}
+    return reconcile_extraction_ears(project_id, change_id, element_id, statements, cite, language, a_confirmar=a_confirmar)
+
+
 def _merge(result: dict, rows: dict[str, list[str]]) -> None:
     result["rows_added"].extend(rows.get("added", []))
     result["rows_updated"].extend(rows.get("delta_updated", []))
@@ -125,7 +136,8 @@ def _try_confirm(
     if item.get("element_sha") != element.get("sha"):
         normalized, errors = None, [_msg("stale_element", language, id=element_id, **ctx)]
     else:
-        normalized, errors = validate_proposal(element, body, _raw(item), border, language, ctx, source_lines)
+        normalized, errors = validate_proposal(element, body, _raw(item), border, language, ctx, source_lines,
+                                              project=change_id is None)
     speculative = any(f.get("kind") == "a_confirmar" for f in flags)
     if normalized is None:
         result["invalid"][element_id] = errors or [_msg("stale_element", language, id=element_id, **ctx)]
@@ -135,15 +147,14 @@ def _try_confirm(
         statements = normalized["statements"]
         item["statements"] = statements
         cite = f"{element['source_id']}:{element['line']}"
-        _merge(result, reconcile_extraction_ears(
-            project_id, change_id, element_id, statements, cite, language, a_confirmar=speculative))
+        _merge(result, _reconcile(project_id, change_id, element_id, statements, cite, language, speculative))
         item["rows"] = _element_rows(project_id, change_id, element_id)
     else:
         if treatment == "seccion":
             item["section"], item["brief_section"] = normalized["section"], normalized["brief_section"]
         if item.get("rows"):
             # corrected from requirement to section or discard: its rows no longer stand
-            _merge(result, reconcile_extraction_ears(project_id, change_id, element_id, [], "", language))
+            _merge(result, _reconcile(project_id, change_id, element_id, [], "", language))
             item["rows"] = []
     item["status"] = "confirmed"
     item["confirmed_at"] = _now()
@@ -304,7 +315,7 @@ def reject_item(project_id: str, change_id: str, element_id: str, reason: str) -
         raise _no_pending(element_id, language)
     result = _empty_result("reject")
     if standing or (item or {}).get("rows"):
-        _merge(result, reconcile_extraction_ears(project_id, change_id, element_id, [], "", language))
+        _merge(result, _reconcile(project_id, change_id, element_id, [], "", language))
     store["items"].pop(element_id, None)
     store["rejections"].append({"id": element_id, "reason": str(reason).strip(), "at": _now()})
     return _finish(project_id, change_id, base, store, result)

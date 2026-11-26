@@ -363,6 +363,25 @@ NEXT_STEPS: dict[str, tuple[str, str, str]] = {
                        "the suggested values come from the raw input, so check them first.",
                        "/brief {pid} --profile {profiles} --genesis {genesis}"),
     "resolve_blocking": ("Waiting for client answers", "Send the client the interview script (/export --artifact gaps --format interview) and run /resolve-gaps when answers return.", "/resolve-gaps {pid} --source PATH"),
+    # IMP-420: the project's cross-reads and element-by-element extraction, offered only with evidence.
+    "crosses": ("Register the cross-reads of the request",
+                "Cross the request with itself and with the prototype, quoting each side verbatim, and register it. Missing: {missing}.",
+                "/cross {pid} --kind {kind} --claims PATH"),
+    "extract_inventory": ("Inventory the request",
+                          "The request has rules, criteria and stories with an id: inventory it element by element.",
+                          "/extract {pid}"),
+    "extract_proposals": ("Propose the extraction",
+                          "Write one cited proposal per pending element of the worksheet and record it.",
+                          "/extract {pid} --proposals PATH"),
+    "extract_confirm": ("Confirm the extraction",
+                        "Confirm the proposals; a flagged one is confirmed one by one.",
+                        "/extract {pid} --confirm all"),
+    "extract_orphans": ("Take out what left the request",
+                        "Some EARS rows cite an element no longer in the request: take each one out with its reason.",
+                        "/extract {pid} --reject-item {first_orphan} --reason \"...\""),
+    "extract_verify": ("Verify a sample of the extraction",
+                       "Re-read a sample of the confirmed elements against the request.",
+                       "/extract {pid} --verify"),
     "fix_brief": ("Fix what stopped the brief", "Resolve what /brief reported (threshold, self-correction or implementability) and run /brief again.", "/brief {pid}"),
     "specs": ("Prepare PRD and specs", "Run /specs PROJECT_ID.", "/specs {pid}"),
     "fix_specs": ("Raise the specs above the threshold", "Close the gaps the specs readiness reported and run /specs again.", "/specs {pid}"),
@@ -400,6 +419,84 @@ CHANGE_CONFIRMATION_STEP = (
 POST_BRIEF_STAGES = {"READY_FOR_SPECS", "SPECS_BELOW_THRESHOLD", "READY_FOR_BACKLOG"}
 
 
+PROJECT_SCOPE_KEYS = ("crosses", "extract_inventory", "extract_proposals", "extract_confirm", "extract_orphans", "extract_verify")
+
+
+def _project_scope_key(project_id: str, has_brief: bool) -> str | None:
+    """IMP-420: the project's cross-reads and extraction, in the order of `_change_step_key`; None when none is offered.
+
+    Offered only with evidence (`project_extraction_offered`): a project whose request has no element with an id, or
+    sees none of it (a compiled brief does not close the offer: /resolve-gaps compiles it as soon as blocking gaps close).
+    """
+    from .changes import project_extraction_offered
+
+    if not project_extraction_offered(project_id):
+        return None
+    from .crosses.state import cross_status
+
+    if cross_status(project_id, None)["missing"]:
+        return "crosses"
+    from .extraction.coverage import extraction_coverage
+
+    cover = extraction_coverage(project_id, None)
+    if cover["state"] in ("missing", "stale"):
+        return "extract_inventory"
+    if cover["pending"] > 0:
+        return "extract_proposals"
+    if cover["proposed"] > 0:
+        return "extract_confirm"
+    if cover.get("orphans"):
+        return "extract_orphans"
+    from .extraction.verify import verification_needed
+
+    if verification_needed(project_id, None, cover["total"])["needed"]:
+        return "extract_verify"
+    if has_brief and _project_brief_stale(workspace_path(project_id)):
+        return "brief"
+    return None
+
+
+def _project_brief_stale(base: Path) -> bool:
+    """The compiled project brief recorded an extraction that no longer matches (a brief without a report is left alone)."""
+    from .core.io import read_json
+    from .extraction.coverage import extraction_fingerprint
+
+    report = read_json(base / "02_requirements" / "brief_compile_report.json", None)
+    if not isinstance(report, dict):
+        return False
+    return str(report.get("extraction_fingerprint", "") or "") != extraction_fingerprint(base, None)
+
+
+def _project_scope_context(project_id: str, key: str) -> dict[str, str]:
+    """The values the project's scope steps fill in: `{missing}`, `{kind}`, the orphan to take out, and a command variant."""
+    from .extraction.coverage import extraction_coverage
+
+    context = {"missing": "", "kind": "", "first_orphan": "ID", "command": ""}
+    if key == "crosses":
+        from .crosses.state import cross_status
+
+        missing = cross_status(project_id, None)["missing"]
+        context["missing"] = ", ".join(missing)
+        context["kind"] = missing[0]
+        if missing[0] == "linea_de_base":
+            context["command"] = "/harvest {pid} --source PATH"
+    elif key == "extract_confirm":
+        cover = extraction_coverage(project_id, None)
+        if cover["proposed"] == cover["flagged"]:
+            first = (cover.get("flagged_ids") or ["ID"])[0]
+            context["command"] = ("/extract {pid} --proposals PATH" if cover.get("partial_ids")
+                                  else "/extract {pid} --confirm-item " + first)
+    elif key == "extract_orphans":
+        orphans = extraction_coverage(project_id, None).get("orphans", [])
+        context["first_orphan"] = orphans[0]["id"] if orphans else "ID"
+    elif key == "extract_verify":
+        from .extraction.verify import verification_needed
+
+        if verification_needed(project_id, None, extraction_coverage(project_id, None)["total"])["open"]:
+            context["command"] = "/extract {pid} --verify-result PATH"
+    return context
+
+
 def next_step(
     project_id: str,
     state: dict[str, Any],
@@ -420,6 +517,8 @@ def next_step(
         key = "brief_settings"
     elif verdict["blocking_open"]:
         key = "resolve_blocking"
+    elif (scope_key := _project_scope_key(project_id, has_brief)):
+        key = scope_key
     elif stage in BRIEF_BLOCK_STAGES:
         key = "fix_brief"
     elif stage in POST_BRIEF_STAGES and not has_brief:
@@ -457,8 +556,14 @@ def next_step(
     if key == "resolve_blocking" and assumed_blocking:
         text += ASSUMED_BLOCKING_NOTE.format(ids=", ".join(assumed_blocking))
     proposal = settings or {}
+    scope: dict[str, str] = {}
+    if key in PROJECT_SCOPE_KEYS:
+        scope = _project_scope_context(project_id, key)
+        text = text.format(**scope)
+        command = scope["command"] or command
     command = command.format(pid=project_id, profiles=",".join(proposal.get("profiles", ["UI"])),
-                             genesis=proposal.get("genesis", "greenfield"))
+                             genesis=proposal.get("genesis", "greenfield"), kind=scope.get("kind", ""),
+                             first_orphan=scope.get("first_orphan", "ID"))
     command = release_scoped_command(command)
     return {"key": key, "title": title, "text": text, "command": command, "skill": skill_for_command(command)}
 

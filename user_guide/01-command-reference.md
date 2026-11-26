@@ -200,8 +200,8 @@ All 39 commands, grouped by lifecycle stage. **Type** is from the command regist
 | Discover | [`/resolve-gaps`](#resolve-gaps) | mutating | | Process answered gaps |
 | Discover | [`/stakeholders`](#stakeholders) | mutating | | List or add owners for elicitation routing |
 | Discover | [`/sources`](#sources) | mutating | | Manage the F-NN source registry |
-| Discover | [`/extract`](#extract) | mutating | | Extract a change request element by element, with coverage |
-| Discover | [`/cross`](#cross) | mutating | | Cross-read a change request with the new design and with itself |
+| Discover | [`/extract`](#extract) | mutating | | Extract a change request (or the project request, when it carries element ids) element by element, with coverage |
+| Discover | [`/cross`](#cross) | mutating | | Cross-read a change request (or the project request) with the new design and with itself |
 | Discover | [`/context-request`](#context-request) | mutating | | Ask a domain for context; move a request along |
 | Discover | [`/retrieve`](#retrieve) | read-only | | Focused retrieval from local memory |
 | Discover | [`/reindex`](#reindex) | mutating | | Rebuild local memory |
@@ -1350,7 +1350,9 @@ python -m sentinel /compose ACME_PORTAL --source composition.json
 
 **What it does.** Records the cross-reads of a change request: the request against the new design and the request against itself. The BA (or the agent, with the BA) writes a claims file; every claim carries verbatim quotes, and each quote is checked word for word against the registered sources of its role. Divergences and contradictions open blocking questions in the change; what has no support in the design, and what is only in the design, flags its element in the extraction. A cross-read can be waived with a reason, or recorded as read with nothing found, and the same command decides the new surfaces that the baseline cross-read could not find.
 
-**Type.** Mutating. Always with `--change`.
+**Type.** Mutating. With `--change` for a change; without it on the request of the project when that request writes element ids (RN-, CA-, HU-, PD-; a section titled Acceptance criteria, or a loose "Regla 3", does not count), the project has no specs yet and its brief is v2 (IMP-420). A project already at specs, backlog or quality keeps its step unless an inventory or a cross-read exists.
+
+**In chat for a project.** Say "the brief has contradictions with the prototype, cross them" or "cross the request with itself". The assistant reads both sides whole and writes the claims file; underneath it runs `/cross COMPRAS_ALTAS --kind diseno --claims cruce_diseno.md` and `/cross COMPRAS_ALTAS --kind contradicciones --claims cruce_contradicciones.md`. The same rules apply (verbatim quotes of the right role, a rejected file records nothing). The records go to `01_discovery/crosses/` and the questions they open to the `01_discovery/gaps.md` of the project with their exact id (`GAP-DIS-`, `GAP-SRD-`, `GAP-SED-`, `GAP-CON-`): two contradictions about one topic stay two questions. The design is the prototype loaded with `/sources --load PATH --role diseno_nuevo`; the baseline is read after `/harvest PROJECT_ID --source PATH` (waived when none is loaded). A project has no border: `--accept-new` and `--decline-new` are refused without `--change`, and so is a request without ids (the refusal says to go on with `/next`). `/next` names the step `crosses`.
 
 **Use it when.** `/next --change` asks for the cross-reads (`crosses`) or for the decision on the new surfaces (`cross_new_surfaces`), or when `/status --change` shows a cross-read as missing or stale.
 
@@ -1436,7 +1438,9 @@ A request quote must be in a source with the role `pedido`, a design quote in on
 
 **What it does.** Extracts the request of a change element by element and measures how much of it is covered, line by line. It has three phases: inventory (every rule, criterion, story, decision and section of the request, each with its id and its range of lines; a long section or an element that starts with its id is split into parts `ID.pN`, and one very long line is cut into pieces of it; each part is proposed with its own `Líneas` and a quote from that part), cited proposals (the agent reads each element in full and proposes what it becomes, declaring the lines it read) and confirmation by the BA. What is confirmed becomes EARS rows with Delta and Superficie per statement, fills sections of the change brief, and counts toward the coverage shown by `/status --change`, `/next --change` and the brief.
 
-**Type.** Mutating. Always with `--change`.
+**Type.** Mutating. With `--change` for a change; without it on the request of the project when that request writes element ids (RN-, CA-, HU-, PD-; a section titled Acceptance criteria, or a loose "Regla 3", does not count), the project has no specs yet and its brief is v2 (IMP-420). A project already at specs, backlog or quality keeps its step unless an inventory or a cross-read exists.
+
+**On the project (IMP-420).** In chat: "the brief has numbered rules and criteria: go through each one and propose what it becomes". Underneath, `/extract COMPRAS_ALTAS`, `/extract COMPRAS_ALTAS --proposals proposals.md`, `/extract COMPRAS_ALTAS --confirm all` and the other options work as for a change, with these differences: the files are in `02_requirements/extraction/`; every statement is ADDED (a `Delta` is optional and only `ADDED` is accepted, there is no `Superficie` check and no `Afecta`); the confirmed rows enter the EARS table of `02_requirements/requirements.md` with `EXT:<element>` in the source cell and the global numbering (a retired row goes to `02_requirements/extraction/retired_ears.md`, so no id is reused); the brief v2 transcribes the confirmed sections and rows, and a brief compiled before the extraction is asked to be compiled again. The project offers it whenever its request has an element with an id, or an inventory or a cross-read exists, with or without a compiled brief; a request without ids sees nothing new, and `--consolidate`, `--confirm-replacement`, `--keep-text`, `--accept-new` and `--decline-new` stay with `--change`. `/next` names the steps `extract_inventory`, `extract_proposals`, `extract_confirm`, `extract_orphans` and `extract_verify`.
 
 **Use it when.** `/next --change` says to inventory the request, to propose the treatment of each element, to confirm the extraction, to complete the partial readings or to cover what is preserved.
 
@@ -1464,7 +1468,7 @@ A request quote must be in a source with the role `pedido`, a design quote in on
 | Flag | Values | Default | Meaning |
 |---|---|---|---|
 | `PROJECT_ID` | id | required | The workspace. |
-| `--change` | `CHG-NNN` | required | The change whose request is extracted. An unknown change is refused. |
+| `--change` | `CHG-NNN` | none | The change whose request is extracted; without it, the request of the project (IMP-420). An unknown change is refused. |
 | `--proposals` | path | none | Record the cited proposals of a file kept outside `02_requirements`. |
 | `--confirm` | a section or `all` | none | Confirm every proposal of a section (or all of them), except what is flagged. |
 | `--confirm-item` | element id | none | Confirm one proposal, flagged or not. |
@@ -2057,7 +2061,10 @@ On a brief v2 with a backlog, `cross_artifact_consistency` also warns about each
 | `specs` / `fix_specs` | Ready for specs / specs below the threshold | `/specs` |
 | `backlog` / `quality` / `handoff` | No stories yet / stories not checked / quality done | `/backlog` / `/quality` / `/validate`, then `/export` and `/story-status` |
 | `resolve_gaps` | Only non-blocking gaps left | `/resolve-gaps`, or move on with `/brief` then `/specs` |
-| `brief` | No gap left open and no brief yet | `/brief` |
+| `brief` | No gap left open and no brief yet (or, on a request with ids, the brief was compiled before the extraction) | `/brief` |
+| `crosses` | IMP-420: the request writes element ids (RN-, CA-, HU-, PD-), the project has no specs yet, its brief is v2 and a cross-read is missing; with a baseline loaded and no harvest it asks `/harvest` first | `/cross --kind KIND --claims PATH` |
+| `extract_inventory` / `extract_proposals` / `extract_confirm` | IMP-420: the request has ids; the inventory, the proposals or the confirmation of the extraction is pending (a flagged proposal is confirmed one by one) | `/extract` / `/extract --proposals PATH` / `/extract --confirm all` |
+| `extract_orphans` / `extract_verify` | IMP-420: a confirmed row cites an element no longer in the request / a sample of the confirmations waits to be re-read | `/extract --reject-item ID --reason TEXT` / `/extract --verify` |
 
 With `--change`, the keys are the steps of that sequence instead (the `brief` step also comes back when the compiled change brief no longer matches the change's blocking gaps: recompile it); the result also has `change_id` and `warnings`. Without it, a workspace with changes adds a `changes` list, one entry per change with its own next step, and a workspace that only has changes shows the first pending one. The escalation warnings (`several_processes`, `new_actors`, `third_party_contract`) are computed from the border and the rows; the BA decides whether to split the change or move to the project path, and nothing blocks.
 

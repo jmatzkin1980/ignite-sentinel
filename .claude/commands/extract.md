@@ -1,15 +1,16 @@
 ---
 description: Inventory a change request element by element, record cited proposals (requirement, brief section or discard), confirm them by section and measure coverage.
-argument-hint: PROJECT_ID --change CHG-NNN [--proposals PATH | --confirm SECTION|all | --confirm-item ID | --reject-item ID --reason TEXT | --verify [--sample N] | --verify-result PATH | --consolidate PATH | --confirm-replacement ID | --keep-text ID --gap GAP --reason TEXT] [--delegated [--note TEXT]]
+argument-hint: PROJECT_ID [--change CHG-NNN] [--proposals PATH | --confirm SECTION|all | --confirm-item ID | --reject-item ID --reason TEXT | --verify [--sample N] | --verify-result PATH | --consolidate PATH | --confirm-replacement ID | --keep-text ID --gap GAP --reason TEXT] [--delegated [--note TEXT]]
 ---
 
 # Ignite Extract
 
 Arguments received from the user invocation: `$ARGUMENTS`
 
-Extract the request of a change element by element and measure its coverage. Parse `PROJECT_ID` and `--change CHG-NNN` (required) from:
+Extract the request of a change element by element and measure its coverage. Parse `PROJECT_ID` and `--change CHG-NNN` (optional: without it the command works on the request of the project, IMP-420) from:
 
 ```text
+/extract PROJECT_ID
 /extract PROJECT_ID --change CHG-NNN
 /extract PROJECT_ID --change CHG-NNN --proposals PATH
 /extract PROJECT_ID --change CHG-NNN --confirm SECTION|all
@@ -24,6 +25,7 @@ Extract the request of a change element by element and measure its coverage. Par
 Run from the repository root:
 
 ```powershell
+python -m sentinel /extract PROJECT_ID
 python -m sentinel /extract PROJECT_ID --change CHG-NNN
 python -m sentinel /extract PROJECT_ID --change CHG-NNN --proposals PATH
 python -m sentinel /extract PROJECT_ID --change CHG-NNN --confirm SECTION|all
@@ -60,3 +62,5 @@ The inventory also writes a reading plan (`extraction/reading_plan.md`): the req
 `--keep-text ID --gap GAP --reason TEXT` (IMP-414) keeps the text of the request for an element although a closed decision touches it (`--reason` is the why, in the BA's words). It is refused when the option of that decision already keeps the text of the request (nothing to do) or takes the element out of the change (propose it as a discard). The control table `01_discovery/CHG-nnn/consolidation_control.md` (internal, not part of the deliverable) lists every element as included, modified, excluded or pending, and `/export --final` is refused while any element is pending.
 
 Every result carries `coverage` (what share of the request is confirmed), `next_step` and a one-line `message`. Report the message and the coverage, and say which flagged items wait for the BA.
+
+On the project (IMP-420): without `--change` every phase above runs on the request of the project (the files live in `02_requirements/extraction/`, the confirmed rows enter the project's EARS table as `EXT:` rows, and the result carries `"scope": "project"` and `next`, the step of `/next PROJECT_ID`). It is refused, writing nothing, when the request writes no rules, criteria, stories or decisions with an id (or the project already has specs, or its brief is v1, and holds no inventory or cross-read), when the workspace only holds changes (the refusal names `--change CHG-NNN`), and for `--consolidate`, `--confirm-replacement` and `--keep-text`, which belong to a change.

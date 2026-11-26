@@ -6,7 +6,7 @@ import re
 import shutil
 from pathlib import Path
 
-from .change_requirements import next_ears_index
+from .change_requirements import RETIRED_EARS, next_ears_index
 from .ears import classify_ears
 from .gaps import ASSUMED_CLOSURE, CHANGE_CLOSURE_REASONS, PRE_DECIDED, gap_option_labels, option_markers, CLOSURE_CITES, CLOSURE_REASONS, DECISION_KIND, NON_GOAL_KIND, REOPEN_FALSE_PREMISE, brief_section_for_gap, count_gaps, parse_gap_responses, parse_gap_rows, prd_section_for_gap, readiness_stage_after_gap_change, render_gaps
 from .knowledge.metabolism import metabolize_knowledge
@@ -1089,9 +1089,9 @@ def materialize_ears_requirements(project_id: str, closed: list[dict[str, str]],
         return []
     text = path.read_text(encoding="utf-8")
     start_index = _count_existing_ears(text)
-    if any(path.parent.glob("CHG-*/requirements.md")):
-        # IMP-388: a change already took ids; never reuse one.
-        start_index = next_ears_index(path.parent.parent) - 1
+    if any(path.parent.glob("CHG-*/requirements.md")) or "`EXT:" in text or (path.parent / RETIRED_EARS).is_file():
+        # IMP-388 / IMP-420: a change or the project extraction already took ids; never reuse one.
+        start_index = max(start_index, next_ears_index(path.parent.parent) - 1)
     lines: list[str] = []
     if "## Normalized Requirements (EARS)" not in text:
         lines.append("\n## Normalized Requirements (EARS)\n")

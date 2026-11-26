@@ -11,7 +11,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from ..changes import _squash, change_gaps_path, change_language, get_change, list_changes
+from ..changes import _squash, change_gaps_path, change_language, resolve_scope, list_changes
 from ..core.io import read_json, write_json, write_text
 from ..core.text import unique_path
 from ..core.time import utc_now
@@ -93,14 +93,14 @@ def _gap_texts(tag: str, claim: dict, es: bool) -> tuple[str, str]:
             "(C) neither: write the behavior that applies in the answer.")
 
 
-def cross_gap(change_id: str, claim: dict, language: str) -> dict | None:
+def cross_gap(change_id: str | None, claim: dict, language: str) -> dict | None:
     """The question a claim raises, or None for a backed claim."""
     tag = claim["tag"]
     if tag not in GAP_PREFIXES:
         return None
     cites = claim["citations"]
     digest = hashlib.sha256(
-        f"{change_id}|{tag}|{' // '.join(_squash(c['quote']) for c in cites)}".encode("utf-8")
+        f"{change_id or 'project'}|{tag}|{' // '.join(_squash(c['quote']) for c in cites)}".encode("utf-8")
     ).hexdigest()[:8].upper()
     side = "diseno" if tag == "solo_en_diseno" else "pedido"
     mention = " // ".join(_squash(c["quote"]) for c in cites if c["side"] == side)
@@ -130,12 +130,7 @@ def add_change_gaps(project_id: str, change_id: str, gaps: list[dict], candidate
         from ..prior_decisions import apply_prior_decisions
 
         apply_prior_decisions(project_id, change_id, added, candidates or {}, refs)
-        language = change_language(project_id, get_change(project_id, change_id))
-        rows = [*existing, *added]
-        write_text(path, render_gaps(project_id, rows, change_id, language, path.with_name("gap_elicitation.json")))
-        updated = {k: dict(v) for k, v in list_changes(project_id).items()}
-        updated[change_id]["gap_counts"] = count_gaps(rows)
-        update_state(project_id, changes=updated)
+        _save_change_gaps(project_id, change_id, path, [*existing, *added])
     return [g["id"] for g in added]
 
 
@@ -172,8 +167,16 @@ def close_change_gap(project_id: str, change_id: str, gap_id: str, note: str) ->
 RETIRE_NOTE = {"es": "afirmación retirada al re-registrar el cruce", "en": "claim withdrawn when the cross-read was re-recorded"}
 
 
-def _save_change_gaps(project_id: str, change_id: str, path: Path, rows: list[dict]) -> None:
-    language = change_language(project_id, get_change(project_id, change_id))
+def _save_change_gaps(project_id: str, change_id: str | None, path: Path, rows: list[dict]) -> None:
+    language = resolve_scope(project_id, change_id).language
+    if change_id is None:  # H27 inc 6b: the project's gaps.md, rendered and counted like the harvest does
+        from ..gaps import readiness_stage_after_gap_change
+
+        req_id = str(rows[0].get("parent") or "REQ-001").strip("`") if rows else "REQ-001"
+        write_text(path, render_gaps(project_id, rows, req_id, language))
+        counts = count_gaps(rows)
+        update_state(project_id, gap_counts=counts, readiness_stage=readiness_stage_after_gap_change(project_id, counts))
+        return
     write_text(path, render_gaps(project_id, rows, change_id, language, path.with_name("gap_elicitation.json")))
     updated = {k: dict(v) for k, v in list_changes(project_id).items()}
     updated[change_id]["gap_counts"] = count_gaps(rows)
@@ -238,7 +241,7 @@ def record_cross(project_id: str, change_id: str, kind: str, claims_path: Path, 
     from ..secrets_scan import sanitize_text
     from ..sources import mark_source_processed, open_source_row, settle_rerun
 
-    change = get_change(project_id, change_id)
+    change = resolve_scope(project_id, change_id).entry
     language = change_language(project_id, change)
     es = language == "es"
     kind = normalize_kind(kind, language)
@@ -349,7 +352,7 @@ def record_cross(project_id: str, change_id: str, kind: str, claims_path: Path, 
 
 
 def skip_cross(project_id: str, change_id: str, kind: str, reason: str) -> dict[str, Any]:
-    change = get_change(project_id, change_id)
+    change = resolve_scope(project_id, change_id).entry
     language = change_language(project_id, change)
     es = language == "es"
     kind = normalize_kind(kind, language)

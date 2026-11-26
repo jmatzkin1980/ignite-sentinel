@@ -83,12 +83,17 @@ def element_flags(
     return flags
 
 
-def change_flag_context(project_id: str, change_id: str) -> tuple[list[dict], list[dict]]:
+def change_flag_context(project_id: str, change_id: str | None) -> tuple[list[dict], list[dict]]:
     base = workspace_path(project_id)
     path = change_gaps_path(base, change_id)
     gaps = parse_gap_rows(path.read_text(encoding="utf-8-sig")) if path.exists() else []
     gaps = [g for g in gaps if g.get("id") != "NONE"]
     entries = [e for e in load_harvest(base).get("entries", []) if isinstance(e, dict) and e.get("kind") == "divergence"]
+    if change_id is None:  # the project reads only its own harvests, never the ones of its changes (IMP-420)
+        from ..changes import resolve_scope
+
+        own = {str(i) for i in resolve_scope(project_id, None).entry.get("harvests") or []}
+        entries = [e for e in entries if str(e.get("source_id", "")) in own]
     return gaps, entries
 
 

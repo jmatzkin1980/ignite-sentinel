@@ -9,7 +9,7 @@ import html
 import re
 from pathlib import Path
 
-from ..changes import MIN_BASELINE_QUOTE, _squash, change_language, get_change
+from ..changes import MIN_BASELINE_QUOTE, _squash, change_language, resolve_scope
 from ..extraction.inventory import _read_text, _resolve, _row_path, pedido_rows
 from ..source_registry import row_role
 from ..sources import load_source_manifest
@@ -217,8 +217,13 @@ def locate_quote(text: str, suffix: str, quote: str) -> dict | None:
     return {"line": line, "start": start}
 
 
-def cross_sources(project_id: str, change_id: str) -> dict[str, dict[str, dict]]:
+def cross_sources(project_id: str, change_id: str | None) -> dict[str, dict[str, dict]]:
     pedido = {str(row["id"]): row for row in pedido_rows(project_id, change_id)}
+    if change_id is None:  # H27 inc 6b: the design of the project is what no change holds
+        from ..changes import _project_rows
+
+        diseno = {str(row["id"]): row for row in _project_rows(project_id) if row_role(row) == "diseno_nuevo"}
+        return {"pedido": pedido, "diseno": diseno}
     diseno = {
         str(row["id"]): row
         for row in load_source_manifest(project_id).get("registry", [])
@@ -229,7 +234,7 @@ def cross_sources(project_id: str, change_id: str) -> dict[str, dict[str, dict]]
 
 def validate_claims(project_id: str, change_id: str, kind: str, claims: list[dict]) -> tuple[list[dict], list[str]]:
     """The claims with each quote enriched with its `path` and `line`, or the errors in the change's language."""
-    change = get_change(project_id, change_id)
+    change = resolve_scope(project_id, change_id).entry
     es = change_language(project_id, change) == "es"
     base = workspace_path(project_id)
     registry = {str(row.get("id")): row for row in load_source_manifest(project_id).get("registry", [])}
@@ -292,7 +297,7 @@ def rebase_claim(project_id: str, change_id: str, claim: dict, current: set[str]
     """
     base = workspace_path(project_id)
     registry = {str(row.get("id")): row for row in load_source_manifest(project_id).get("registry", [])}
-    held = {str(i) for i in get_change(project_id, change_id).get("sources") or []}
+    held = {str(i) for i in resolve_scope(project_id, change_id).entry.get("sources") or []}
     # the design side of the cross-read is every current prototype of the workspace; a quote moves only onto
     # the rows that belong to this change, never onto another change's source
     sources = {side: {i: row for i, row in rows.items() if i in held}

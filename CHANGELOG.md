@@ -6,6 +6,19 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+### Added
+
+- **Cross-reads and element-by-element extraction on the project request (IMP-420, H27 inc 6b).** `/extract PROJECT_ID` and `/cross PROJECT_ID` work without `--change` on the request of the project when it writes rules, criteria, stories or decisions with an id (RN-, CA-, HU-, PD-; a section titled Acceptance criteria or a loose "Regla 3" does not count), the project has no specs yet and its brief is v2 (a project already at specs, backlog or quality, or on the brief v1, keeps its step unless an inventory or a cross-read exists): casuistry B of the forensic report, a mature brief for a new project. The files are `02_requirements/extraction/` and `01_discovery/crosses/`; every statement is ADDED, with no `Superficie` check and no `Afecta`. `/next PROJECT_ID` gains six steps after `resolve_blocking`, offered with or without a compiled brief and only when the request has ids or an inventory or a cross-read exists: `crosses`, `extract_inventory`, `extract_proposals`, `extract_confirm`, `extract_orphans` and `extract_verify`. A request without ids sees no new step, file or brief change.
+
+### Changed
+
+- The rows confirmed in the extraction of the project enter the EARS table of `02_requirements/requirements.md` with `EXT:<element>` and the global numbering (a retired row goes to `extraction/retired_ears.md`, so no id is reused); the brief v2 of the project transcribes the confirmed sections and rows, lists the discarded elements under 6.2 as "Fuera del alcance" ("Out of scope") and is asked to be compiled again when the extraction changed after it; the questions of the project cross-reads go to `01_discovery/gaps.md` with their exact id. A project without ids does not change.
+
+### Fixed
+
+- Final review of IMP-420 (6b): the offer counts only ids written in the request, not the synthetic elements of an itemized heading nor loose mentions; it no longer sends a project past the brief (specs, backlog, quality) into crosses and extraction, nor a brief v1 project, which the extraction never reaches; `run_cross` and `run_extract` without change apply the same guard as the CLI; the MCP tools list `change` as optional for extract and cross; the project extraction flags read only the project's harvests; a later topic merge never folds a question into an exact cross gap.
+- Casuistry B: a mature brief of a new project is no longer reduced to mentions ("mentioned is not resolved"): each rule, criterion, story and decision is extracted with a literal quote and counted in the coverage before the brief transcribes it.
+
 ## [0.33.0] — 2026-11-25
 
 ### Added

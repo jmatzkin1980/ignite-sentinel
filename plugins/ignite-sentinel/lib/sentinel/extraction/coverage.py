@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from ..change_requirements import load_change_ears
-from ..changes import change_language, get_change
+from ..changes import change_language, resolve_scope
 from ..core.io import read_json
 from ..core.paths import workspace_path
 from . import extraction_dir
@@ -28,7 +28,7 @@ KIND_LABELS = {
 
 def extraction_coverage(project_id: str, change_id: str) -> dict[str, Any]:
     base = workspace_path(project_id)
-    language = change_language(project_id, get_change(project_id, change_id))
+    language = resolve_scope(project_id, change_id).language
     lang = "es" if language == "es" else "en"
     state = inventory_state(project_id, change_id)
     inventory = load_inventory(base, change_id) or {}
@@ -104,7 +104,7 @@ def legacy_confirmed_message(ids: list[str], language: str, run: str = "") -> st
 
 def preserved_coverage(project_id: str, change_id: str) -> dict[str, Any]:
     """The border surfaces to preserve, and the UNCHANGED rows (extraction's or the answers') that name each one."""
-    change = get_change(project_id, change_id)
+    change = resolve_scope(project_id, change_id).entry
     surfaces: list[str] = []
     for surface in change.get("border", []) or []:
         name = str(surface.get("name", "")).strip()

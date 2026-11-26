@@ -42,6 +42,7 @@ EXAMPLE_OWNERS = {
     "cross-claims": "sentinel-discovery",
     "extraction-proposals": "sentinel-discovery",
     "verify-result": "sentinel-discovery",
+    "project-proposals": "sentinel-discovery",
     "coherence-crosses": "sentinel-self-review",
     "change-assumptions": "sentinel-assume",
     "gap-assumption": "sentinel-gap-response",
@@ -126,6 +127,30 @@ def check_cross(body: str, lang: str) -> None:
         for side, low, high in (("pedido", low_p, high_p), ("diseno", low_d, high_d)):
             count = sum(1 for cite in claim["citations"] if cite["side"] == side)
             assert count >= low and (high is None or count <= high), f"{claim['tag']}: {count} {side} quotes"
+
+
+def check_project_proposals(body: str) -> None:
+    """IMP-420: on the project every statement is ADDED (or has no Delta) and there is no Afecta."""
+    blocks, warnings = parse_proposals(body)
+    assert blocks and warnings == [], warnings
+    for element_id, block in blocks.items():
+        assert block["errors"] == [], block["errors"]
+        treatment = TREATMENTS.get(block["treatment"].lower())
+        assert treatment, f"{element_id}: treatment {block['treatment']!r}"
+        assert parse_line_ranges(block["lines"]) is not None, f"{element_id}: lines {block['lines']!r}"
+        if treatment in ("requisito", "seccion"):
+            assert len(block["quote"]) >= 20, f"{element_id}: quote shorter than 20 characters"
+        if treatment == "requisito":
+            assert block["statements"], f"{element_id}: no statement"
+            for statement in block["statements"]:
+                assert classify_ears(statement["text"]), f"{element_id}: not EARS: {statement['text']}"
+                assert statement["delta"].strip().upper() in ("", "ADDED"), f"{element_id}: Delta {statement['delta']!r}"
+                assert not statement["affects"].strip(), f"{element_id}: Afecta belongs to a change"
+        elif treatment == "seccion":
+            key = block["section"].strip().lower()
+            assert key in SECTION_KEYS or key in SECTION_ALIASES, f"{element_id}: section {key!r}"
+        else:
+            assert block["reason"].strip(), f"{element_id}: a discard needs its reason"
 
 
 def check_proposals(body: str) -> None:
@@ -332,6 +357,17 @@ class SkillFormatTests(unittest.TestCase):
             check_proposals(body)
         treatments = {block["treatment"].lower() for _, body in found for block in parse_proposals(body)[0].values()}
         self.assertEqual({"requisito", "seccion", "descarte"}, treatments)
+
+    def test_project_proposal_example_parses(self):
+        found = examples_of("project-proposals")
+        self.assertTrue(found)
+        for _, body in found:
+            check_project_proposals(body)
+        treatments = {block["treatment"].lower() for _, body in found for block in parse_proposals(body)[0].values()}
+        self.assertEqual({"requisito", "seccion", "descarte"}, treatments)
+        for _, body in found:
+            self.assertNotIn("Afecta", body)
+            self.assertNotIn("Superficie", body)
 
     def test_verify_example_parses(self):
         found = examples_of("verify-result")

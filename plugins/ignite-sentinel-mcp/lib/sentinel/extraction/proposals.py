@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from ..change_requirements import load_change_ears, parse_affects, parse_delta, parse_surfaces
-from ..changes import MIN_BASELINE_QUOTE, _squash, change_language, get_change
+from ..changes import MIN_BASELINE_QUOTE, _squash, change_language, resolve_scope
 from ..core.io import copy_file, read_json, write_json, write_text
 from ..core.paths import workspace_path
 from ..core.text import unique_path
@@ -213,6 +213,14 @@ _MESSAGES = {
         "{id}: {names} no están en el borde de {cid}",
         "{id}: {names} are not in the border of {cid}",
     ),
+    "project_delta": (
+        "{id}: En el proyecto todo enunciado es ADDED: {delta} es de un cambio",
+        "{id}: On the project every statement is ADDED: {delta} belongs to a change",
+    ),
+    "project_affects": (
+        "{id}: Afecta es de un cambio: el proyecto no tiene historias existentes que afectar",
+        "{id}: Affects belongs to a change: the project has no existing stories to affect",
+    ),
     "bad_affects": (
         "{id}: Afecta debe nombrar historias US-NNN o decir ninguna",
         "{id}: Affects must name US-NNN stories or say none",
@@ -278,7 +286,7 @@ def _msg(code: str, language: str, **values: Any) -> str:
 
 def validate_proposal(
     element: dict, element_text: str | None, raw: dict, border: list[dict], language: str, ctx: dict,
-    source_lines: list[str] | None = None,
+    source_lines: list[str] | None = None, project: bool = False,
 ) -> tuple[dict | None, list[str]]:
     """The normalized item of a block, or the errors that keep it out. An empty treatment is neither."""
     treatment_raw = str(raw.get("treatment", "")).strip()
@@ -354,17 +362,28 @@ def validate_proposal(
                 fail("multi_statement", statement=sentence)
             elif ears is None:
                 fail("not_ears", statement=sentence)
-            delta = parse_delta(str(entry.get("delta", "")))
-            if delta is None:
-                fail("bad_delta", statement=sentence)
-            valid, unknown = parse_surfaces(str(entry.get("surface", "")), border)
-            if unknown:
-                fail("unknown_surface", names=", ".join(unknown))
-            elif not valid:
-                fail("no_surface", statement=sentence)
             affects: list[str] = []
             affects_raw = str(entry.get("affects", "")).strip()
-            if affects_raw:
+            if project:  # H27 inc 6b: the project has no border and no stories to affect; every statement is new
+                delta_raw = str(entry.get("delta", "")).strip()
+                delta = parse_delta(delta_raw) if delta_raw else "ADDED"
+                if delta is None:
+                    fail("bad_delta", statement=sentence)
+                elif delta != "ADDED":
+                    fail("project_delta", delta=delta)
+                if affects_raw:
+                    fail("project_affects")
+                valid = [s.strip() for s in str(entry.get("surface", "")).split(";") if s.strip()]
+            else:
+                delta = parse_delta(str(entry.get("delta", "")))
+                if delta is None:
+                    fail("bad_delta", statement=sentence)
+                valid, unknown = parse_surfaces(str(entry.get("surface", "")), border)
+                if unknown:
+                    fail("unknown_surface", names=", ".join(unknown))
+                elif not valid:
+                    fail("no_surface", statement=sentence)
+            if affects_raw and not project:
                 parsed = parse_affects(affects_raw)
                 if parsed is None:
                     fail("bad_affects")
@@ -485,9 +504,12 @@ def _element_text_cached(base: Path, element: dict, cache: dict[str, list[str] |
 
 
 def record_proposals(project_id: str, change_id: str, source: Path) -> dict:
-    change = get_change(project_id, change_id)
-    language = change_language(project_id, change)
+    scope = resolve_scope(project_id, change_id)
+    change = scope.entry
+    language = scope.language if scope.is_project else change_language(project_id, change)
     es = language == "es"
+    where = "" if scope.is_project else f" --change {change_id}"
+    label = project_id if scope.is_project else change_id
     if change.get("round") == "scope":
         raise GateRefusal(
             f"Cerrá primero el borde de {change_id} (GAP-SCOPE): las superficies salen de ahí" if es
@@ -497,12 +519,12 @@ def record_proposals(project_id: str, change_id: str, source: Path) -> dict:
     state = inventory_state(project_id, change_id)
     if state in ("missing", "stale"):
         if es:
-            message = f"Corré /extract {project_id} --change {change_id} antes de proponer: el inventario " + (
+            message = f"Corré /extract {project_id}{where} antes de proponer: el inventario " + (
                 "falta" if state == "missing" else "quedó viejo")
         else:
-            message = f"Run /extract {project_id} --change {change_id} before proposing: the inventory is " + (
+            message = f"Run /extract {project_id}{where} before proposing: the inventory is " + (
                 "missing" if state == "missing" else "out of date")
-        raise GateRefusal(message, next_step=f"/extract {project_id} --change {change_id}")
+        raise GateRefusal(message, next_step=f"/extract {project_id}{where}")
     base = workspace_path(project_id)
     inventory = load_inventory(base, change_id) or {}
     try:
@@ -524,7 +546,7 @@ def record_proposals(project_id: str, change_id: str, source: Path) -> dict:
     elements = {e["id"]: e for e in inventory.get("elements", [])}
     store = load_proposals(base, change_id)
     items: dict[str, dict] = store["items"]
-    ctx = {"pid": project_id, "cid": change_id}
+    ctx = {"pid": project_id, "cid": label}
     warnings = [
         (f"{element_id}: aparece más de una vez en el archivo; se usó el último bloque" if es
          else f"{element_id}: appears more than once in the file; the last block was used")
@@ -546,12 +568,12 @@ def record_proposals(project_id: str, change_id: str, source: Path) -> dict:
             continue
         element = elements.get(element_id)
         if element is None:
-            rejected[element_id] = [_msg("unknown_element", language, id=element_id, cid=change_id)]
+            rejected[element_id] = [_msg("unknown_element", language, id=element_id, cid=label)]
             continue
         element_body = _element_text_cached(base, element, cache)
         item, errors = validate_proposal(
             element, element_body, raw, change.get("border", []) or [], language, ctx,
-            source_lines=cache.get(str(element.get("path", ""))),
+            source_lines=cache.get(str(element.get("path", ""))), project=scope.is_project,
         )
         if item is None:
             rejected[element_id] = errors
@@ -654,15 +676,16 @@ def extraction_orphans(project_id: str, change_id: str, elements: list[dict]) ->
 
 def write_review(project_id: str, change_id: str) -> Path:
     base = workspace_path(project_id)
-    change = get_change(project_id, change_id)
-    es = change_language(project_id, change) == "es"
+    scope = resolve_scope(project_id, change_id)
+    es = (scope.language if scope.is_project else change_language(project_id, scope.entry)) == "es"
+    label = change_id or project_id
     inventory = load_inventory(base, change_id) or {}
     items = load_proposals(base, change_id)["items"]
     words = (
         {"pending": "pendiente", "proposed": "propuesta", "confirmed": "confirmada", "stale": "vieja"} if es
         else {"pending": "pending", "proposed": "proposed", "confirmed": "confirmed", "stale": "stale"}
     )
-    lines = [f"# Revisión de la extracción — {change_id}" if es else f"# Extraction review — {change_id}", ""]
+    lines = [f"# Revisión de la extracción — {label}" if es else f"# Extraction review — {label}", ""]
     groups: dict[str, dict[str, Any]] = {}
     for element in inventory.get("elements", []):
         group = groups.setdefault(element["section_slug"], {"heading": element["section"], "elements": []})

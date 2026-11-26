@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from ..change_requirements import load_change_ears
-from ..changes import change_language, get_change
+from ..changes import change_language, resolve_scope
 from ..core.io import read_json, write_json, write_text
 from ..core.paths import workspace_path
 from ..errors import InputError
@@ -54,7 +54,7 @@ def _load(base: Path, change_id: str) -> dict:
 
 
 def _es(project_id: str, change_id: str) -> bool:
-    return change_language(project_id, get_change(project_id, change_id)) == "es"
+    return resolve_scope(project_id, change_id).language == "es"
 
 
 def _confirmed_ids(inventory: dict, items: dict) -> list[str]:

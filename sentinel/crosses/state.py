@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from ..changes import _squash, change_language, get_change
+from ..changes import _squash, change_language, resolve_scope
 from ..core.io import read_json, write_text
 from ..harvest import load_harvest
 from ..source_registry import row_role
@@ -79,7 +79,7 @@ def _baseline_state(project_id: str, base: Path, change: dict, record: dict | No
 
 
 def cross_status(project_id: str, change_id: str) -> dict[str, Any]:
-    change = get_change(project_id, change_id)
+    change = resolve_scope(project_id, change_id).entry
     base = workspace_path(project_id)
     language = change_language(project_id, change)
     current = {
@@ -141,7 +141,7 @@ def cross_summary(status: dict[str, Any], language: str) -> str:
 
 def crosses_fingerprint(project_id: str, change_id: str) -> str:
     """12 hex of what the cross-reads decided; empty when the change has none (an older change keeps its brief)."""
-    change = get_change(project_id, change_id)
+    change = resolve_scope(project_id, change_id).entry
     base = workspace_path(project_id)
     surfaces = change.get("new_surfaces") or {}
     has_file = any(cross_path(base, change_id, kind).exists() for kind in CROSS_KINDS)
@@ -170,12 +170,13 @@ def _cite_text(cite: dict, lang: str) -> str:
     return f"{side} {cite['source_id']}{where} {opening}{_squash(cite['quote'])}{closing}"
 
 
-def write_cross_report(project_id: str, change_id: str) -> Path:
-    change = get_change(project_id, change_id)
+def write_cross_report(project_id: str, change_id: str | None) -> Path:
+    change = resolve_scope(project_id, change_id).entry
     lang = "es" if change_language(project_id, change) == "es" else "en"
     base = workspace_path(project_id)
     status = cross_status(project_id, change_id)
-    title = f"# Cruces del pedido — {change_id}" if lang == "es" else f"# Cross-reads of the request — {change_id}"
+    what = change_id or project_id
+    title = f"# Cruces del pedido — {what}" if lang == "es" else f"# Cross-reads of the request — {what}"
     lines = [title, "", status["text"], ""]
     for kind in CROSS_KINDS:
         info = status["kinds"][kind]
@@ -219,7 +220,7 @@ def write_cross_report(project_id: str, change_id: str) -> Path:
         lines.append("")
     from .surfaces import new_surface_candidates
 
-    candidates = new_surface_candidates(project_id, change_id)
+    candidates = new_surface_candidates(project_id, change_id) if change_id else []  # new surfaces are the change's
     if candidates:
         lines += ["## Candidatas a superficie nueva (del harvest)" if lang == "es"
                   else "## New surface candidates (from the harvest)", ""]
@@ -233,6 +234,6 @@ def write_cross_report(project_id: str, change_id: str) -> Path:
                 verdict = "pendiente" if lang == "es" else "pending"
             lines.append(f"- {item['id']} «{item['text']}» ({item['source_id']}:{item['line']}): {verdict}")
         lines.append("")
-    path = crosses_dir(base, change_id) / "crosses.md"
+    path = crosses_dir(base, change_id) / "crosses.md" if change_id else base / "01_discovery" / "crosses.md"
     write_text(path, "\n".join(lines).rstrip() + "\n")
     return path

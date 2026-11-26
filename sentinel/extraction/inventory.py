@@ -15,7 +15,7 @@ from hashlib import sha256
 from pathlib import Path
 from typing import Any
 
-from ..changes import change_language, get_change
+from ..changes import change_language, project_request_rows, resolve_scope
 from ..core.io import read_json, write_json, write_text
 from ..core.paths import workspace_path
 from ..source_formats import read_source
@@ -604,8 +604,10 @@ def parse_request_elements(text: str, source_id: str, path: str) -> list[dict]:
 # --- inventory of a change ------------------------------------------------------------
 
 
-def pedido_rows(project_id: str, change_id: str) -> list[dict]:
-    change = get_change(project_id, change_id)
+def pedido_rows(project_id: str, change_id: str | None) -> list[dict]:
+    if change_id is None:  # H27 inc 6b: the project's request, outside every change
+        return project_request_rows(project_id)
+    change = resolve_scope(project_id, change_id).entry
     registry = {row.get("id"): row for row in load_source_manifest(project_id).get("registry", [])}
     rows: list[dict] = []
     for source_id in change.get("sources", []) or []:
@@ -711,21 +713,24 @@ def _assign_synthetic(elements: list[dict], previous: dict | None) -> None:
         used.add(item["id"])
 
 
-def _worksheet(project_id: str, change_id: str, elements: list[dict], language: str) -> str:
+def _worksheet(project_id: str, change_id: str | None, elements: list[dict], language: str) -> str:
+    project = change_id is None  # H27 inc 6b: the project's worksheet has no Delta, Surface or Affects lines
+    where = "" if project else f" --change {change_id}"
+    title = ("proyecto" if language == "es" else "project") if project else change_id
     if language == "es":
         header = (
-            f"# Planilla de propuestas — {change_id}\n\n"
+            f"# Planilla de propuestas — {title}\n\n"
             f"Copiá este archivo fuera de 02_requirements, completá un bloque por elemento y corré "
-            f"/extract {project_id} --change {change_id} --proposals ARCHIVO. "
+            f"/extract {project_id}{where} --proposals ARCHIVO. "
             "Un bloque con Tratamiento vacío no es una propuesta.\n"
         )
         labels = ("Tratamiento", "Líneas", "Lectura", "Cita", "Enunciado", "Delta", "Superficie", "Seccion",
                   "Resumen", "Motivo", "Marca", "Tipo")
     else:
         header = (
-            f"# Proposals worksheet — {change_id}\n\n"
+            f"# Proposals worksheet — {title}\n\n"
             f"Copy this file outside 02_requirements, fill in one block per element and run "
-            f"/extract {project_id} --change {change_id} --proposals FILE. "
+            f"/extract {project_id}{where} --proposals FILE. "
             "A block with an empty Treatment is not a proposal.\n"
         )
         labels = ("Treatment", "Lines", "Reading", "Quote", "Statement", "Delta", "Surface", "Section",
@@ -744,9 +749,8 @@ def _worksheet(project_id: str, change_id: str, elements: list[dict], language: 
             f"- {reading}:\n"
             f"- {quote}:\n"
             f"- {statement}:\n"
-            f"  - {delta}:\n"
-            f"  - {surface}:\n"
-            f"- {section}:\n"
+            + ("" if project else f"  - {delta}:\n  - {surface}:\n")
+            + f"- {section}:\n"
             f"- {text}:\n"
             f"- {reason}:\n"
             f"- {flag}:\n"
@@ -754,8 +758,8 @@ def _worksheet(project_id: str, change_id: str, elements: list[dict], language: 
     return "".join(parts)
 
 
-def build_inventory(project_id: str, change_id: str) -> dict:
-    change = get_change(project_id, change_id)
+def build_inventory(project_id: str, change_id: str | None) -> dict:
+    scope = resolve_scope(project_id, change_id)
     base = workspace_path(project_id)
     rows = pedido_rows(project_id, change_id)
     previous = load_inventory(base, change_id)
@@ -809,7 +813,7 @@ def build_inventory(project_id: str, change_id: str) -> dict:
     sheet_path = worksheet_path(base, change_id)
     from .reading_plan import plan_batches, reading_plan_paths, write_reading_plan
 
-    language = change_language(project_id, change, first_text)
+    language = scope.language if change_id is None else change_language(project_id, scope.entry, first_text)
     rewrite = (changed or previous is None or previous.get("sources") != sources or not sheet_path.exists()
                or (previous.get("unreadable") or []) != unreadable
                or int(previous.get("schema_version", 1)) < INVENTORY_SCHEMA)

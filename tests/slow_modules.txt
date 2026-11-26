@@ -43,3 +43,12 @@ test_h27_change_challenge  # 24 s
 test_h27_change_review  # 20 s
 test_h27_change_sync_walk
 test_h27_change_final_6a  # 52 s
+test_h27_scope  # 12 s
+test_h27_project_extract  # 10 s
+test_h27_project_confirm  # 10 s
+test_h27_project_cross  # 10 s
+test_h27_project_next  # 34 s
+test_h27_project_commands  # 15 s
+test_h27_project_extraction_walk  # 16 s
+test_h27_project_brief  # 10 s
+test_h27_project_review  # 16 s

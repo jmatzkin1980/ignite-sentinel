@@ -79,7 +79,8 @@ def write_reading_plan(base: Path, change_id: str, inventory: dict, language: st
         "budget_chars": budget, "batches": batches,
     })
     words = _WORDS["es" if language == "es" else "en"]
-    lines = [f"# {words['title']} — {change_id}", "", words["note"], ""]
+    label = change_id or ("proyecto" if language == "es" else "project")
+    lines = [f"# {words['title']} — {label}", "", words["note"], ""]
     for batch in batches:
         lines.append("## " + words["batch"].format(n=batch["number"], m=len(batches), chars=batch["chars"]))
         for found in batch["ranges"]:
@@ -92,11 +93,11 @@ def write_reading_plan(base: Path, change_id: str, inventory: dict, language: st
 
 def reading_plan_status(project_id: str, change_id: str) -> dict[str, Any]:
     """Where the reading plan of the current inventory stands (computed, the plan file is not read)."""
-    from ..changes import change_language, get_change
+    from ..changes import change_language, resolve_scope
     from .inventory import load_inventory
     from .proposals import load_proposals
 
-    es = change_language(project_id, get_change(project_id, change_id)) == "es"
+    es = resolve_scope(project_id, change_id).language == "es"
     base = workspace_path(project_id)
     inventory = load_inventory(base, change_id)
     if inventory is None:

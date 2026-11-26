@@ -15,7 +15,9 @@ from .core.io import read_json, write_json
 from .gaps.model import PRE_DECIDED
 
 
-def prior_path(base: Path, change_id: str) -> Path:
+def prior_path(base: Path, change_id: str | None) -> Path:
+    if change_id is None:
+        return base / "01_discovery" / "prior_decisions.json"
     return base / "01_discovery" / change_id / "prior_decisions.json"
 
 
@@ -84,7 +86,7 @@ def pre_decided_gaps(project_id: str, change_id: str) -> list[dict[str, str]]:
 
 def live_prior_answer(project_id: str, change_id: str, entry: dict, live: dict[str, dict] | None = None) -> str | None:
     """What the earlier decision an entry points to says now, or None when it is no longer a decision (reopened, retired)."""
-    from .changes import change_language, get_change
+    from .changes import change_language, resolve_scope
 
     prior = str(entry.get("prior", ""))
     if live is None:
@@ -93,7 +95,7 @@ def live_prior_answer(project_id: str, change_id: str, entry: dict, live: dict[s
         live = {d["id"]: d for d in closed_decisions(project_id, change_id) if d.get("closure", "") in PRIOR_CLOSURES}
     if prior in live:
         return str(live[prior]["answer"])
-    change = get_change(project_id, change_id)
+    change = resolve_scope(project_id, change_id).entry
     decision = (change.get("new_surfaces") or {}).get(prior)
     if entry.get("basis") == "surface" and isinstance(decision, dict) and decision.get("decision") in ("accepted", "declined"):
         return _surface_answer(decision, change_language(project_id, change))
@@ -102,7 +104,7 @@ def live_prior_answer(project_id: str, change_id: str, entry: dict, live: dict[s
 
 def reconcile_priors(project_id: str, change_id: str) -> dict[str, list[str]]:
     """The questions that took an earlier decision follow it: a reopened one falls back to OPEN, a re-answered one is refreshed."""
-    from .changes import change_gaps_path, change_language, get_change
+    from .changes import change_gaps_path, change_language, resolve_scope
     from .crosses.record import _save_change_gaps
     from .gaps import parse_gap_rows
     from .workspace import workspace_path
@@ -115,7 +117,7 @@ def reconcile_priors(project_id: str, change_id: str) -> dict[str, list[str]]:
         return {}
     rows = [g for g in parse_gap_rows(path.read_text(encoding="utf-8-sig")) if g.get("id") != "NONE"]
     by_id = {g["id"]: g for g in rows}
-    language = change_language(project_id, get_change(project_id, change_id))
+    language = resolve_scope(project_id, change_id).language
     from .decision_memory import closed_decisions
 
     live = {d["id"]: d for d in closed_decisions(project_id, change_id) if d.get("closure", "") in PRIOR_CLOSURES}
@@ -242,12 +244,12 @@ class _Index:
     def surfaces(self) -> list[tuple[str, dict, set[str]]]:
         """The decided surfaces and the (flattened, lower-case) design quotes each one came from."""
         if self._surfaces is None:
-            from .changes import get_change
+            from .changes import resolve_scope
             from .crosses.record import load_cross
             from .crosses.surfaces import new_surface_candidates
             from .workspace import workspace_path
 
-            change = get_change(self.project_id, self.change_id)
+            change = resolve_scope(self.project_id, self.change_id).entry
             decided = {k: v for k, v in (change.get("new_surfaces") or {}).items()
                        if isinstance(v, dict) and v.get("decision") in ("accepted", "declined")}
             found: list[tuple[str, dict, set[str]]] = []
@@ -315,9 +317,9 @@ def find_prior_decision(project_id: str, change_id: str, candidate: dict, _index
     if mine and gap_id.startswith("GAP-SED-"):  # (b) a surface already decided
         for key, decision, quotes in index.surfaces:
             if mine & quotes:
-                from .changes import change_language, get_change
+                from .changes import change_language, resolve_scope
 
-                language = change_language(project_id, get_change(project_id, change_id))
+                language = resolve_scope(project_id, change_id).language
                 return PriorDecision(key, "linked", "surface", _surface_answer(decision, language))
     named, complete = index.elements_of(candidate)
     wanted = set(named)
@@ -327,8 +329,8 @@ def find_prior_decision(project_id: str, change_id: str, candidate: dict, _index
                 return PriorDecision(decision["id"], "linked", "element", decision["answer"], carried(decision))
     sources = set(candidate.get("sources") or []) or {str(c["source_id"]) for c in candidate.get("citations", []) if c.get("source_id")}
     query = " ".join(_flat(c.get("quote")) for c in candidate.get("citations", []) if c.get("quote")) or _flat(candidate.get("text"))
-    if not decisions or not sources or not query:
-        return None
+    if change_id is None or not decisions or not sources or not query:
+        return None  # the project's decisions are not indexed in memory: only the direct links apply
     from .memory import ContextBroker
 
     rows = ContextBroker(project_id).retrieve(query, "decision", limit=5, artifact_type="change_decision",
@@ -371,13 +373,13 @@ def design_request_ref(project_id: str, change_id: str, claim: dict) -> dict | N
 def apply_prior_decisions(project_id: str, change_id: str, gaps: list[dict], candidates: dict[str, dict],
                           refs: dict[str, dict] | None = None) -> dict[str, dict]:
     """Settle the new questions of a change against what was already decided; writes the side file."""
-    from .changes import change_language, get_change
+    from .changes import change_language, resolve_scope
     from .workspace import workspace_path
 
     if not gaps:
         return {}
     base = workspace_path(project_id)
-    language = change_language(project_id, get_change(project_id, change_id))
+    language = resolve_scope(project_id, change_id).language
     es = language == "es"
     priors = load_priors(base, change_id)
     index = _Index(project_id, change_id)
