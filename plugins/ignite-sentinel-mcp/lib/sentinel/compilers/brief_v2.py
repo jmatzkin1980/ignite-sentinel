@@ -83,6 +83,7 @@ COPY = {
         "direction": "Validation direction",
         "sources": "Sources",
         "no_sources": "No governed source rows yet.",
+        "derived_from": "derived from {id}",
         "certainty": "Certainty by section",
         "cert_header": "| Section | Facts | ⏳ client | ⏳ domain | N/A |",
         "reliability_low": "⚠ Low reliability: {pending} of {applicable} applicable places are still pending.",
@@ -137,6 +138,7 @@ COPY = {
         "direction": "Dirección de validación",
         "sources": "Fuentes",
         "no_sources": "Todavía no hay filas de fuentes gobernadas.",
+        "derived_from": "derivado de {id}",
         "certainty": "Certeza por sección",
         "cert_header": "| Sección | Hechos | ⏳ cliente | ⏳ dominio | N/A |",
         "reliability_low": "⚠ Confiabilidad baja: {pending} de {applicable} lugares aplicables siguen pendientes.",
@@ -693,6 +695,7 @@ def render_brief_v2(inputs: BriefInputs) -> tuple[str, dict[str, Any]]:
                              f"#### {_block_title(w, '9.1', 'non_software')}", "", non_software, "",
                              f"#### {_block_title(w, '9.1', 'conclusion')}", "", ready])
     sources = [f"- `{row['id']}` {', '.join(f'`{p}`' for p in row.get('paths', []))} ({row.get('validity', '')})"
+               + (f" — {copy['derived_from'].format(id=row['derived_from'])}" if row.get("derived_from") else "")
                for row in inputs.registry] or [copy["no_sources"]]
     cert = [copy["cert_header"], "|---|---|---|---|---|"]
     for key in [s["id"] for s in sections] + ["A"]:

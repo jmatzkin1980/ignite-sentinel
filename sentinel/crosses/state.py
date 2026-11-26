@@ -13,6 +13,7 @@ from ..source_registry import row_role
 from ..sources import load_source_manifest
 from ..workspace import workspace_path
 from . import CROSS_KINDS, cross_path, crosses_dir
+from .claims import cross_sources
 from .claims import TAG_NAMES, cross_sources
 
 HARVEST_KINDS = ("fact", "inferred", "not_found", "out_of_code", "divergence")
@@ -161,13 +162,15 @@ def crosses_fingerprint(project_id: str, change_id: str) -> str:
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:12]
 
 
-def _cite_text(cite: dict, lang: str) -> str:
+def _cite_text(cite: dict, lang: str, origins: dict[str, str] | None = None) -> str:
     side = "Pedido" if lang == "es" else "Request"
     if cite["side"] == "diseno":
         side = "Diseño" if lang == "es" else "Design"
     where = f":{cite['line']}" if cite["side"] == "pedido" and cite.get("line") else ""
     opening, closing = ("«", "»") if lang == "es" else ("“", "”")
-    return f"{side} {cite['source_id']}{where} {opening}{_squash(cite['quote'])}{closing}"
+    origin = (origins or {}).get(str(cite["source_id"]))  # H27 inc 7a: a derived source shows where it comes from
+    derived = (f" (derivado de {origin})" if lang == "es" else f" (derived from {origin})") if origin else ""
+    return f"{side} {cite['source_id']}{where}{derived} {opening}{_squash(cite['quote'])}{closing}"
 
 
 def write_cross_report(project_id: str, change_id: str | None) -> Path:
@@ -178,6 +181,8 @@ def write_cross_report(project_id: str, change_id: str | None) -> Path:
     what = change_id or project_id
     title = f"# Cruces del pedido — {what}" if lang == "es" else f"# Cross-reads of the request — {what}"
     lines = [title, "", status["text"], ""]
+    origins = {sid: str(row["derived_from"]) for sid, row in cross_sources(project_id, change_id)["diseno"].items()
+               if row.get("derived_from")}
     for kind in CROSS_KINDS:
         info = status["kinds"][kind]
         lines += [f"## {KIND_LABELS[lang][kind]}", "",
@@ -200,7 +205,7 @@ def write_cross_report(project_id: str, change_id: str | None) -> Path:
             lines.append("")
             names = TAG_NAMES[lang]
             for claim in record.get("claims", []):
-                cites = "; ".join(_cite_text(c, lang) for c in claim.get("citations", []))
+                cites = "; ".join(_cite_text(c, lang, origins) for c in claim.get("citations", []))
                 arrow = f" → {claim['gap']}" if claim.get("gap") else ""
                 tail = f" — {cites}{arrow}" if cites or arrow else ""
                 lines.append(f"- [{names[claim['tag']]}] {_squash(claim['text'])}{tail}")

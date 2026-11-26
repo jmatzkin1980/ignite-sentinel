@@ -16,6 +16,7 @@ from sentinel.cli import main  # noqa: E402
 from sentinel.core.io import forget_read_snapshots  # noqa: E402
 from sentinel.source_versions import check_change_versions  # noqa: E402
 from sentinel.sources import load_source_manifest, source_log_path  # noqa: E402
+from sentinel.workspace import workspace_path  # noqa: E402
 
 PID = "DERV"
 CID = "CHG-001"
@@ -116,6 +117,51 @@ class DerivedSourceTests(DerivedCase):
             self.assertNotIn("derived_from", row)
         listed = json.loads(run_ok(["sources", PID]))
         self.assertTrue(all("derived_from" not in row for row in listed["registry"]))
+
+
+class DerivedCitationTests(DerivedCase):
+    def claims_for(self, name: str, derived: str = "F-DER") -> Path:
+        ids = self.ids()
+        text = (INC7 / name).read_text(encoding="utf-8")
+        text = text.replace("F-PED", ids["pedido"]).replace("F-DER", derived).replace("F-ORI", self.ORI)
+        path = Path.cwd() / f"sub-{name}"
+        path.write_text(text, encoding="utf-8")
+        return path
+
+    def crosses_text(self) -> str:
+        from sentinel.crosses import crosses_dir
+
+        return (crosses_dir(workspace_path(PID), CID) / "crosses.md").read_text(encoding="utf-8")
+
+    def test_crosses_md_shows_origin(self):
+        from sentinel.crosses.record import record_cross
+
+        derived = self.load_derived()["source_id"]
+        record_cross(PID, CID, "diseno", self.claims_for("cruce_diseno_derivado.md", derived))
+        text = self.crosses_text()
+        self.assertTrue(f"(derivado de {self.ORI})" in text or f"(derived from {self.ORI})" in text)
+        self.assertIn(f"{derived} (", text)
+
+    def test_quote_absent_from_derived_refused(self):
+        from sentinel.crosses.record import record_cross
+        from sentinel.errors import InputError
+
+        self.load_derived()
+        before = self.crosses_text()
+        with self.assertRaises(InputError):
+            record_cross(PID, CID, "diseno", self.claims_for("cruce_diseno_origen.md"))
+        self.assertEqual(self.crosses_text(), before)
+
+    def test_change_brief_lists_origin(self):
+        from sentinel.compilers.change_deliverable import render_change_deliverable
+
+        derived = self.load_derived()["source_id"]
+        text = render_change_deliverable(PID, CID, False)
+        line = next(item for item in text.splitlines() if item.startswith(f"- `{derived}`"))
+        self.assertTrue(line.endswith(f"— derivado de {self.ORI}") or line.endswith(f"— derived from {self.ORI}"), line)
+        other = next(item for item in text.splitlines() if item.startswith(f"- `{self.ORI}`"))
+        self.assertNotIn("derivado de", other)
+        self.assertNotIn("derived from", other)
 
 
 if __name__ == "__main__":
