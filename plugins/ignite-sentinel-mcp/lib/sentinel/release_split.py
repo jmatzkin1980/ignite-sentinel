@@ -406,15 +406,30 @@ def open_split_gap(project_id: str, row: dict[str, str], language: str) -> None:
     update_state(project_id, gap_counts=counts, readiness_stage=readiness_stage_after_gap_change(project_id, counts))
 
 
-def _open_client_gap(project_id: str, ba: str, tech: str, language: str) -> None:
-    """The client's confirmation of the series is a gap [A46]; opened once, reopened if it was closed."""
-    open_split_gap(project_id, {
+def _open_client_gap(project_id: str, ba: str, tech: str, language: str, change_id: str | None = None) -> None:
+    """The client's confirmation of the series is a gap [A46]; opened once, reopened if it was closed.
+
+    A change's gap goes through its own sink (`merge_change_gaps`), never into the project's gaps."""
+    partition = f"02_requirements/{change_id}/series/partition.json" if change_id else "02_requirements/series/partition.json"
+    row = {
         # medium: visible, never blocking; the BA and the technical team already confirmed (IMP-267b)
         "id": CLIENT_GAP_ID, "lens": "business", "severity": "medium", "status": "OPEN",
         "description": f"The client has not confirmed the release series (confirmed by the BA {ba} and the technical team {tech}).",
-        "question": "Does the client confirm the release series in 02_requirements/series/partition.json?",
-        "evidence_mention": "02_requirements/series/partition.json", "origin": "split", "resolution_note": "",
-    }, language)
+        "question": f"Does the client confirm the release series in {partition}?",
+        "evidence_mention": partition, "origin": "split", "resolution_note": "",
+    }
+    if change_id is None:
+        open_split_gap(project_id, row, language)
+        return
+    from .changes import change_gaps_path, merge_change_gaps
+    from .workspace import workspace_path
+
+    path = change_gaps_path(workspace_path(project_id), change_id)
+    current = next((r for r in parse_gap_rows(path.read_text(encoding="utf-8")) if _s(r.get("id")).strip("`") == CLIENT_GAP_ID),
+                   None) if path.is_file() else None
+    if current is not None and _s(current.get("status")).upper() != "CLOSED":
+        return  # opened once
+    merge_change_gaps(project_id, change_id, [row], [])
 
 
 def confirm_partition(project_id: str, ba: str, tech: str, change_id: str | None = None) -> dict[str, Any]:
@@ -465,8 +480,7 @@ def confirm_partition(project_id: str, ba: str, tech: str, change_id: str | None
         partition["closed"] = closed
     target = series / PARTITION_FILE
     write_text(target, json.dumps(partition, ensure_ascii=False, indent=2) + "\n")
-    if change_id is None:  # the change's own sink arrives with IMP-427 task 3
-        _open_client_gap(project_id, _s(ba), _s(tech), scope.language)
+    _open_client_gap(project_id, _s(ba), _s(tech), scope.language, change_id)
     from .release_series import compile_series  # IMP-267a: the confirmed partition compiles the series
 
     series = compile_series(project_id, change_id)

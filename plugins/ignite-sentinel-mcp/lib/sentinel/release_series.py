@@ -37,6 +37,7 @@ from pathlib import Path
 from typing import Any
 
 from .brief_model import parse_brief
+from .gaps import parse_gap_rows
 from .release_split import CLIENT_GAP_ID, PARTITION_FILE, ReleaseSplitError, _dicts, _s
 from .split_proposal import PROPOSAL_FILE, _norm, release_order
 
@@ -60,12 +61,12 @@ COPY = {
         "lives": "lives in {rid}", "reattributed": "REATRIBUIDO (reattributed) to {rid}", "outside": "outside the horizon: {name}",
         "not_routed": "not routed to any release: propose the series again",
         "block": "Release in the series", "nothing": "nothing", "yes": "yes", "no": "no",
-        "tombstones": "{n} units live in other releases; see `02_requirements/series/index.md`",
+        "tombstones": "{n} units live in other releases; see `{index}`",
         "not_split": "the SAD and the prototype are not split: this release reads them whole",
         "not_split_index": "The SAD and the prototype are not split: every release reads them whole.",
         "index_title": "Release series — {project}",
         "status": "Confirmed by the BA {ba} and the technical team {tech}. The client's confirmation is pending (`{gap}`).",
-        "source": "Compiled from `02_requirements/project-brief.md` (sha256 `{sha}`) and the confirmed partition.",
+        "source": "Compiled from {brief} (sha256 `{sha}`) and the confirmed partition.",
         "stale": "The brief changed since the confirmation: the series was recompiled from it; check the sync findings.",
         "one_page": "The project in one page", "core": "Core", "variations": "Variations", "criteria": "Cut criteria",
         "base": "Cross-cutting base", "series": "The series",
@@ -79,18 +80,18 @@ COPY = {
         "unresolved": "- {where}: the unit no longer resolves in the brief ({quote}).",
         "unrouted": "- {family}: {unit} is not routed to any release.",
         "release_finding": "- {rid}: {finding}",
-        "retired": "- {rid}: no longer in the confirmed partition; its old brief `02_requirements/{rid}/project-brief.md` is kept and no longer compiled.",
+        "retired": "- {rid}: no longer in the confirmed partition; its old brief `{path}` is kept and no longer compiled.",
     },
     "es": {
         "lives": "vive en {rid}", "reattributed": "REATRIBUIDO a {rid}", "outside": "fuera del horizonte: {name}",
         "not_routed": "sin release asignado: volver a proponer la serie",
         "block": "Release en la serie", "nothing": "nada", "yes": "sí", "no": "no",
-        "tombstones": "{n} unidades viven en otros releases; ver `02_requirements/series/index.md`",
+        "tombstones": "{n} unidades viven en otros releases; ver `{index}`",
         "not_split": "el SAD y el prototipo no se parten: este release los lee enteros",
         "not_split_index": "El SAD y el prototipo no se parten: cada release los lee enteros.",
         "index_title": "Serie de releases — {project}",
         "status": "Confirmada por el BA {ba} y el equipo técnico {tech}. La confirmación del cliente está pendiente (`{gap}`).",
-        "source": "Compilada desde `02_requirements/project-brief.md` (sha256 `{sha}`) y la partición confirmada.",
+        "source": "Compilada desde {brief} (sha256 `{sha}`) y la partición confirmada.",
         "stale": "El brief cambió desde la confirmación: la serie se recompiló desde él; revisar los hallazgos de sincronización.",
         "one_page": "El proyecto en una página", "core": "Núcleo", "variations": "Variaciones", "criteria": "Criterios de corte",
         "base": "Base transversal", "series": "La serie",
@@ -104,7 +105,7 @@ COPY = {
         "unresolved": "- {where}: la unidad ya no resuelve en el brief ({quote}).",
         "unrouted": "- {family}: {unit} no está asignada a ningún release.",
         "release_finding": "- {rid}: {finding}",
-        "retired": "- {rid}: ya no está en la partición confirmada; su brief anterior `02_requirements/{rid}/project-brief.md` se conserva y ya no se compila.",
+        "retired": "- {rid}: ya no está en la partición confirmada; su brief anterior `{path}` se conserva y ya no se compila.",
     },
 }
 
@@ -190,7 +191,8 @@ def _type_rows(release: dict[str, Any], nothing: str) -> list[tuple[str, str]]:
     return []
 
 
-def _series_block(payload: dict[str, Any], release: dict[str, Any], tombstones: int, copy: dict[str, str]) -> list[str]:
+def _series_block(payload: dict[str, Any], release: dict[str, Any], tombstones: int, copy: dict[str, str],
+                  index_path: str = "02_requirements/series/index.md") -> list[str]:
     rid = _s(release.get("id"))
     nothing = copy["nothing"]
     contracts = _dicts(payload.get("contracts"))
@@ -231,14 +233,14 @@ def _series_block(payload: dict[str, Any], release: dict[str, Any], tombstones: 
             value = release[key]
             rows.append((key, ", ".join(map(str, value)) if isinstance(value, list) else str(value)))
     rows.append(("suggested_scope", copy["yes"] if release.get("suggested_scope") else copy["no"]))
-    rows.append(("tombstones", copy["tombstones"].format(n=tombstones)))
+    rows.append(("tombstones", copy["tombstones"].format(n=tombstones, index=index_path)))
     rows.append(("sad_and_prototype", copy["not_split"]))
     return [f"#### {copy['block']}", ""] + [f"- `{key}`: {value}" for key, value in rows] + [""]
 
 
 def compile_release_brief(brief_text: str, payload: dict[str, Any], release_id: str, assignment: dict[str, Any],
                           language: str = "en", reattributed: dict[int, str] | None = None,
-                          project_id: str = "") -> tuple[str, dict[str, str]]:
+                          project_id: str = "", change_id: str | None = None) -> tuple[str, dict[str, str]]:
     """One release brief and its local id map (brief id → local id). Pure."""
     copy = COPY.get(language, COPY["en"])
     lines = brief_text.splitlines()
@@ -284,7 +286,8 @@ def compile_release_brief(brief_text: str, payload: dict[str, Any], release_id: 
         out[title] = f"{out[title]} · {release_id} {_s(release.get('name'))}".rstrip()
     model = parse_brief("\n".join(out))
     legend = model.sections.get("0.1")
-    block = _series_block(payload, release, tombstones, copy)
+    index_path = f"02_requirements/{change_id}/series/index.md" if change_id else "02_requirements/series/index.md"
+    block = _series_block(payload, release, tombstones, copy, index_path)
     if legend is not None:
         at = legend.start + 1
         while at < len(out) and not out[at].strip():
@@ -304,13 +307,13 @@ def _integrity(text: str, gaps: dict[str, dict[str, str]], registry: list[dict[s
 
 def render_index(project_id: str, payload: dict[str, Any], partition: dict[str, Any], brief_sha: str,
                  id_maps: dict[str, dict[str, str]], reattributions: list[dict[str, str]],
-                 sync: dict[str, Any], language: str = "en") -> str:
+                 sync: dict[str, Any], language: str = "en", brief_label: str = "", change_id: str | None = None) -> str:
     copy = COPY.get(language, COPY["en"])
     releases = sorted(_dicts(payload.get("releases")), key=lambda r: release_order(_s(r.get("id"))))
     who = partition.get("confirmed_by") or {}
     out = [f"# {copy['index_title'].format(project=project_id)}", "",
            copy["status"].format(ba=who.get("ba", ""), tech=who.get("technical_team", ""), gap=CLIENT_GAP_ID), "",
-           copy["source"].format(sha=brief_sha[:12]), ""]
+           copy["source"].format(brief=brief_label or "`02_requirements/project-brief.md`", sha=brief_sha[:12]), ""]
     if partition.get("brief_sha256") and partition.get("brief_sha256") != brief_sha:
         out += [copy["stale"], ""]
     core = payload.get("core") if isinstance(payload.get("core"), dict) else {}
@@ -351,9 +354,17 @@ def render_index(project_id: str, payload: dict[str, Any], partition: dict[str, 
     rows = [copy["unresolved"].format(**u) for u in sync["unresolved"]]
     rows += [copy["unrouted"].format(**u) for u in sync["unrouted"]]
     rows += [copy["release_finding"].format(rid=rid, finding=f) for rid, found in sync["integrity"].items() for f in found]
-    rows += [copy["retired"].format(rid=rid) for rid in sync.get("retired", [])]
+    folder = f"02_requirements/{change_id}/" if change_id else "02_requirements/"
+    rows += [copy["retired"].format(rid=rid, path=f"{folder}{rid}/project-brief.md") for rid in sync.get("retired", [])]
     out += rows or [copy["no_findings"]]
     return "\n".join(out).rstrip() + "\n"
+
+
+def _brief_ref(scope: Any, language: str) -> str:
+    """How the index names the text it compiled from: the project's brief file, or the deliverable of the change."""
+    if not scope.change_id:
+        return "`02_requirements/project-brief.md`"
+    return f"el entregable de {scope.change_id}" if language == "es" else f"the deliverable of {scope.change_id}"
 
 
 def compile_series(project_id: str, change_id: str | None = None) -> dict[str, Any]:
@@ -391,7 +402,11 @@ def compile_series(project_id: str, change_id: str | None = None) -> dict[str, A
         if before and before != now:
             reattributed[i] = now[0]
             reattributions.append({"unit": _plain(lines[i])[:80], "old": ", ".join(before), "new": ", ".join(now)})
-    gaps = _gap_rows(base)
+    if change_id:  # the change's own gaps, never the project's
+        gaps = ({row.get("id", "").strip("`"): row for row in parse_gap_rows(scope.gaps_path.read_text(encoding="utf-8"))}
+                if scope.gaps_path.is_file() else {})
+    else:
+        gaps = _gap_rows(base)
     manifest = read_json(base / "00_raw" / "source_manifest.json", {}) or {}
     registry = manifest.get("registry", []) if isinstance(manifest, dict) else []
     releases = sorted((_s(r.get("id")) for r in _dicts(payload.get("releases"))), key=release_order)
@@ -399,7 +414,7 @@ def compile_series(project_id: str, change_id: str | None = None) -> dict[str, A
     integrity: dict[str, list[str]] = {}
     paths: list[str] = []
     for rid in releases:
-        brief, local = compile_release_brief(text, payload, rid, assignment, language, reattributed, project_id)
+        brief, local = compile_release_brief(text, payload, rid, assignment, language, reattributed, project_id, change_id)
         id_maps[rid] = local
         found = _integrity(brief, gaps, registry)
         if found:
@@ -411,7 +426,8 @@ def compile_series(project_id: str, change_id: str | None = None) -> dict[str, A
     retired = sorted(set(previous.get("releases") or []) - set(releases), key=release_order)
     sync = {"unresolved": assignment["unresolved"], "unrouted": [{k: v for k, v in u.items() if k != "line"} for u in assignment["unrouted"]],
             "integrity": integrity, "retired": retired}
-    write_text(series / INDEX_FILE, render_index(project_id, payload, partition, sha, id_maps, reattributions, sync, language))
+    write_text(series / INDEX_FILE, render_index(project_id, payload, partition, sha, id_maps, reattributions, sync, language,
+                                            _brief_ref(scope, language), change_id))
     write_text(series / MAP_FILE, json.dumps({"brief_sha256": sha, "proposal_sha256": partition.get("proposal_sha256"),
                                               "releases": releases, "id_map": id_maps, "owners": dict(sorted(owners_by_key.items()))},
                                              ensure_ascii=False, indent=2) + "\n")

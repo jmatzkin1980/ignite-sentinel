@@ -80,3 +80,63 @@ class ChangeProposeTest(ChangeSplitCase):
         with patch.object(mcp, "run_cli", side_effect=lambda argv: calls.append(list(argv)) or {}):
             tools["sentinel_split"](PID, mode="assess", change=CID)
         self.assertEqual(calls[0], ["split", PID, "--assess", "--change", CID])
+
+
+class ChangeConfirmTest(ChangeSplitCase):
+    def confirm(self) -> str:
+        self.propose()
+        return run_ok(["split", PID, "--confirm", "--ba", "Ana", "--tech", "Equipo", "--change", CID])
+
+    def test_change_confirm_compiles_series(self) -> None:
+        self.confirm()
+        req = self.base() / "02_requirements"
+        for name in ("partition.json", "index.md", "release-guide.md"):
+            self.assertTrue((req / CID / "series" / name).is_file(), name)
+        for rid in ("r1", "r2"):
+            self.assertTrue((req / CID / rid / "project-brief.md").is_file(), rid)
+        self.assertFalse((req / "r1").exists())
+        self.assertFalse((req / "series").exists())
+        index = (req / CID / "series" / "index.md").read_text(encoding="utf-8")
+        self.assertIn("Compilada desde el entregable de CHG-001", index)
+        self.assertIn(f"02_requirements/{CID}/series/index.md", (req / CID / "r1" / "project-brief.md").read_text(encoding="utf-8"))
+
+    def test_change_guide_language_and_content(self) -> None:
+        from sentinel.release_series import _plain
+
+        self.confirm()
+        guide = (self.base() / "02_requirements" / CID / "series" / "release-guide.md").read_text(encoding="utf-8")
+        self.assertTrue(guide.startswith("# Guía de la serie — CSPL"))
+        self.assertIn("r1 Alta de proveedor", guide)
+        self.assertIn("r2 Aprobación de jefatura", guide)
+        self.assertIn("abierto; las sub-releases de un cambio todavía no se derivan", guide)
+        self.assertNotIn("/specs --release", guide)
+        lines = {_plain(line)[:90] for line in series_scope(PID, CID).brief_text.splitlines()}
+        matrix = guide.split("| Familia | Unidad | Dueño |")[1].split("##")[0]
+        units = [row.split("|")[2].strip() for row in matrix.splitlines() if row.startswith("| ") and "---" not in row]
+        self.assertTrue(units)
+        for unit in units:
+            self.assertIn(unit, lines)
+
+    def test_client_gap_in_change_gaps(self) -> None:
+        from sentinel.changes import change_gaps_path
+
+        self.confirm()
+        text = change_gaps_path(self.base(), CID).read_text(encoding="utf-8")
+        self.assertIn("GAP-SPLIT-CLIENT", text)
+        self.assertFalse((self.base() / "01_discovery" / "gaps.md").exists())
+
+    def test_reconsolidated_change_refuses_confirm(self) -> None:
+        from sentinel.core.io import forget_read_snapshots
+        from sentinel.errors import InputError
+
+        self.propose()
+        answer = Path.cwd() / "otra.md"
+        answer.write_text("### GAP-QUALITY\n- Respuesta: El alta responde en menos de dos segundos con 500 altas por hora.\n"
+                          "- Owner / fuente: Jefa de Compras\n- Estado de decisión: confirmado\n", encoding="utf-8")
+        run_ok(["resolve-gaps", PID, "--source", str(answer), "--change", CID])
+        forget_read_snapshots()
+        from sentinel.release_split import confirm_partition
+
+        with self.assertRaises(InputError) as caught:
+            confirm_partition(PID, "Ana", "Equipo", CID)
+        self.assertIn("the brief changed since the proposal was stored; run /split --propose again", str(caught.exception))

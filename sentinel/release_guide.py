@@ -35,7 +35,7 @@ COPY = {
         "waves": "Waves", "wave": "Wave {n}", "releases": "Releases",
         "header": "| Release | Type | Wave | Goal | Depends on | Status |",
         "closed": "closed {date} (evidence `{evidence}`)", "waiting": "NOT READY by inheritance: depends hard on {deps}, not closed",
-        "open": "open", "stage": "open; its own verdict: `/status --release {rid}` (stage {stage})", "not_derived": "open; not derived yet (`/specs --release {rid}`)",
+        "open": "open", "not_derived_change": "open; sub-releases of a change are not derived yet", "stage": "open; its own verdict: `/status --release {rid}` (stage {stage})", "not_derived": "open; not derived yet (`/specs --release {rid}`)",
         "edges": "Edges and why", "edge": "- {rid} → {target} ({strength}{contract}): {why}",
         "contracts": "Frozen contracts", "contracts_header": "| Contract | Name | Kind | Created by |",
         "coverage": "Coverage matrix", "coverage_header": "| Family | Unit | Owner |",
@@ -49,7 +49,7 @@ COPY = {
         "waves": "Olas", "wave": "Ola {n}", "releases": "Releases",
         "header": "| Release | Tipo | Ola | Objetivo | Depende de | Estado |",
         "closed": "cerrado {date} (evidencia `{evidence}`)", "waiting": "NOT READY por herencia: depende en duro de {deps}, sin cerrar",
-        "open": "abierto", "stage": "abierto; su veredicto: `/status --release {rid}` (etapa {stage})", "not_derived": "abierto; todavía sin derivar (`/specs --release {rid}`)",
+        "open": "abierto", "not_derived_change": "abierto; las sub-releases de un cambio todavía no se derivan", "stage": "abierto; su veredicto: `/status --release {rid}` (etapa {stage})", "not_derived": "abierto; todavía sin derivar (`/specs --release {rid}`)",
         "edges": "Aristas y porqué", "edge": "- {rid} → {target} ({strength}{contract}): {why}",
         "contracts": "Contratos congelados", "contracts_header": "| Contrato | Nombre | Tipo | Lo crea |",
         "coverage": "Matriz de cobertura", "coverage_header": "| Familia | Unidad | Dueño |",
@@ -165,7 +165,8 @@ def release_status(base: Path, project_id: str, payload: dict[str, Any], partiti
 
 
 def render_release_guide(project_id: str, partition: dict[str, Any], payload: dict[str, Any], statuses: dict[str, dict[str, Any]],
-                         families: dict[str, list[dict[str, Any]]], absent: int, language: str = "en") -> str:
+                         families: dict[str, list[dict[str, Any]]], absent: int, language: str = "en",
+                         change_id: str | None = None) -> str:
     copy = COPY.get(language, COPY["en"])
     releases = sorted(_dicts(payload.get("releases")), key=lambda r: release_order(_s(r.get("id"))))
     out = [f"# {copy['title'].format(project=project_id)}", "", copy["intro"], "", f"## {copy['waves']}", ""]
@@ -179,6 +180,8 @@ def render_release_guide(project_id: str, partition: dict[str, Any], payload: di
             status = copy["closed"].format(date=st["closed"].get("date", ""), evidence=Path(str(st["closed"].get("evidence", ""))).name)
         elif st["status"] == "waiting":
             status = copy["waiting"].format(deps=", ".join(st["waiting_on"]))
+        elif change_id:  # the sub-releases of a change are not derived yet (and /specs --release refuses a change)
+            status = copy["not_derived_change"]
         elif st["derived"]:
             status = copy["stage"].format(rid=rid, stage=st["stage"] or "?")
         else:
@@ -231,7 +234,7 @@ def write_release_guide(project_id: str, change_id: str | None = None) -> Path:
     statuses = {rid: release_status(base, project_id, payload, partition, rid) for rid in partition.get("releases") or []}
     partition = {**partition, "unresolved": len(assignment["unresolved"])}
     target = scope.series_dir / GUIDE_FILE
-    write_text(target, render_release_guide(project_id, partition, payload, statuses, families, absent, scope.language))
+    write_text(target, render_release_guide(project_id, partition, payload, statuses, families, absent, scope.language, change_id))
     return target
 
 
