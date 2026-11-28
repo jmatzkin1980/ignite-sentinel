@@ -405,6 +405,10 @@ NEXT_STEPS: dict[str, tuple[str, str, str]] = {
                 "/validate {pid}"),
 }
 
+SPECS_WITH_OPEN_GAPS = (
+    " No blocking gap is open: /specs does not wait for the other gaps. Close them with /resolve-gaps whenever the "
+    "answers arrive, or leave them marked as pending."
+)
 ASSUMED_BLOCKING_NOTE = (
     " An assumption is registered for {ids}: it keeps the work visible but never unblocks. To move on without "
     "the client, confirm the answer in your own name with /resolve-gaps (Decision status: confirmed, Owner / "
@@ -540,13 +544,16 @@ def next_step(
             key = "handoff"
         else:
             key = "quality" if has_stories else "backlog"
+    elif has_brief:
+        # IMP-435 (A-03): no blocking gap and the brief is compiled: /specs does not wait for the other gaps.
+        key = "specs"
     elif counts.get("open") or counts.get("answered") or counts.get("partially_closed"):
         key = "resolve_gaps"
-    elif not has_brief:
-        key = "brief"
     else:
-        key = "specs"
+        key = "brief"
     title, text, command = NEXT_STEPS[key]
+    if key == "specs" and (counts.get("open") or counts.get("answered") or counts.get("partially_closed")):
+        text += SPECS_WITH_OPEN_GAPS
     changes = [gap_id for gap_id in verdict.get("blocking_open", []) if str(gap_id).startswith("GAP-CHG-")]
     if key == "resolve_blocking" and changes:
         # IMP-337: a late change waits for the BA, not for the client.
@@ -565,6 +572,9 @@ def next_step(
                              genesis=proposal.get("genesis", "greenfield"), kind=scope.get("kind", ""),
                              first_orphan=scope.get("first_orphan", "ID"))
     command = release_scoped_command(command)
+    text = text.replace("PROJECT_ID", project_id)  # IMP-435 (A-36): the real id, never the placeholder
+    if (notice := (state.get("prose_notice") or {}).get("notice")) and key != "ingest":
+        text += " " + str(notice)  # IMP-435 (A-01): what the last note changed nothing of, said again where the BA looks
     return {"key": key, "title": title, "text": text, "command": command, "skill": skill_for_command(command)}
 
 
@@ -1370,9 +1380,8 @@ def health_fix_step(project_id: str, fixes: list[dict[str, Any]]) -> dict[str, s
 def unconfirmed_brief_settings(project_id: str) -> dict[str, Any] | None:
     """IMP-311: the proposed settings when the project is on brief v2 and has not confirmed them; else None."""
     from .brief_schema import brief_settings, settings_status
-    from .discovery.channels import raw_input_text
 
     if int(brief_settings(project_id).get("brief_version", 1) or 1) != 2:
         return None
-    status = settings_status(project_id, raw_input_text(workspace_path(project_id)))
+    status = settings_status(project_id)
     return None if status["confirmed"] else status["proposal"]

@@ -31,7 +31,7 @@ from typing import Any, Iterable
 
 from .core.time import utc_now
 from .resources import read_package_json
-from .workspace import read_state, update_state
+from .workspace import read_state, update_state, workspace_path
 
 SCHEMA_FILE = "brief_v2.json"
 IDS_LOCK_FILE = "brief_v2_ids.lock.json"
@@ -318,7 +318,15 @@ def set_brief_settings(project_id: str, *, profiles: list[str] | None = None, ge
     return settings
 
 
-def settings_status(project_id: str, raw_text: str = "") -> dict[str, Any]:
+def brief_settings_proposal(project_id: str) -> dict[str, Any]:
+    """IMP-435 (A-09): the one proposal of the brief settings, from the requirement register the brief is built from.
+
+    `/next`, `/brief` and the gap question all read it, so they never propose different values for the same request."""
+    path = workspace_path(project_id) / "02_requirements" / "requirements.md"
+    return propose_brief_settings(path.read_text(encoding="utf-8") if path.exists() else "")
+
+
+def settings_status(project_id: str) -> dict[str, Any]:
     """Whether profile and genesis are confirmed, and the blocking gap a v2 brief opens otherwise."""
     settings = brief_settings(project_id)
     missing = [key for key in ("profiles", "genesis") if not settings.get(key)]
@@ -327,10 +335,12 @@ def settings_status(project_id: str, raw_text: str = "") -> dict[str, Any]:
     if settings.get("contradictions"):
         status["contradictions"] = settings["contradictions"]
     if not status["confirmed"]:
-        status["proposal"] = propose_brief_settings(raw_text)
+        status["proposal"] = brief_settings_proposal(project_id)
+        proposal = status["proposal"]
         status["gap"] = {
             "id": SETTINGS_GAP_ID, "severity": "critical", "blocking": True, "owner": "BA",
-            "question": "Confirm the brief profile(s) and genesis: /brief PROJECT_ID --profile UI,REG --genesis greenfield",
+            "question": (f"Confirm the brief profile(s) and genesis: /brief {project_id} --profile "
+                         f"{','.join(proposal['profiles'])} --genesis {proposal['genesis']}"),
             "reason": "contradiction between profile and genesis" if settings.get("contradictions") else f"not confirmed: {', '.join(missing)}",
         }
     else:

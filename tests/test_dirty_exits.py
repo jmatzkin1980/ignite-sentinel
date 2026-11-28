@@ -119,16 +119,23 @@ class DirtyExitTests(SnapshotWorkspaceCase):
         self.assertTrue(all(e["review_status"] == "reviewed" for e in flagged))
         self.assertEqual(self.state()["suspicious_trace_links"]["reviewed"]["reason"], "Export cut agreed; stories unaffected.")
 
-    def test_regenerating_the_downstream_clears_the_semantic_change(self) -> None:
-        self.scope_cut()
+    def test_regenerating_the_downstream_alone_does_not_clear_the_semantic_change(self) -> None:
+        # IMP-435 (A-01, Q1): the documents are rebuilt from the same confirmed answers, so regenerating clears nothing;
+        # only /trace --reviewed (or an answer applied from the change) does.
+        change = self.scope_cut()
         self.age_semantic_marker()
         code, _, err = run(["backlog", PROJECT])
         self.assertEqual(code, 4, err)
         self.assertIn("Run /brief, then /specs, then /backlog.", err)
         ok(["brief", PROJECT])
         ok(["specs", PROJECT])
-        # only the backlog artifacts are left: /backlog is the step that clears it
+        # only the backlog artifacts are left: /backlog still runs...
         ok(["backlog", PROJECT])
+        # ...and the review stays, naming the command that records it
+        left = [f for f in run_health(PROJECT)["findings"] if SEMANTIC in f]
+        self.assertEqual(len(left), 1)
+        self.assertIn(f"/trace {PROJECT} --reviewed {change}", left[0])
+        ok(["trace", PROJECT, "--reviewed", change])
         self.assertFalse([f for f in run_health(PROJECT)["findings"] if SEMANTIC in f])
 
     def test_a_neutral_sync_does_not_wipe_a_pending_review(self) -> None:

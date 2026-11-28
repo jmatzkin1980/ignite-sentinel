@@ -538,6 +538,19 @@ def discover_pending_sources(project_id: str) -> list[dict[str, Any]]:
     return discover_source_novelty(project_id)["pending"]
 
 
+def already_loaded_source(project_id: str, path: Path) -> dict[str, str] | None:
+    """IMP-435 (A-10): the F-NN row and the change a file with this very content was already synced as, or None.
+
+    The same reconnection `/sync` without `--source` makes (`duplicate_content`), for `/sync --source FILE`."""
+    row = row_for_hash(load_source_manifest(project_id), file_hash(path))
+    if row is None:
+        return None
+    for event in reversed(row.get("events") or []):
+        if event.get("via") == "synced" and event.get("event_id"):
+            return {"source_id": str(row["id"]), "change_id": str(event["event_id"])}
+    return None
+
+
 def record_duplicate_source(project_id: str, path: Path, source_id: str) -> None:
     """A second path for content already registered joins that row instead of opening one."""
     manifest = load_source_manifest(project_id)

@@ -83,7 +83,7 @@ from .compilers.slicing import (
     trace_ids_for_spec_unit,
 )
 from .gaps import parse_non_goals
-from .maturity import evaluate, parse_gap_answers, prd_gate_warnings, prd_section_readiness
+from .maturity import evaluate, known_gap_ids, parse_gap_answers, prd_gate_warnings, prd_section_readiness
 from .backlog.refinement import rerender_refinements, strip_refinement_section
 from .prd import render_prd_compositions
 from .retrieval_plans import compose_plan_query, load_retrieval_plan, select_source_context
@@ -224,6 +224,27 @@ def enforce_foundation_drift_gate(project_id: str, phase: str, config: dict) -> 
     return warnings
 
 
+def blocked_refusal(project_id: str, command: str, maturity: dict[str, object]) -> GateRefusal:
+    """IMP-435 (A-13.1): `/specs` and `/backlog` on a blocked project name each blocking gap and the command that closes it."""
+    from .health import blocking_gap_fix
+
+    gaps = [str(gap) for gap in maturity.get("blocking_gaps", [])]
+    _fix, steps = blocking_gap_fix(project_id)
+    again = f"/{command} {project_id}"
+    return GateRefusal(
+        f"Cannot generate {command} while requirement maturity is BLOCKED"
+        + (f" by {', '.join(gaps)}." if gaps else ".") + " " + _fix,
+        next_step="Run " + ", then ".join([*steps, again]) + ".",
+    )
+
+
+def health_after_generation(project_id: str) -> str:
+    """IMP-435 (A-01): a regeneration is CLEAN unless a semantic change still waits for the BA's review (or an applied answer)."""
+    from .health import pending_suspicious_links
+
+    return "DIRTY" if pending_suspicious_links(project_id) is not None else "CLEAN"
+
+
 def generate_specs(project_id: str) -> dict[str, object]:
     # IMP-345: one broker (embedder + LanceDB) for the whole command, not one per artifact.
     with shared_brokers():
@@ -233,7 +254,7 @@ def generate_specs(project_id: str) -> dict[str, object]:
 def _generate_specs(project_id: str) -> dict[str, object]:
     maturity = evaluate(project_id)
     if maturity["readiness"] == "BLOCKED":
-        raise GateRefusal("Cannot generate specs while requirement maturity is BLOCKED.")
+        raise blocked_refusal(project_id, "specs", maturity)
     base = workspace_path(project_id)
     config = load_config(project_id)
     # IMP-151: soft gate — warn when the foundation drifted since last generation.
@@ -268,7 +289,7 @@ def _generate_specs(project_id: str) -> dict[str, object]:
     previous_spec_units = spec_unit_snapshot(base)
     prd_text = render_prd(project_id, req_text, context, source_path.name, language, evidence_text)
     write_text(prd_path, render_prd_compositions(project_id, prd_text))
-    prd_readiness = prd_section_readiness(prd_path.read_text(encoding="utf-8"))
+    prd_readiness = prd_section_readiness(prd_path.read_text(encoding="utf-8"), known_gap_ids(project_id))
     specs_gate = config.get("specs_gate", {}) if isinstance(config.get("specs_gate", {}), dict) else {}
     specs_threshold = float(specs_gate.get("threshold", 0.75))
     specs_strict = bool(specs_gate.get("strict", False))
@@ -348,7 +369,7 @@ def _generate_specs(project_id: str) -> dict[str, object]:
     update_state(
         project_id,
         phase="specs_completed",
-        health="CLEAN",
+        health=health_after_generation(project_id),
         readiness_stage="READY_FOR_BACKLOG",
         prd_section_readiness=prd_readiness,
         specs_gate=gate_result,
@@ -391,7 +412,7 @@ def _generate_backlog(
 ) -> dict[str, str]:
     maturity = evaluate(project_id)
     if maturity["readiness"] == "BLOCKED":
-        raise GateRefusal("Cannot generate backlog while requirement maturity is BLOCKED.")
+        raise blocked_refusal(project_id, "backlog", maturity)
     specs = nodes_by_type(project_id, "spec")
     if not specs:
         generate_specs(project_id)
@@ -542,7 +563,7 @@ def _generate_backlog(
     update_state(
         project_id,
         phase="backlog_completed",
-        health="CLEAN",
+        health=health_after_generation(project_id),
         metrics={"requirements": 1, "gaps_open": 0, "decisions_pending": 1, "user_stories": len(story_ids), "epics": len(epic_ids)},
     )
     # IMP-148: snapshot the fingerprint of the specs the backlog was derived from.

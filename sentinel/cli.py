@@ -103,6 +103,25 @@ def check_source_exists(args) -> None:
             ) from None
 
 
+def _warn_incomplete_brief_settings(project_id: str) -> None:
+    """IMP-435 (A-33): `/brief --profile ... --genesis ...` that leaves the settings unconfirmed says so, instead of exit 0 in silence."""
+    from .brief_schema import brief_settings_proposal, settings_status
+
+    status = settings_status(project_id)
+    if status["confirmed"]:
+        return
+    proposal = brief_settings_proposal(project_id)
+    again = f"/brief {project_id} --profile {','.join(proposal['profiles'])} --genesis {proposal['genesis']}"
+    settings = status["settings"]
+    if status.get("contradictions"):
+        profiles = ",".join(settings.get("profiles") or [])
+        what = f"profile {profiles} contradicts genesis {settings.get('genesis')} ({'; '.join(status['contradictions'])})"
+    else:
+        what = " and ".join(status["missing"]) + " still missing"
+    print(f"sentinel warning: the brief settings are not confirmed: {what}; GAP-BRIEF-PROFILE stays open. Run {again}.",
+          file=sys.stderr)
+
+
 def run_command(args, argv: list[str]) -> int:
     if args.command in {"validate", "next", "status", "quality"} and getattr(args, "release", None) and getattr(args, "change", None):
         from .changes import change_language, get_change
@@ -260,6 +279,11 @@ def _run_project_command(args) -> int:
                 result = sync_change(args.project_id, Path(args.source), args.note, digest=args.digest)
             else:
                 result = sync_pending_sources(args.project_id, args.note or "autonomous sync", digest=args.digest)
+            if not args.change:  # IMP-435 (A-01): the note was stored, not interpreted: say it where the assistant reads errors
+                for synced in result.get("changes", [result]):
+                    notice = (synced.get("prose_review") or {}).get("notice")
+                    if notice:
+                        print(f"sentinel warning: {notice}", file=sys.stderr)
             print_json(result)
         elif args.command == "gaps":
             if args.accept_prior:
@@ -520,10 +544,10 @@ def _run_project_command(args) -> int:
                         validation_direction=args.validation_direction,
                         brief_version=args.brief_version,
                     )
+                if any(value is not None for value in (args.profile, args.genesis)):
+                    _warn_incomplete_brief_settings(args.project_id)  # IMP-435 (A-33)
                 result = generate_project_brief(args.project_id)
-                requirements = workspace_path(args.project_id) / "02_requirements" / "requirements.md"
-                raw = requirements.read_text(encoding="utf-8") if requirements.exists() else ""
-                result["brief_settings"] = settings_status(args.project_id, raw)
+                result["brief_settings"] = settings_status(args.project_id)
             print_json(result)
         elif args.command == "context-request":
             from .context_requests import generate_context_request, transition_context_request
