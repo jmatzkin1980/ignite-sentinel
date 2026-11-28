@@ -82,10 +82,10 @@ def build_agent_execution_contract(
         "readiness": "Ready With Domain Evidence" if execution_ready else "Needs Domain Context",
         "agent_profile": agent_profile_for_story(story),
         "decision_priority": "Business value > correctness > safety/privacy > test evidence > implementation elegance",
-        "commands": context_signal(sections, ("execution_commands",), "[PENDING TECHNOLOGY CONTEXT] Provide build, lint, test, typecheck, migration or boot commands."),
-        "critical_surfaces": context_signal(sections, ("critical_surfaces", "technical_dependencies"), "[PENDING TECHNOLOGY CONTEXT] Provide affected files, services, APIs, data stores, modules or shared surfaces."),
+        "commands": context_signal(sections, CONTRACT_SIGNAL_KEYS["commands"], "[PENDING TECHNOLOGY CONTEXT] Provide build, lint, test, typecheck, migration or boot commands."),
+        "critical_surfaces": context_signal(sections, CONTRACT_SIGNAL_KEYS["critical_surfaces"], "[PENDING TECHNOLOGY CONTEXT] Provide affected files, services, APIs, data stores, modules or shared surfaces."),
         "design_match": design_signal_for_story(story, sections),
-        "engineering_practices": context_signal(sections, ("engineering_practices",), "[PENDING TECHNOLOGY CONTEXT] Provide engineering handbook, ADRs, style rules, logging/error patterns or repo conventions."),
+        "engineering_practices": context_signal(sections, CONTRACT_SIGNAL_KEYS["engineering_practices"], "[PENDING TECHNOLOGY CONTEXT] Provide engineering handbook, ADRs, style rules, logging/error patterns or repo conventions."),
         "validation": validation_contract_for_story(story),
         "autonomy": autonomy_contract_for_story(story),
         "blast_radius": blast_radius_for_story(story),
@@ -111,6 +111,22 @@ def context_signal(sections: dict[str, Any], keys: tuple[str, ...], pending: str
         "summary": str(row.get("summary", "Context retrieved"))[:320],
         "anchor": anchor_for_context_row(row),
     }
+
+
+# IMP-435 (B-09, Q5): the plan sections each contract field reads, in the order `context_signal` tries them. The
+# governed Markdown names these and the pack; the retrieved hit and its anchor stay in the JSON packs.
+CONTRACT_SIGNAL_KEYS = {
+    "commands": ("execution_commands",),
+    "critical_surfaces": ("critical_surfaces", "technical_dependencies"),
+    "design_match": ("design_match", "ux_states"),
+    "engineering_practices": ("engineering_practices",),
+}
+
+
+def context_signal_reference(field: str) -> str:
+    """The deterministic reference of a confirmed contract field: its plan sections in the backlog context pack."""
+    names = ", ".join(f"`{key}`" for key in CONTRACT_SIGNAL_KEYS[field])
+    return f"{names} in `{BACKLOG_CONTEXT_PACK}`"
 
 
 def anchor_for_context_row(row: dict[str, Any]) -> dict[str, Any]:
@@ -152,7 +168,7 @@ def read_plan_for_row(row: dict[str, Any]) -> dict[str, Any]:
 def design_signal_for_story(story: dict[str, Any], sections: dict[str, Any]) -> dict[str, Any]:
     if story.get("domain") != "design" and story.get("label") != "Enabler":
         return {"status": "Not Applicable", "source": "N/A", "summary": "No direct design execution contract is required for this story unless design context later marks it as impacted."}
-    return context_signal(sections, ("design_match", "ux_states"), "[PENDING DESIGN CONTEXT] Provide prototype, UX states, components, tokens, accessibility or interaction rules.")
+    return context_signal(sections, CONTRACT_SIGNAL_KEYS["design_match"], "[PENDING DESIGN CONTEXT] Provide prototype, UX states, components, tokens, accessibility or interaction rules.")
 
 
 def agent_profile_for_story(story: dict[str, Any]) -> str:
@@ -638,10 +654,10 @@ def render_agent_execution_contract(contract: dict[str, Any]) -> str:
 | Readiness | {contract.get('readiness', 'Needs Domain Context')} |
 | Agent profile | {contract.get('agent_profile', 'Planning agent')} |
 | Decision priority | {contract.get('decision_priority', 'Business value > correctness > safety > evidence')} |
-| Commands | {render_context_signal_inline(commands)} |
-| Critical surfaces | {render_context_signal_inline(critical_surfaces)} |
-| Design match | {render_context_signal_inline(design_match)} |
-| Engineering practices | {render_context_signal_inline(engineering_practices)} |
+| Commands | {render_context_signal_inline(commands, "commands")} |
+| Critical surfaces | {render_context_signal_inline(critical_surfaces, "critical_surfaces")} |
+| Design match | {render_context_signal_inline(design_match, "design_match")} |
+| Engineering practices | {render_context_signal_inline(engineering_practices, "engineering_practices")} |
 | Fail-to-Pass | {validation.get('fail_to_pass', '[PENDING QUALITY CONTEXT]')} |
 | Pass-to-Pass | {validation.get('pass_to_pass', '[PENDING QUALITY CONTEXT]')} |
 | Evidence | {validation.get('evidence', '[PENDING QUALITY CONTEXT]')} |
@@ -699,13 +715,13 @@ def render_task_seed_row(seed: dict[str, Any]) -> str:
     )
 
 
-def render_context_signal_inline(signal: dict[str, Any]) -> str:
+def render_context_signal_inline(signal: dict[str, Any], field: str) -> str:
+    """IMP-435 (B-09, Q5): a confirmed row names its pack sections; the hit text and its anchor stay in the pack."""
     status = signal.get("status", "Pending")
+    if status == "Confirmed":
+        return f"{status}: {context_signal_reference(field)}"
     source = signal.get("source", "[PENDING DOMAIN CONTEXT]")
     summary = table_cell(signal.get("summary", ""), 220)
-    anchor = render_anchor_inline(signal.get("anchor", {}))
-    if anchor:
-        return f"{status}: {source} - {summary} ({anchor})"
     return f"{status}: {source} - {summary}"
 
 

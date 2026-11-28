@@ -52,8 +52,12 @@ def flow(work: Path, backend: str | None = "json") -> Iterator[None]:
         os.environ.update(saved)
 
 
-def build_alta(work: Path, sources: Path, backend: str | None = "json", until_backlog: bool = True) -> Path:
-    """Project ALTA from the request and answers copied into `sources` (a folder outside `work`)."""
+def build_alta(work: Path, sources: Path, backend: str | None = "json", until_backlog: bool = True,
+               technical: bool = False) -> Path:
+    """Project ALTA from the request and answers copied into `sources` (a folder outside `work`).
+
+    `technical` places `contexto_tecnico_alta.md` in the technology context and reindexes before `/backlog`, so the
+    Agent Execution Contract has retrieved commands, surfaces and practices."""
     sources.mkdir(parents=True, exist_ok=True)
     for name in ("pedido_alta.md", "respuestas_alta.md"):
         shutil.copy(FX / name, sources / name)
@@ -61,11 +65,16 @@ def build_alta(work: Path, sources: Path, backend: str | None = "json", until_ba
     steps = [["init", "ALTA"], ["ingest", "ALTA", "--source", str(sources / "pedido_alta.md")],
              ["resolve-gaps", "ALTA", "--source", str(sources / "respuestas_alta.md")],
              ["brief", "ALTA", "--profile", "UI", "--genesis", "greenfield"], ["specs", "ALTA"]]
-    if until_backlog:
-        steps.append(["backlog", "ALTA"])
     with flow(work, backend):
         for argv in steps:
             run_ok(argv)
+        if technical:
+            target = work / "workspaces" / "ALTA" / "00_raw" / "02_technology_context"
+            target.mkdir(parents=True, exist_ok=True)
+            shutil.copy(FX / "contexto_tecnico_alta.md", target / "contexto_tecnico_alta.md")
+            run_ok(["reindex", "ALTA"])
+        if until_backlog:
+            run_ok(["backlog", "ALTA"])
     return work / "workspaces" / "ALTA"
 
 
@@ -132,23 +141,34 @@ class SnapshotCut(unittest.TestCase):
 class BackendIndependence(unittest.TestCase):
     @unittest.skipUnless(HAS_LANCEDB, "lancedb is not installed")
     def test_governed_md_backend_independent(self):
-        """B-09 (Q5): JSON index and LanceDB write the same prd.md, specs.md, EPIC-001.md and US-*.md."""
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            sources = root / "src"
-            json_ws = build_alta(root / "json", sources, "json")
-            lance_ws = build_alta(root / "lance", sources, None)
-            self.assertTrue(any((lance_ws / "memory.lancedb").rglob("*.lance")), "LanceDB was not used")
-            self.assertFalse(any((json_ws / "memory.lancedb").rglob("*.lance")), "the JSON run used LanceDB")
-            stories = sorted(p.name for p in (json_ws / "04_backlog").glob("US-*.md"))
-            self.assertTrue(stories)
-            self.assertEqual(stories, sorted(p.name for p in (lance_ws / "04_backlog").glob("US-*.md")))
-            for relative in ["03_specs/prd.md", "03_specs/specs.md", "04_backlog/EPIC-001.md",
-                             *(f"04_backlog/{name}" for name in stories)]:
-                a = (json_ws / relative).read_text(encoding="utf-8")
-                b = (lance_ws / relative).read_text(encoding="utf-8")
-                self.assertEqual(a, b, relative)
-                self.assertNotIn("Retrieved Signal", a, relative)
+        """B-09 (Q5): JSON index and LanceDB write the same prd.md, specs.md, EPIC-001.md and US-*.md.
+
+        Also with technical context: the Agent Execution Contract rows (Commands, Critical surfaces, Design match,
+        Engineering practices) and the task seeds name the context-pack sections, never the retrieved text."""
+        for technical in (False, True):
+            with self.subTest(technical=technical), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                sources = root / "src"
+                json_ws = build_alta(root / "json", sources, "json", technical=technical)
+                lance_ws = build_alta(root / "lance", sources, None, technical=technical)
+                self.assertTrue(any((lance_ws / "memory.lancedb").rglob("*.lance")), "LanceDB was not used")
+                self.assertFalse(any((json_ws / "memory.lancedb").rglob("*.lance")), "the JSON run used LanceDB")
+                stories = sorted(p.name for p in (json_ws / "04_backlog").glob("US-*.md"))
+                self.assertTrue(stories)
+                self.assertEqual(stories, sorted(p.name for p in (lance_ws / "04_backlog").glob("US-*.md")))
+                for relative in ["03_specs/prd.md", "03_specs/specs.md", "04_backlog/EPIC-001.md",
+                                 *(f"04_backlog/{name}" for name in stories)]:
+                    a = (json_ws / relative).read_text(encoding="utf-8")
+                    b = (lance_ws / relative).read_text(encoding="utf-8")
+                    self.assertEqual(a, b, relative)
+                    self.assertNotIn("Retrieved Signal", a, relative)
+                    if relative.startswith("04_backlog/"):
+                        self.assertNotIn("Anchor:", a, relative)
+                        for hit_text in ("ProveedorAltaService", "AprobacionesQueue", "masked in logs"):
+                            self.assertNotIn(hit_text, a, relative)
+                if technical:
+                    story = (json_ws / "04_backlog" / stories[0]).read_text(encoding="utf-8")
+                    self.assertIn("| Commands | Confirmed: `execution_commands` in `08_context_packs/backlog_generation.json` |", story)
 
 
 class ReadOnlyCommands(unittest.TestCase):

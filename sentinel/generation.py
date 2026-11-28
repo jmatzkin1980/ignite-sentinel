@@ -6,7 +6,6 @@ from pathlib import Path
 import re
 from typing import Any
 
-from .core.markdown import table_cell
 from .memory import apply_pack_disclosure_budget, get_multi_domain_context, shared_broker, shared_brokers
 from . import id_registry
 from .story_ids import carry_modificada_por, ensure_story_ids_seeded, is_change_story
@@ -19,6 +18,7 @@ from .core.markdown import parse_table_rows
 from .deltas import DELTA_LEGEND, DeltaStatus, delta_marker
 from .compilers.backlog import (
     build_agent_execution_contract,
+    context_signal_reference,
     build_domain_context_coverage,
     render_backlog_context_summary,
     render_enabler_boundary,
@@ -892,11 +892,9 @@ def task_seed_surfaces(story: dict[str, Any]) -> list[str]:
     signal = story.get("execution_contract", {}).get("critical_surfaces", {})
     if not isinstance(signal, dict):
         return ["[PENDING DOMAIN CONTEXT] Critical surfaces are not confirmed."]
-    status = str(signal.get("status", "Pending"))
-    summary = str(signal.get("summary", "")).strip()
-    source = str(signal.get("source", "")).strip()
-    if status == "Confirmed" and summary:
-        return [table_cell(f"{source}: {summary}" if source else summary, 220)]
+    if str(signal.get("status", "Pending")) == "Confirmed":
+        # IMP-435 (B-09, Q5): the seed names the pack sections; the retrieved surface text stays in the pack.
+        return [context_signal_reference("critical_surfaces")]
     return ["[PENDING DOMAIN CONTEXT] Critical surfaces are not confirmed."]
 
 
