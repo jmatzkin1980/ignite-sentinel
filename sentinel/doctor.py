@@ -663,7 +663,7 @@ def network_isolation_check() -> dict[str, str]:
     violations = network_import_violations(package_dir)
     if violations:
         return {"name": label, "status": "FAIL", "detail": "; ".join(violations)}
-    return {"name": label, "status": "PASS", "detail": "no socket/urllib/http/ftplib/smtplib/ssl or HTTP client imports; webbrowser only on file://"}
+    return {"name": label, "status": "PASS", "detail": f"no socket/urllib/http/ftplib/smtplib/ssl or HTTP client imports, except {NETWORK_MODULE_HOME} (the `/setup --semantic-memory` download, run as a subprocess and imported by no module); webbrowser only on file://"}
 
 
 # IMP-277: naming convention and description best practices for distribution.

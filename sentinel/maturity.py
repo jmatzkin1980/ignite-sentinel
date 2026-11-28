@@ -469,8 +469,12 @@ def refuse_change_only_brief(project_id: str) -> None:
 
     open_changes = sorted(list_changes(project_id))
     if open_changes:
+        from .changes import refusal_language
+
+        es = refusal_language(project_id, open_changes[0]) == "es"
         raise GateRefusal(
-            f"{project_id} sólo tiene cambios: no hay 02_requirements/requirements.md del proyecto",
+            f"{project_id} sólo tiene cambios: no hay 02_requirements/requirements.md del proyecto" if es
+            else f"{project_id} only has changes: there is no project 02_requirements/requirements.md",
             next_step=f"/brief {project_id} --change {open_changes[0]}",
         )
 
@@ -486,7 +490,7 @@ def refuse_change_only_maturity(project_id: str) -> None:
     raise GateRefusal(
         f"{project_id} sólo tiene cambios: /maturity mide el brief del proyecto, que no existe. "
         f"La preparación de un cambio se ve con /next {project_id} --change {first}" if es
-        else f"{project_id} only holds changes: /maturity measures the project brief, which does not exist. "
+        else f"{project_id} only has changes: /maturity measures the project brief, which does not exist. "
         f"A change's readiness is shown by /next {project_id} --change {first}",
         next_step=f"/status {project_id} --change {first}",
     )

@@ -56,15 +56,19 @@ def check_change_deliverable(project_id: str, command: str, artifact: str, chang
 
     taken = tuple(name for name in CHANGE_DELIVERABLES if command != "export" or name in EXPORT_ARTIFACTS)
     if artifact.lower() not in taken:  # B-17: the refusal lists what the command takes, and its next step is a command
+        es = refusal_language(project_id, change_id) == "es"
         raise InputError(
-            f"/{command} --change sólo admite {' o '.join(taken)}, no {artifact}: el resto es del proyecto (sin --change).",
+            f"/{command} --change sólo admite {' o '.join(taken)}, no {artifact}: el resto es del proyecto (sin --change)." if es
+            else f"/{command} --change only takes {' or '.join(taken)}, not {artifact}: the rest belongs to the project (without --change).",
             next_step=f"/{command} {project_id} --artifact {artifact}",
         )
     get_change(project_id, change_id)
     allowed = CHANGE_FORMATS.get(artifact.lower(), ())
     if fmt is not None and artifact.lower() in REVIEW_DELIVERABLES and fmt not in allowed:
+        es = refusal_language(project_id, change_id) == "es"
         raise InputError(
-            f"/{command} --artifact {artifact} --change sólo admite el formato {' o '.join(allowed)}, no {fmt}.",
+            f"/{command} --artifact {artifact} --change sólo admite el formato {' o '.join(allowed)}, no {fmt}." if es
+            else f"/{command} --artifact {artifact} --change only takes the format {' or '.join(allowed)}, not {fmt}.",
             next_step=f"/{command} {project_id} --artifact {artifact} --change {change_id}",
         )
 
@@ -87,8 +91,10 @@ def refuse_change_only_deliverable(project_id: str, command: str, artifact: str)
         return
     open_changes = sorted(list_changes(project_id))
     if open_changes:
+        es = refusal_language(project_id, open_changes[0]) == "es"
         raise GateRefusal(
-            f"{project_id} sólo tiene cambios: no hay {artifact} del proyecto para /{command}",
+            f"{project_id} sólo tiene cambios: no hay {artifact} del proyecto para /{command}" if es
+            else f"{project_id} only has changes: there is no project {artifact} for /{command}",
             next_step=f"/{command} {project_id} --artifact {artifact} --change {open_changes[0]}",
         )
 
@@ -99,8 +105,10 @@ def refuse_change_only_specs(project_id: str, command: str = "specs") -> None:
         return
     open_changes = sorted(list_changes(project_id))
     if open_changes:
+        es = refusal_language(project_id, open_changes[0]) == "es"
         raise GateRefusal(
-            f"{project_id} sólo tiene cambios: no hay 02_requirements/requirements.md del proyecto para /{command}",
+            f"{project_id} sólo tiene cambios: no hay 02_requirements/requirements.md del proyecto para /{command}" if es
+            else f"{project_id} only has changes: there is no project 02_requirements/requirements.md for /{command}",
             next_step=f"/{command} {project_id} --change {open_changes[0]}",
         )
 
