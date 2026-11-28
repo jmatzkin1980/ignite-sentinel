@@ -144,7 +144,7 @@ class CoherenceCache(PriorDecisionCase):
 
     def test_state_is_rendered_once_per_input_state(self):
         waive_crosses(PID, CID)
-        coh.refresh_coherence(PID, CID)
+        coh.refresh_coherence(PID, CID, persist=True)  # IMP-435 (C-06): only a write stores the stamp
         coh._FINGERPRINTS.clear()
         with self.renders() as spy:
             first = coh.coherence_state(PID, CID)

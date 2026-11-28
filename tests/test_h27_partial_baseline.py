@@ -10,7 +10,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from helpers import SyncCase, run_ok  # noqa: E402
+from helpers import SyncCase, place_harvest_docs, run_ok  # noqa: E402
 
 from sentinel.changes import get_change  # noqa: E402
 from sentinel.cli import main  # noqa: E402
@@ -94,6 +94,7 @@ class PartialBaselineTests(PartialCase):
 
     def test_same_absence_asked_once(self):
         shutil.copy(PARCIAL, Path.cwd() / "harvest_parcial.md")
+        place_harvest_docs(self.PID, (Path.cwd() / "harvest_parcial.md").read_text(encoding="utf-8"))  # IMP-435 (B-37)
         run_ok(["harvest", self.PID, "--source", "harvest_parcial.md", "--change", CID])
         forget_read_snapshots()
         mine = [c for c in new_surface_candidates(self.PID, CID) if c["text"].startswith(ABSENCE)]
@@ -114,6 +115,7 @@ class PartialBaselineTests(PartialCase):
             f"- [NO ENCONTRADO manual-compras:manual-compras.md] {ABSENCE} de altas para la jefatura.\n"
             f"- [NO ENCONTRADO sad-compras:sad-compras.md] {ABSENCE.upper()} DE ALTAS PARA LA JEFATURA.\n",
             encoding="utf-8")
+        place_harvest_docs(self.PID, (Path.cwd() / "harvest_dos_refs.md").read_text(encoding="utf-8"))  # IMP-435 (B-37)
         run_ok(["harvest", self.PID, "--source", "harvest_dos_refs.md", "--change", CID])
         forget_read_snapshots()
         from sentinel.crosses.surfaces import candidate_id
