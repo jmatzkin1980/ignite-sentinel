@@ -145,18 +145,18 @@ def _sync_graph(main_graph: dict[str, Any], mirror_graph: dict[str, Any], relati
 
 
 def _copy_tree(src: Path, dst: Path) -> None:
-    from .core.io import copy_file
+    from .core.io import copy_file_if_changed
 
     if src.is_dir():
         for path in sorted(p for p in src.rglob("*") if p.is_file()):
-            copy_file(path, dst / path.relative_to(src))
+            copy_file_if_changed(path, dst / path.relative_to(src))
     elif src.is_file():
-        copy_file(src, dst)
+        copy_file_if_changed(src, dst)
 
 
 def prepare_mirror(project_id: str, rid: str, root: Path) -> Path:
     """Refresh the release mirror from the project; return the mirror root (the cwd to run in)."""
-    from .core.io import read_json, remove, write_json, write_text
+    from .core.io import read_json, remove, write_json_if_changed as write_json, write_text_if_changed as write_text
 
     main = root / "workspaces" / project_id
     if not RELEASE_ID_RE.match(rid):
@@ -180,17 +180,20 @@ def prepare_mirror(project_id: str, rid: str, root: Path) -> Path:
             continue
         _copy_tree(child, mirror / child.name)
     requirements = main / "02_requirements"
+    # IMP-435 (C-15): the files the mirror rewrites are built from the project's copy, never copied first and then
+    # rewritten, so a mirror already up to date is not written at all.
+    derived = {"project-brief.md", "requirements.md", "brief_compile_report.json"}
     for child in sorted(requirements.iterdir()):
-        if child.is_file() and child.name != "project-brief.md":
+        if child.is_file() and child.name not in derived:
             _copy_tree(child, mirror / "02_requirements" / child.name)
     brief_text = brief.read_text(encoding="utf-8")
     write_text(mirror / "02_requirements" / "project-brief.md", brief_text)
-    req = mirror / "02_requirements" / "requirements.md"
-    if req.is_file():
-        write_text(req, _strip_ears(req.read_text(encoding="utf-8")))
-    report = mirror / "02_requirements" / "brief_compile_report.json"
-    if report.is_file():
-        write_json(report, _release_compile_report(read_json(report, None), brief_text))
+    if (requirements / "requirements.md").is_file():
+        write_text(mirror / "02_requirements" / "requirements.md",
+                   _strip_ears((requirements / "requirements.md").read_text(encoding="utf-8")))
+    if (requirements / "brief_compile_report.json").is_file():
+        write_json(mirror / "02_requirements" / "brief_compile_report.json",
+                   _release_compile_report(read_json(requirements / "brief_compile_report.json", None), brief_text))
     for stale in ("split_assessment.json", "split_assessment.md"):
         if (mirror / "01_discovery" / stale).exists():
             remove(mirror / "01_discovery" / stale)  # the mirror's own copy; the project keeps its assessment
@@ -220,8 +223,11 @@ def remap(text: str, project_id: str, rid: str, root: Path) -> str:
 
 
 def mirror_outputs(project_id: str, rid: str, root: Path) -> list[str]:
-    """Mirror the release's outputs to `<folder>/<rN>/`, paths inside rewritten. Returns the written files."""
-    from .core.io import copy_file, remove, write_text
+    """Mirror the release's outputs to `<folder>/<rN>/`, paths inside rewritten. Returns the written files.
+
+    IMP-435 (C-15): a file whose bytes did not change is left untouched, so a read-only command run with `--release`
+    (`/status`, `/next`, `/validate`, `/view`) does not move the modification time of every release output."""
+    from .core.io import copy_file_if_changed, remove, write_text_if_changed
 
     main = root / "workspaces" / project_id
     mirror = main / WORK_DIR / rid / "workspaces" / project_id
@@ -238,10 +244,11 @@ def mirror_outputs(project_id: str, rid: str, root: Path) -> list[str]:
             target = dst / relative
             produced.add(target)
             if path.suffix.lower() in TEXT_SUFFIXES:
-                write_text(target, remap(path.read_text(encoding="utf-8", errors="replace"), project_id, rid, root))
+                changed = write_text_if_changed(target, remap(path.read_text(encoding="utf-8", errors="replace"), project_id, rid, root))
             else:
-                copy_file(path, target)
-            written.append(target.as_posix())
+                changed = copy_file_if_changed(path, target)
+            if changed:
+                written.append(target.as_posix())
         for old in sorted(p for p in dst.rglob("*") if p.is_file()) if dst.is_dir() else []:
             if old not in produced:
                 remove(old)  # a generated mirror file the release no longer produces

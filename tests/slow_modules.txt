@@ -74,3 +74,4 @@ test_inc9a_backlog  # 39 s
 test_inc9a_project_next  # 41 s
 test_inc9a_change_final  # 18 s
 test_inc9a_change_series  # 93 s
+test_inc9a_deterministic  # 52 s (IMP-435 inc 9a task 6, measured 2026-11-28)

@@ -69,10 +69,10 @@ def normalized_sha256(data: bytes, tokens: list[tuple[str, str]]) -> str:
         text = text.replace(value, token)
     text = re.sub(r"[0-9a-f]{64}", "<SHA256>", text)
     text = re.sub(r"`[0-9a-f]{12}`", "`<SHA12>`", text)
-    # specs.md is cut at a fixed length and the absolute source paths it quotes count toward it, so where it is cut
-    # depends on the checkout path (a 45-character checkout already cuts it at line 77): compare its first 60 lines.
-    if "## Backlog-Relevant Contract" in text or "[TRUNCATED IN GENERATED ARTIFACT" in text or "#### Ready to build" in text:
-        text = chr(10).join(text.split("#### Ready to build")[0].split(chr(10))[:60])
+    # IMP-435: the day the flow runs (a release closed, a unit moved: `date` in partition.json, scope_changes.*, the
+    # release guide) is not part of the bytes; with it the baseline only held on the day it was taken.
+    text = re.sub(r"(?<![0-9])[0-9]{4}-[0-9]{2}-[0-9]{2}(?![0-9])", "<DATE>", text)
+    # IMP-435 (B-08): specs.md quotes no machine path and is cut at a line boundary, so it is compared whole.
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 

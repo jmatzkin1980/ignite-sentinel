@@ -119,6 +119,7 @@ def _runtime_checks(root: Path) -> list[dict[str, str]]:
         memory_dependency_check(),
         semantic_embedder_check(),
         lancedb_smoke_check(),
+        lancedb_pin_check(),
         memory_backend_mode_check(),
         optional_dependency_check("sentence_transformers"),
         mcp_dependency_check(),
@@ -195,6 +196,7 @@ def run_doctor(root: Path | None = None) -> dict[str, Any]:
         memory_dependency_check(),
         semantic_embedder_check(),
         lancedb_smoke_check(),
+        lancedb_pin_check(),
         memory_backend_mode_check(),
         optional_dependency_check("sentence_transformers"),
         mcp_dependency_check(),
@@ -1974,6 +1976,41 @@ def lancedb_smoke_check() -> dict[str, str]:
             "status": "FAIL",
             "detail": str(exc),
         }
+
+
+LANCEDB_PIN_FILE = Path(__file__).resolve().parents[1] / "constraints" / "memory.txt"
+
+
+def lancedb_pin_check(constraints: Path | None = None) -> dict[str, str]:
+    """IMP-435 (B-39): the installed LanceDB against the version `constraints/memory.txt` pins.
+
+    A different version ranks retrieval hits differently (B-09), so it is a WARN that names both versions."""
+    name = "LanceDB pinned version"
+    path = constraints or LANCEDB_PIN_FILE
+    if importlib.util.find_spec("lancedb") is None:
+        return {"name": name, "status": "PASS", "detail": "lancedb is not installed; the JSON index has no version pin"}
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError:
+        return {"name": name, "status": "PASS", "detail": f"no pin to compare: {path.name} is not readable here"}
+    found = re.search(r"^lancedb==([^\s;\\]+)", text, re.MULTILINE)
+    if not found:
+        return {"name": name, "status": "PASS", "detail": f"{path.name} pins no lancedb version"}
+    try:
+        import lancedb  # type: ignore
+
+        installed = str(getattr(lancedb, "__version__", "") or importlib.metadata.version("lancedb"))
+    except Exception as exc:  # noqa: BLE001 - the smoke check reports a broken install
+        return {"name": name, "status": "WARN", "detail": f"lancedb version unreadable ({exc}); pinned {found.group(1)}"}
+    pinned = found.group(1)
+    if installed == pinned:
+        return {"name": name, "status": "PASS", "detail": f"lancedb {installed} is the pinned version"}
+    return {
+        "name": name,
+        "status": "WARN",
+        "detail": (f"lancedb {installed} is installed but {path.name} pins {pinned}: retrieval may rank hits differently. "
+                   f"Install the pinned version: python -m pip install -c constraints/memory.txt lancedb=={pinned}"),
+    }
 
 
 def memory_backend_mode_check() -> dict[str, str]:

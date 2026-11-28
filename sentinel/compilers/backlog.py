@@ -6,7 +6,12 @@ from ..core.markdown import table_cell
 from ..brief_model import load_brief_model
 from ..core.markdown import frontmatter_list
 from ..slicing_model import load_slicing_model
-from .prd import EARS_REQUIREMENT_ID_RE, ears_trace_ids, render_ears_requirements_table
+from .prd import (
+    BACKLOG_TRACE_TYPES, EARS_REQUIREMENT_ID_RE, context_trace_cell, ears_trace_ids, graph_trace_ids, plan_lenses_cell,
+    render_ears_requirements_table,
+)
+
+BACKLOG_CONTEXT_PACK = "08_context_packs/backlog_generation.json"
 
 TASK_SEED_BOUNDARY_NOTE = (
     "Task seeds are optional implementation intentions for downstream agents. "
@@ -16,17 +21,19 @@ TASK_SEED_BOUNDARY_NOTE = (
 )
 
 
+DOMAIN_SPECS = (
+    ("Product", ("epic_value", "functional_slicing"), "Defines value, scope, slicing, FR/JTBD links and acceptance intent."),
+    ("Technology", ("technical_dependencies", "execution_commands", "critical_surfaces", "engineering_practices"), "Defines architecture, commands, affected surfaces, constraints and implementation risks."),
+    ("Design", ("ux_states", "design_match"), "Defines journeys, screens, states, components, tokens and interaction rules."),
+    ("Quality", ("quality_risks", "regression_contract"), "Defines testability, regression, evidence, test data and quality gates."),
+    ("Delivery", ("open_uncertainty",), "Defines blockers, sequencing, dependencies, roadmap and planning uncertainty."),
+)
+
+
 def build_domain_context_coverage(backlog_context: dict[str, Any]) -> list[dict[str, str]]:
     sections = backlog_context.get("sections", {}) if isinstance(backlog_context, dict) else {}
-    domain_specs = [
-        ("Product", ("epic_value", "functional_slicing"), "Defines value, scope, slicing, FR/JTBD links and acceptance intent."),
-        ("Technology", ("technical_dependencies", "execution_commands", "critical_surfaces", "engineering_practices"), "Defines architecture, commands, affected surfaces, constraints and implementation risks."),
-        ("Design", ("ux_states", "design_match"), "Defines journeys, screens, states, components, tokens and interaction rules."),
-        ("Quality", ("quality_risks", "regression_contract"), "Defines testability, regression, evidence, test data and quality gates."),
-        ("Delivery", ("open_uncertainty",), "Defines blockers, sequencing, dependencies, roadmap and planning uncertainty."),
-    ]
     coverage: list[dict[str, str]] = []
-    for domain, keys, impact in domain_specs:
+    for domain, keys, impact in DOMAIN_SPECS:
         evidence = first_context_result(sections, keys)
         status = "Confirmed" if evidence else "Pending"
         coverage.append(
@@ -339,7 +346,7 @@ Backlog generation consumes living domain context when Technology, Design, Quali
 
 ## Retrieved Context Summary
 
-{render_backlog_context_summary(backlog_context)}
+{render_backlog_context_summary(backlog_context, graph_trace_ids(project_id, BACKLOG_TRACE_TYPES))}
 
 ## Stories
 
@@ -433,7 +440,7 @@ An item belongs here only when all checks pass:
 
 ## Retrieved Context Summary
 
-{render_backlog_context_summary(backlog_context)}
+{render_backlog_context_summary(backlog_context, graph_trace_ids(project_id, BACKLOG_TRACE_TYPES))}
 
 ## Stories
 
@@ -597,11 +604,19 @@ def render_gherkin_criterion(criterion: dict[str, str]) -> str:
 > Then {criterion['then']}."""
 
 
+def coverage_evidence_cell(row: dict[str, str]) -> str:
+    """IMP-435 (B-09, Q5): a confirmed domain names the backlog-pack needs that cover it; the hit stays in the pack."""
+    keys = next((keys for domain, keys, _ in DOMAIN_SPECS if domain == row.get("domain")), ())
+    if row.get("status") == "Confirmed" and keys:
+        return ", ".join(f"`{key}`" for key in keys)
+    return str(row.get("evidence", "[PENDING DOMAIN CONTEXT]"))
+
+
 def render_domain_context_coverage(coverage: list[dict[str, str]]) -> str:
     if not coverage:
         return "| Domain | Evidence Used | Status | Impact |\n| --- | --- | --- | --- |\n| All | [PENDING DOMAIN CONTEXT] | Pending | No domain coverage was available at generation time. |"
     rows = "\n".join(
-        f"| {row.get('domain', 'Unknown')} | {row.get('evidence', '[PENDING DOMAIN CONTEXT]')} | {row.get('status', 'Pending')} | {table_cell(row.get('impact', ''), 180)} |"
+        f"| {row.get('domain', 'Unknown')} | {coverage_evidence_cell(row)} | {row.get('status', 'Pending')} | {table_cell(row.get('impact', ''), 180)} |"
         for row in coverage
     )
     return f"""| Domain | Evidence Used | Status | Impact |
@@ -823,24 +838,13 @@ This file mirrors the story embedded in its parent epic so quality and traceabil
 """
 
 
-def render_backlog_context_summary(context: dict[str, object]) -> str:
+def render_backlog_context_summary(context: dict[str, object], trace: list[str] | None = None,
+                                   pack: str = BACKLOG_CONTEXT_PACK) -> str:
+    """IMP-435 (B-09, Q5): one row per need of the plan, with its lenses, the graph trace and the pack; no hit is quoted."""
     sections = context.get("sections", {}) if isinstance(context, dict) else {}
+    header = "| Backlog Need | Lenses | Trace | Context Pack |\n| --- | --- | --- | --- |\n"
     if not isinstance(sections, dict) or not sections:
-        return "| Need | Retrieved Signal | Artifact | Trace |\n| --- | --- | --- | --- |\n| backlog | No focused context retrieved. | N/A | N/A |"
-    rows: list[str] = []
-    for section, payload in sections.items():
-        if not isinstance(payload, dict):
-            continue
-        results = payload.get("results", [])
-        if not results:
-            rows.append(f"| {section} | No focused context retrieved. | N/A | N/A |")
-            continue
-        top = results[0]
-        if not isinstance(top, dict):
-            continue
-        trace_ids = top.get("trace_ids", [])
-        trace = ", ".join(trace_ids) if isinstance(trace_ids, list) else str(trace_ids)
-        rows.append(
-            f"| {section} | {table_cell(top.get('summary', 'Context retrieved'), 180)} | `{top.get('artifact_id', 'N/A')}` | {table_cell(trace or 'N/A', 80)} |"
-        )
-    return "| Backlog Need | Retrieved Signal | Artifact | Trace |\n| --- | --- | --- | --- |\n" + "\n".join(rows)
+        return header + f"| backlog | any | {context_trace_cell(trace)} | `{pack}` |"
+    rows = [f"| {section} | {plan_lenses_cell(payload)} | {context_trace_cell(trace)} | `{pack}` |"
+            for section, payload in sections.items() if isinstance(payload, dict)]
+    return header + "\n".join(rows)

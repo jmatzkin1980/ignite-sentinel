@@ -11,7 +11,10 @@ from ..core.markdown import frontmatter_list, parse_frontmatter, parse_table_row
 from ..deltas import DeltaStatus, delta_marker
 from ..memory import shared_broker
 from ..workspace import read_json, state_path, update_state, workspace_path, write_json
-from .prd import EARS_REQUIREMENT_ID_RE, ears_trace_ids, render_ears_requirements_table, render_prd_section_context
+from .prd import (
+    EARS_REQUIREMENT_ID_RE, SPECS_TRACE_TYPES, ears_trace_ids, graph_trace_ids, render_ears_requirements_table,
+    render_prd_section_context,
+)
 from ..core.io import remove, write_text
 
 
@@ -461,7 +464,7 @@ def render_specs(project_id: str, req_text: str, context: dict[str, object], sou
 
 The mature requirement remains authoritative in `02_requirements/{source_name}`. This spec keeps only the execution signals agents need before progressive disclosure.
 
-{bounded_text(req_text, 2200)}
+{bounded_text(req_text, 2200, at_line=True)}
 
 ## Backlog-Relevant Contract
 
@@ -487,7 +490,7 @@ These rows are parsed from `02_requirements/requirements.md` and remain source-o
 
 ## Progressive Disclosure Context Map
 
-{render_prd_section_context(context)}
+{render_prd_section_context(context, graph_trace_ids(project_id, SPECS_TRACE_TYPES))}
 
 ## Retrieval Plan For Backlog Agents
 
@@ -528,8 +531,17 @@ Backlog seeds are derived from evidence-backed spec units. If no unit exists, ba
 """
 
 
-def bounded_text(text: str, limit: int) -> str:
+def bounded_text(text: str, limit: int, at_line: bool = False) -> str:
+    """`text` up to `limit` characters. IMP-435 (B-08): `at_line` cuts at the last line boundary before the limit, so
+    the snapshot never ends in the middle of a line or a word (a single line longer than the limit is cut at a word)."""
     cleaned = text.strip()
     if len(cleaned) <= limit:
         return cleaned
-    return cleaned[:limit].rstrip() + "\n\n[TRUNCATED IN GENERATED ARTIFACT - retrieve focused source context if needed]"
+    head = cleaned[:limit]
+    if at_line:
+        boundary = cleaned.rfind("\n", 0, limit + 1)
+        if boundary > 0:
+            head = cleaned[:boundary]
+        elif " " in head:
+            head = head.rsplit(" ", 1)[0]
+    return head.rstrip() + "\n\n[TRUNCATED IN GENERATED ARTIFACT - retrieve focused source context if needed]"

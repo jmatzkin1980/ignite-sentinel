@@ -1620,14 +1620,6 @@
     "question": "",
     "response_needed": false,
     "statement": ""
-   },
-   {
-    "audience": "client",
-    "expected_format": "Rules in EARS form when they describe behavior: If <condition/rule>, then the system shall <response>; include thresholds and exceptions.",
-    "id": "GAP-BUSINESS-RULES",
-    "question": "Which rules, exceptions, validations, fallbacks, or exclusions govern the behavior?",
-    "response_needed": true,
-    "statement": ""
    }
   ],
   "markers": [
@@ -1828,36 +1820,6 @@
    },
    {
     "id": "marker-40",
-    "marker": "GAP-BUSINESS-RULES",
-    "section_id": "section-39"
-   },
-   {
-    "id": "marker-41",
-    "marker": "GAP-PRD-PERSONA-DETAIL",
-    "section_id": "section-39"
-   },
-   {
-    "id": "marker-42",
-    "marker": "[PENDING INPUT]",
-    "section_id": "section-39"
-   },
-   {
-    "id": "marker-43",
-    "marker": "GAP-TECH-DATA-SOURCE",
-    "section_id": "section-39"
-   },
-   {
-    "id": "marker-44",
-    "marker": "GAP-BUSINESS-RULES",
-    "section_id": "section-39"
-   },
-   {
-    "id": "marker-45",
-    "marker": "GAP-PRD-PERSONA-DETAIL",
-    "section_id": "section-39"
-   },
-   {
-    "id": "marker-46",
     "marker": "[PENDING INPUT]",
     "section_id": "section-42"
    }
@@ -2163,22 +2125,6 @@
     "question": "What observable conditions prove the requirement is done?",
     "response_needed": false,
     "statement": ""
-   },
-   {
-    "audience": "client",
-    "expected_format": "Rules in EARS form when they describe behavior: If <condition/rule>, then the system shall <response>; include thresholds and exceptions.",
-    "id": "GAP-BUSINESS-RULES",
-    "question": "Which rules, exceptions, validations, fallbacks, or exclusions govern the behavior?",
-    "response_needed": true,
-    "statement": ""
-   },
-   {
-    "audience": "client",
-    "expected_format": "Per persona: goal, pains, usage frequency, and proficiency.",
-    "id": "GAP-PRD-PERSONA-DETAIL",
-    "question": "For each type of user: what are their goals and pain points, how familiar are they with this kind of tool, and how often will they use it?",
-    "response_needed": true,
-    "statement": ""
    }
   ],
   "markers": [
@@ -2241,36 +2187,6 @@
     "id": "marker-12",
     "marker": "GAP-ACCEPTANCE",
     "section_id": "section-13"
-   },
-   {
-    "id": "marker-13",
-    "marker": "GAP-BUSINESS-RULES",
-    "section_id": "section-14"
-   },
-   {
-    "id": "marker-14",
-    "marker": "GAP-PRD-PERSONA-DETAIL",
-    "section_id": "section-14"
-   },
-   {
-    "id": "marker-15",
-    "marker": "[PENDING INPUT]",
-    "section_id": "section-14"
-   },
-   {
-    "id": "marker-16",
-    "marker": "GAP-TECH-DATA-SOURCE",
-    "section_id": "section-14"
-   },
-   {
-    "id": "marker-17",
-    "marker": "GAP-BUSINESS-RULES",
-    "section_id": "section-14"
-   },
-   {
-    "id": "marker-18",
-    "marker": "GAP-PRD-PERSONA-DETAIL",
-    "section_id": "section-14"
    }
   ],
   "project_id": "[PROJECT_ID]",
@@ -2331,56 +2247,56 @@
    },
    {
     "id": "section-10",
-    "line_end": 63,
+    "line_end": 61,
     "line_start": 56,
     "section_path": "Project Brief - [PROJECT_ID] > 5. Lente Tecnico: Datos, Conectividad y Arquitectura"
    },
    {
     "id": "section-11",
-    "line_end": 75,
-    "line_start": 64,
+    "line_end": 73,
+    "line_start": 62,
     "section_path": "Project Brief - [PROJECT_ID] > Backlog-Relevant Contract"
    },
    {
     "id": "section-12",
-    "line_end": 86,
-    "line_start": 76,
+    "line_end": 84,
+    "line_start": 74,
     "section_path": "Project Brief - [PROJECT_ID] > Spec Units"
    },
    {
     "id": "section-13",
-    "line_end": 99,
-    "line_start": 87,
+    "line_end": 97,
+    "line_start": 85,
     "section_path": "Project Brief - [PROJECT_ID] > Confirmed EARS Requirements"
    },
    {
     "id": "section-14",
-    "line_end": 112,
-    "line_start": 100,
+    "line_end": 110,
+    "line_start": 98,
     "section_path": "Project Brief - [PROJECT_ID] > Progressive Disclosure Context Map"
    },
    {
     "id": "section-15",
-    "line_end": 124,
-    "line_start": 113,
+    "line_end": 122,
+    "line_start": 111,
     "section_path": "Project Brief - [PROJECT_ID] > Retrieval Plan For Backlog Agents"
    },
    {
     "id": "section-16",
-    "line_end": 137,
-    "line_start": 125,
+    "line_end": 135,
+    "line_start": 123,
     "section_path": "Project Brief - [PROJECT_ID] > Backlog Seeds"
    },
    {
     "id": "section-17",
-    "line_end": 144,
-    "line_start": 138,
+    "line_end": 142,
+    "line_start": 136,
     "section_path": "Project Brief - [PROJECT_ID] > Decision And Assumption Trail"
    },
    {
     "id": "section-18",
-    "line_end": 153,
-    "line_start": 145,
+    "line_end": 151,
+    "line_start": 143,
     "section_path": "Project Brief - [PROJECT_ID] > Traceability"
    }
   ],
@@ -4008,22 +3924,6 @@
     "question": "",
     "response_needed": false,
     "statement": ""
-   },
-   {
-    "audience": "client",
-    "expected_format": "Reglas en formato EARS cuando describen comportamiento: Si <condición/regla>, entonces el sistema debe <respuesta>; incluir umbrales y excepciones.",
-    "id": "GAP-BUSINESS-RULES",
-    "question": "¿Qué reglas, excepciones, validaciones, fallbacks o exclusiones gobiernan el comportamiento?",
-    "response_needed": true,
-    "statement": ""
-   },
-   {
-    "audience": "domain",
-    "expected_format": "",
-    "id": "GAP-PRD-PERSONA-D",
-    "question": "",
-    "response_needed": true,
-    "statement": ""
    }
   ],
   "markers": [
@@ -4224,36 +4124,6 @@
    },
    {
     "id": "marker-40",
-    "marker": "GAP-BUSINESS-RULES",
-    "section_id": "section-39"
-   },
-   {
-    "id": "marker-41",
-    "marker": "GAP-PRD-PERSONA-D",
-    "section_id": "section-39"
-   },
-   {
-    "id": "marker-42",
-    "marker": "[PENDING INPUT]",
-    "section_id": "section-39"
-   },
-   {
-    "id": "marker-43",
-    "marker": "GAP-TECH-DATA-SOURCE",
-    "section_id": "section-39"
-   },
-   {
-    "id": "marker-44",
-    "marker": "GAP-BUSINESS-RULES",
-    "section_id": "section-39"
-   },
-   {
-    "id": "marker-45",
-    "marker": "GAP-PRD-PERSONA-D",
-    "section_id": "section-39"
-   },
-   {
-    "id": "marker-46",
     "marker": "[PENDING INPUT]",
     "section_id": "section-42"
    }
@@ -4559,22 +4429,6 @@
     "question": "¿Qué condiciones observables demuestran que el requerimiento está terminado?",
     "response_needed": false,
     "statement": ""
-   },
-   {
-    "audience": "client",
-    "expected_format": "Reglas en formato EARS cuando describen comportamiento: Si <condición/regla>, entonces el sistema debe <respuesta>; incluir umbrales y excepciones.",
-    "id": "GAP-BUSINESS-RULES",
-    "question": "¿Qué reglas, excepciones, validaciones, fallbacks o exclusiones gobiernan el comportamiento?",
-    "response_needed": true,
-    "statement": ""
-   },
-   {
-    "audience": "domain",
-    "expected_format": "",
-    "id": "GAP-PRD-PERSONA-D",
-    "question": "",
-    "response_needed": true,
-    "statement": ""
    }
   ],
   "markers": [
@@ -4637,36 +4491,6 @@
     "id": "marker-12",
     "marker": "GAP-ACCEPTANCE",
     "section_id": "section-13"
-   },
-   {
-    "id": "marker-13",
-    "marker": "GAP-BUSINESS-RULES",
-    "section_id": "section-14"
-   },
-   {
-    "id": "marker-14",
-    "marker": "GAP-PRD-PERSONA-D",
-    "section_id": "section-14"
-   },
-   {
-    "id": "marker-15",
-    "marker": "[PENDING INPUT]",
-    "section_id": "section-14"
-   },
-   {
-    "id": "marker-16",
-    "marker": "GAP-TECH-DATA-SOURCE",
-    "section_id": "section-14"
-   },
-   {
-    "id": "marker-17",
-    "marker": "GAP-BUSINESS-RULES",
-    "section_id": "section-14"
-   },
-   {
-    "id": "marker-18",
-    "marker": "GAP-PRD-PERSONA-D",
-    "section_id": "section-14"
    }
   ],
   "project_id": "[PROJECT_ID]",
@@ -4727,56 +4551,56 @@
    },
    {
     "id": "section-10",
-    "line_end": 62,
+    "line_end": 60,
     "line_start": 55,
     "section_path": "Project Brief - [PROJECT_ID] > 5. Lente Tecnico: Datos, Conectividad y Arquitectura"
    },
    {
     "id": "section-11",
-    "line_end": 74,
-    "line_start": 63,
+    "line_end": 72,
+    "line_start": 61,
     "section_path": "Project Brief - [PROJECT_ID] > Backlog-Relevant Contract"
    },
    {
     "id": "section-12",
-    "line_end": 85,
-    "line_start": 75,
+    "line_end": 83,
+    "line_start": 73,
     "section_path": "Project Brief - [PROJECT_ID] > Spec Units"
    },
    {
     "id": "section-13",
-    "line_end": 98,
-    "line_start": 86,
+    "line_end": 96,
+    "line_start": 84,
     "section_path": "Project Brief - [PROJECT_ID] > Confirmed EARS Requirements"
    },
    {
     "id": "section-14",
-    "line_end": 111,
-    "line_start": 99,
+    "line_end": 109,
+    "line_start": 97,
     "section_path": "Project Brief - [PROJECT_ID] > Progressive Disclosure Context Map"
    },
    {
     "id": "section-15",
-    "line_end": 123,
-    "line_start": 112,
+    "line_end": 121,
+    "line_start": 110,
     "section_path": "Project Brief - [PROJECT_ID] > Retrieval Plan For Backlog Agents"
    },
    {
     "id": "section-16",
-    "line_end": 136,
-    "line_start": 124,
+    "line_end": 134,
+    "line_start": 122,
     "section_path": "Project Brief - [PROJECT_ID] > Backlog Seeds"
    },
    {
     "id": "section-17",
-    "line_end": 143,
-    "line_start": 137,
+    "line_end": 141,
+    "line_start": 135,
     "section_path": "Project Brief - [PROJECT_ID] > Decision And Assumption Trail"
    },
    {
     "id": "section-18",
-    "line_end": 152,
-    "line_start": 144,
+    "line_end": 150,
+    "line_start": 142,
     "section_path": "Project Brief - [PROJECT_ID] > Traceability"
    }
   ],
