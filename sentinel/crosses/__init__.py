@@ -126,6 +126,6 @@ def run_cross(
     from ..change_coherence import refresh_coherence
     from ..decision_memory import index_change_decisions
 
-    refresh_coherence(project_id, change_id)  # IMP-410: the lens view follows what the cross-reads decided
+    refresh_coherence(project_id, change_id, persist=True)  # IMP-410: the lens view follows what the cross-reads decided
     index_change_decisions(project_id, change_id)  # IMP-410: what the cross-reads decided is retrievable
     return result

@@ -209,7 +209,7 @@ def render_prd_full(
     def gap_ref(gap_id: str) -> str:
         return f"`{pending}`" if change else f"`{gap_id}`"
 
-    section_context = render_prd_section_context(context)
+    section_context = render_prd_section_context(context, graph_trace_ids(project_id, SPECS_TRACE_TYPES))
     title = "Executive Summary And Problem Statement" if english else "Resumen ejecutivo y planteamiento del problema"
     scope = "Project Scope" if english else "Alcance del proyecto"
     personas = "Users And Personas" if english else "Usuarios y personas"
@@ -544,40 +544,48 @@ def ears_trace_ids(context: dict[str, object]) -> list[str]:
     return ids
 
 
-def render_context_summary(context: dict[str, object]) -> str:
+# IMP-435 (B-09, owner decision Q5): governed Markdown quotes no retrieval hit. Which hit ranks first depends on the
+# memory backend (JSON index or LanceDB, and its version), so a context row shows what is fixed instead: the need, its
+# lenses (from the retrieval plan), the trace ids of the graph the artifact derives from, sorted, and the context pack
+# where the hits themselves stay (`08_context_packs/*.json`, with their `memory_backend`).
+SPECS_TRACE_TYPES = ("requirement", "project_brief")
+BACKLOG_TRACE_TYPES = ("requirement", "project_brief", "prd", "spec")
+SPECS_CONTEXT_PACK = "08_context_packs/specs_generation.json"
+
+
+def graph_trace_ids(project_id: str, types: tuple[str, ...]) -> list[str]:
+    """The sorted ids of the trace-graph nodes of `types` (the sources a governed artifact derives from)."""
+    from ..core.graph import load_graph
+
+    try:
+        nodes = load_graph(project_id).get("nodes", [])
+    except Exception:  # noqa: BLE001 - a missing graph leaves the trace pending, never stops the render
+        return []
+    return sorted({str(node["id"]) for node in nodes
+                   if isinstance(node, dict) and node.get("type") in types and node.get("id")})
+
+
+def context_trace_cell(trace: list[str] | None) -> str:
+    return ", ".join(trace) if trace else "N/A"
+
+
+def plan_lenses_cell(payload: dict[str, object]) -> str:
+    lenses = payload.get("lenses", [])
+    return ", ".join(str(item) for item in lenses) if isinstance(lenses, list) and lenses else "any"
+
+
+def render_context_summary(context: dict[str, object], trace: list[str] | None = None,
+                           pack: str = SPECS_CONTEXT_PACK) -> str:
     domains = context.get("domains", {}) if isinstance(context, dict) else {}
-    rows: list[str] = []
-    for domain, results in domains.items():
-        if not results:
-            rows.append(f"| {domain} | No focused context retrieved. | N/A |")
-            continue
-        top = results[0]
-        if not isinstance(top, dict):
-            continue
-        rows.append(
-            f"| {domain} | {table_cell(top.get('summary', 'Context retrieved'), 160)} | `{top.get('artifact_id', 'N/A')}` |"
-        )
-    return "| Domain | Retrieved Signal | Artifact |\n| --- | --- | --- |\n" + "\n".join(rows)
+    rows = [f"| {domain} | {context_trace_cell(trace)} | `{pack}` |" for domain in (domains or {})]
+    return "| Domain | Trace | Context Pack |\n| --- | --- | --- |\n" + "\n".join(rows)
 
 
-def render_prd_section_context(context: dict[str, object]) -> str:
+def render_prd_section_context(context: dict[str, object], trace: list[str] | None = None,
+                               pack: str = SPECS_CONTEXT_PACK) -> str:
     sections = context.get("prd_sections", {}) if isinstance(context, dict) else {}
     if not isinstance(sections, dict) or not sections:
-        return render_context_summary(context)
-    rows: list[str] = []
-    for section, payload in sections.items():
-        if not isinstance(payload, dict):
-            continue
-        results = payload.get("results", [])
-        if not results:
-            rows.append(f"| {section} | No focused context retrieved. | N/A | N/A |")
-            continue
-        top = results[0]
-        if not isinstance(top, dict):
-            continue
-        trace_ids = top.get("trace_ids", [])
-        trace = ", ".join(trace_ids) if isinstance(trace_ids, list) else str(trace_ids)
-        rows.append(
-            f"| {section} | {table_cell(top.get('summary', 'Context retrieved'), 180)} | `{top.get('artifact_id', 'N/A')}` | {table_cell(trace or 'N/A', 80)} |"
-        )
-    return "| PRD / Specs Need | Retrieved Signal | Artifact | Trace |\n| --- | --- | --- | --- |\n" + "\n".join(rows)
+        return render_context_summary(context, trace, pack)
+    rows = [f"| {section} | {plan_lenses_cell(payload)} | {context_trace_cell(trace)} | `{pack}` |"
+            for section, payload in sections.items() if isinstance(payload, dict)]
+    return "| PRD / Specs Need | Lenses | Trace | Context Pack |\n| --- | --- | --- | --- |\n" + "\n".join(rows)

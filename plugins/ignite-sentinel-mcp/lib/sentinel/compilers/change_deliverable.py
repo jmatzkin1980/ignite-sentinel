@@ -141,7 +141,9 @@ def seal_sha(project_id: str, change_id: str) -> str:
     payload = {
         "verdict": build_change_verdict(project_id, change_id)["verdict"],
         "covered": int(coverage["covered"]), "total": int(coverage["total"]),
-        "deferred": sorted((d["id"], d["impact"]) for d in deferred_gaps(project_id, change_id)),
+        # B-07: the series' own gaps (GAP-SPLIT-*) say nothing of the brief the seal belongs to
+        "deferred": sorted((d["id"], d["impact"]) for d in deferred_gaps(project_id, change_id)
+                           if not str(d["id"]).strip("`").startswith("GAP-SPLIT-")),
     }
     return hashlib.sha256(json.dumps(payload, sort_keys=True).encode("utf-8")).hexdigest()[:16]
 
@@ -568,9 +570,9 @@ def decision_log_lines(project_id: str, change_id: str, language: str, places: d
         said = _cell(str(item["answer"]).strip().split("\n")[0])
         said = said if len(said) <= 120 else said[:119].rstrip() + "…"
         who = copy["decisions_delegated"] if gap in delegated else _cell(item["owner"]) or copy["decisions_default_owner"]
-        rows.append(f"| {gap} | {place} | {said} | {item['option'] or '—'} | {who} |")
+        rows.append(f"| {gap} | {place} | {said} | {item['option'] or copy['decisions_no_option']} | {who} |")  # B-03: an em dash is a forbidden value
     for item in replaced:
-        rows.append(f"| {item['id']} | {applied.get(item['id']) or gap_place(item['id'], '')} | {_cell(item['note'])} | — | — |")
+        rows.append(f"| {item['id']} | {applied.get(item['id']) or gap_place(item['id'], '')} | {_cell(item['note'])} | {copy['decisions_no_option']} | {copy['decisions_no_owner']} |")
     return rows
 
 

@@ -108,9 +108,14 @@ def unverifiable_derived(project_id: str) -> list[str]:
     """IMP-291 [A29]: derived artifacts on disk with no recorded source fingerprint."""
     registry = read_json(state_path(project_id), {}).get("derived_source_fingerprints", {})
     registry = registry if isinstance(registry, dict) else {}
+    from .changes import is_change_only
+
+    # IMP-435 (B-23): a workspace that only holds changes has no project backlog; the stories in `04_backlog/` are the
+    # change's, and `/backlog` without `--change` is refused there, so there is nothing to fingerprint or regenerate
+    change_only = is_change_only(project_id)
     return [
         derived for derived in DERIVED_ARTIFACT_PATHS
-        if not registry.get(derived) and _derived_exists(project_id, derived)
+        if not registry.get(derived) and not (change_only and derived == "backlog") and _derived_exists(project_id, derived)
     ]
 
 

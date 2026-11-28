@@ -273,6 +273,8 @@ def refuse_dirty_health(command: str, project_id: str) -> None:
     # classification /next uses), ending with the command that was refused.
     fixes = health_fixes(project_id, collected)
     steps = list(dict.fromkeys(step for fix in fixes for step in fix["steps"]))
+    if command == "backlog" and "/specs" not in steps and not (workspace_path(project_id) / "03_specs" / "specs.md").exists():
+        steps.append("/specs")  # IMP-435 (A-13.3): /backlog waits for specs that do not exist yet
     if command == "backlog" and "/backlog" not in steps:
         steps.append("/backlog")
     if command != "backlog":

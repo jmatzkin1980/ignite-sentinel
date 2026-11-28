@@ -7,7 +7,7 @@ from pathlib import Path
 from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from helpers import run_ok  # noqa: E402
+from helpers import place_harvest_docs, run_ok  # noqa: E402
 from test_h26_cross_record import CID, PID, CrossCase  # noqa: E402
 
 from sentinel.changes import change_gaps_path, list_changes, regenerate_change_gaps  # noqa: E402
@@ -234,6 +234,7 @@ class LensAndHarvest(PriorDecisionCase):
             self.assertEqual(spy.call_args.args[2]["id"], lens[0]["id"])
             spy.reset_mock()
             Path("harvest.md").write_text(HARVEST, encoding="utf-8")
+            place_harvest_docs(PID, HARVEST)
             forget_read_snapshots()
             apply_harvest(PID, Path("harvest.md"), CID)
             self.assertEqual(spy.call_count, 1)

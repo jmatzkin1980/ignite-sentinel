@@ -6,6 +6,49 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+### Changed
+
+- A semantic-change review left by `/sync` (IMP-369) is cleared only by `/trace --reviewed CHG-NNN` or by a confirmed answer that names that change, applied and regenerated; regenerating alone keeps health DIRTY, and a note whose prose changed nothing says so on stderr and in `/next` until the next `/sync` (A-01, IMP-435).
+- The story statement is built from its parts in the workspace language: the actor `GAP-USERS` confirms, the capability and trigger of the unit and the benefit `GAP-OBJECTIVE` confirms ("Como los analistas de Compras, quiero ... cuando ..., para que ..."); without a confirmed actor it says "a user" / "usuario" (A-08, IMP-435).
+- `GAP-SPLIT-CLIENT` opens as an operational item: it no longer holds the derivation of r1 nor trips the guard of the first `/split --move` (B-07, IMP-435).
+- Kilo asks before it runs `/setup` (`python -m sentinel setup *`), the one command that may download (C-10, IMP-435).
+
+### Fixed
+
+- `/backlog` renders again the refinements accepted with `/refine-backlog`; one whose story is gone is reported in `refinements/rerender_report.md` and warned on stderr (A-02).
+- `/next` asks for `/specs` once the brief is compiled and nothing blocks, instead of repeating `/resolve-gaps` (A-03).
+- Exporting a context request that was never requested says what is missing and the command that produces it (exit 4) (A-05).
+- `/next`, `/brief` and the brief-settings gap propose the profile from `requirements.md`, the same text `/brief` reads, instead of a fixed `UI,REG` (A-09).
+- `/sync --source` of a file whose content is already loaded answers `already_loaded` with its `F-NN` and `CHG-NNN` and writes nothing: no new change, copy or review (A-10).
+- `/brief` and `/specs` name as feeding a section only the gaps that `gaps.md` has (A-11).
+- A blocked `/specs` or `/backlog` names the step that unblocks it, the fix for `GAP-BRIEF-PROFILE` is `/brief --profile`, and without specs the chain says `/specs` before `/backlog` (A-13).
+- `/export --format interview` before `/ingest` names `/ingest` as the next step (exit 4) (A-23).
+- A `.pdf` whose bytes happen to decode as text is refused as a PDF without text, not ingested (A-32).
+- `/brief --profile/--genesis` with settings it cannot confirm warns first on stderr instead of accepting them silently (A-33).
+- An unknown story id is bad input (exit 3), not a backlog problem, and `Done -> Done` is refused (A-34).
+- A new project has `maturity_score` 0.0, not 1.0, and no next step carries the `PROJECT_ID` placeholder (A-36).
+- Release briefs cut from a consolidated final anchor the literal-request blocks they quote, so `/validate` passes and `/next` no longer loops on it (B-03).
+- A unit added later whose owner release is closed gets a route: `/next --change` names it (`series_closed_units`) and the `/split --move` that sends it to the open release; with every release closed, `/validate` asks for a new release (B-04).
+- A plain `/export --artifact brief --change` after a sealed, current final writes `CHG-NNN-project-brief-draft.md` (`deliverable: draft`) and leaves the final untouched (B-06).
+- A source outside the working folder shows as `F-NN` and its file name, never the absolute path of the machine, in `specs.md`, the Sources of the brief and `source_log.md`; the requirement snapshot of `specs.md` ends on a whole line (B-08).
+- `prd.md`, `specs.md`, `EPIC-*.md` and `US-*.md` no longer quote retrieval hits: their context rows, the Agent Execution Contract rows (Commands, Critical surfaces, Design match, Engineering practices) and the task seeds name trace ids and context-pack sections, so the JSON index and LanceDB write the same Markdown; the hits stay in `08_context_packs/*.json` (B-09, owner decision Q5).
+- Consolidating a change marks every element that still holds the losing value of a closed decision, so `/export --final` refuses until it is replaced. Known limit: a holder is detected by the losing number only; one that restates the old rule without that number is not caught (B-22).
+- `/status` in a workspace that only holds changes no longer warns to regenerate a project backlog it would refuse (B-23).
+- No next step carries an alternative with a shell pipe (`construccion|operativo`) (B-29).
+- The next step of `/specs --change --release` names the release path, not the plain one (B-30).
+- `/harvest` refuses a `doc:` whose path is not in the workspace (B-37).
+- `/extract --proposals` with every proposal rejected fails and lists the reasons instead of exiting 0 silently (B-38).
+- `/export --artifact release-guide --change` is accepted, and the refusal of `/export --change` lists only the artifacts it accepts (C-02).
+- Error messages on stderr are UTF-8 through a pipe on Windows (C-05).
+- `/status`, `/next`, `/validate`, `/view` and `/dashboard` (with and without `--release`) no longer rewrite workspace files: the coherence fingerprint is computed in memory and release mirrors are copied only when they changed. They still append to the audit trail (`.sentinel/command_log.jsonl`, `command_protocol_log.md`, `last_command` in `state.json`) by design (C-06, C-15).
+- `/setup` exits 3 for bad input (folder without the model files, failed download, sha256 mismatch) and 4 for a missing prerequisite (`model2vec`, with the pip command as next step), instead of 1 (C-07).
+- `/view --artifact diagrams` in a workspace that only holds changes names the command of the change, not a `/brief P` that refuses (C-13).
+- `--override` with a missing file says the file is missing, not that it declares no decision (C-20).
+- `python -m sentinel.adapters --help` prints its usage instead of regenerating the copies (C-22).
+- The network detail of `/doctor` names `setup_download.py` as the declared exception (C-24).
+- `/doctor` warns when the installed LanceDB is not the version `constraints/memory.txt` pins (B-39).
+- Refusals follow the workspace language: Spanish for a Spanish change, also for `/gaps`, `/self-review`, `/brief`, `/split --close/--move`, `/specs`, `/backlog` and `/maturity` (A-35, B-31, C-26).
+
 ## [0.40.0] — 2026-11-27
 
 ### Added

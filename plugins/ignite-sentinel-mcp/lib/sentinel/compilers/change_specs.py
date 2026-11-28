@@ -27,7 +27,7 @@ BRIEF_PATH = "02_requirements/{cid}/project-brief.md"
 
 TEXT = {
     "es": {
-        "next": "Revisá {path}; después /backlog --change deriva las historias.",
+        "next": "Revisá {path}; después /backlog {pid} --change {cid} deriva las historias.",
         "no_brief": "{cid} no tiene brief: /specs --change parte de {brief}",
         "blocking": "{cid} tiene {n} gap(s) bloqueante(s) abierto(s)",
         "prd_skipped": "prd.md pendiente: falta el export final vigente ({command})",
@@ -36,7 +36,7 @@ TEXT = {
                          "/resolve-gaps {pid} --change {cid}"),
     },
     "en": {
-        "next": "Review {path}; then /backlog --change derives the stories.",
+        "next": "Review {path}; then /backlog {pid} --change {cid} derives the stories.",
         "no_brief": "{cid} has no brief: /specs --change starts from {brief}",
         "blocking": "{cid} has {n} blocking gap(s) open",
         "prd_skipped": "prd.md pending: the current final export is missing ({command})",
@@ -193,7 +193,7 @@ def _compile_change_specs(project_id: str, change_id: str) -> dict[str, Any]:
         "functionalities": [fun["id"] for fun in funs],
         "preserved": preserved,
         "report": report,
-        "next_step": text["next"].format(path=specs_path.relative_to(base).as_posix()),
+        "next_step": text["next"].format(path=specs_path.relative_to(base).as_posix(), pid=project_id, cid=change_id),
     }
     if "skipped" in prd:
         result["prd_skipped"] = text["prd_skipped"].format(command=prd["skipped"])

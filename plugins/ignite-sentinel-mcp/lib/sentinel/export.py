@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from .errors import InputError  # IMP-302: typed errors
+from .errors import GateRefusal, InputError  # IMP-302: typed errors
 
 import json
 import shutil
@@ -46,9 +46,11 @@ def export_artifact(project_id: str, artifact: str, fmt: str = "md", domain: str
         from .changes import refuse_change_only_deliverable
 
         refuse_change_only_deliverable(project_id, "export", artifact)
+        if artifact.lower() == "release-guide":
+            _refuse_project_release_guide(project_id)
     source = artifact_source(base, artifact, domain, change_id)
     if not source.exists():
-        raise InputError(f"Export source not found: {source}")
+        raise _missing_source(project_id, artifact, domain, change_id, source)
     # IMP-272: a deliverable has zero pending marks or says it is a draft
     # IMP-334: counted as /validate counts them (the brief v2 compile report when there is one)
     extraction = change_extraction_pending(base, change_id) if change_id and artifact.lower() == "brief" else []
@@ -61,6 +63,52 @@ def export_artifact(project_id: str, artifact: str, fmt: str = "md", domain: str
     if final and change_id and artifact.lower() == "brief" and fmt == "md":
         _record_final_export(project_id, change_id, result["path"])
     return {**result, **verdict}
+
+
+def _refuse_project_release_guide(project_id: str) -> None:
+    """M-3: `release-guide` is exported per change; the project's own guide is a `/view` artifact."""
+    from .changes import list_changes
+    from .core.text import project_language
+    from .series_scope import series_dir
+
+    es = project_language(project_id) == "es"
+    open_changes = sorted(list_changes(project_id))
+    if (series_dir(workspace_path(project_id)) / "partition.json").is_file() or not open_changes:
+        step = f"/view {project_id} --artifact release-guide"
+        how = "la guía de la serie del proyecto se ve con /view" if es else "the guide of the project series is read with /view"
+    else:
+        step = f"/export {project_id} --artifact release-guide --change {open_changes[0]}"
+        how = "la guía de release se exporta de un cambio" if es else "the release guide is exported from a change"
+    raise InputError(f"/export --artifact release-guide: {how} ({step})", next_step=step)
+
+
+TEXT = {
+    "es": {"missing": "Falta {path} para exportar {artifact}: todavía no se generó."},
+    "en": {"missing": "{path} is missing, so {artifact} cannot be exported: it was not generated yet."},
+}
+
+
+def _missing_source(project_id: str, artifact: str, domain: str | None, change_id: str | None, source: Path) -> GateRefusal:
+    """A-05, A-23: the file to export is a prerequisite that was never produced: a gate refusal that names the command making it."""
+    artifact = artifact.lower()
+    where = f" --change {change_id}" if change_id else ""
+    if artifact == "context-request":
+        command = f"/context-request {project_id} --domain {(domain or 'design').lower()}"
+    elif artifact == "gaps":
+        command = f"/gaps {project_id} --change {change_id}" if change_id else f"/ingest {project_id} --source PATH"
+    elif artifact == "brief":
+        command = f"/brief {project_id}{where}"
+    elif artifact == "prd":
+        command = f"/specs {project_id}"
+    elif artifact == "release-guide":
+        command = f"/split {project_id} --assess{where}"
+    elif artifact.startswith("prototype"):
+        command = f"/prototype {project_id}{where}"
+    else:
+        command = f"/status {project_id}{where}"
+    message = TEXT[_language(project_id, change_id)]["missing"].format(
+        path=workspace_relative(project_id, source), artifact=artifact)
+    return GateRefusal(message, next_step=command)
 
 
 def _check_final_change(project_id: str, change_id: str) -> None:
@@ -98,9 +146,11 @@ def _check_final_change(project_id: str, change_id: str) -> None:
         reasons = "; ".join(found["blockers"])
         if held:
             command = (f"/gaps {project_id} --change {change_id} --id {first['id']} "
-                       "--impact construccion|operativo --reason TEXTO")
-            how_es = f"Respondelos o clasificalos con {command}; /export sin --final deja un borrador."
-            how_en = f"Answer them or class them with {command}; /export without --final leaves a draft."
+                       f"--impact operativo --reason {'TEXTO' if es else 'TEXT'}")
+            how_es = (f"Respondelos o clasificalos con {command} (operativo no frena; cambialo por construccion si frena); "
+                      "/export sin --final deja un borrador.")
+            how_en = (f"Answer them or class them with {command} (operativo does not block; use construccion if it does); "
+                      "/export without --final leaves a draft.")
         else:
             command = f"/next {project_id} --change {change_id}"
             how_es = f"Resolvé lo que dice el veredicto ({command} dice por dónde); /export sin --final deja un borrador."
@@ -151,6 +201,14 @@ def _record_final_export(project_id: str, change_id: str, path: str) -> dict[str
     return recorded
 
 
+def _sealed_final_current(project_id: str, change_id: str) -> bool:
+    """IMP-435: the change has a final export made from the brief and the seal as they stand now."""
+    from .changes import get_change
+    from .readiness_verdict import _final_export_current
+
+    return _final_export_current(workspace_path(project_id), change_id, get_change(project_id, change_id))
+
+
 def _export(project_id: str, artifact: str, fmt: str, source: Path, verdict: dict,
             change_id: str | None = None, final: bool = False) -> dict[str, str]:
     from .deliverables import with_banner
@@ -173,6 +231,10 @@ def _export(project_id: str, artifact: str, fmt: str, source: Path, verdict: dic
 
         text = render_change_deliverable(project_id, change_id, final)
         assert_no_leaks(project_id, text, base, f"export {artifact}")
+        if not final and _sealed_final_current(project_id, change_id):
+            # IMP-435 (B-06): the working export never replaces a sealed final that is still current
+            target = export_dir / f"{change_id}-project-brief-draft.md"
+            verdict["deliverable"] = "draft"
         if verdict["deliverable"] == "draft":
             text = with_banner(text, int(verdict["pending_marks"]), _language(project_id, change_id),
                                list(verdict.get("extraction_pending") or []))

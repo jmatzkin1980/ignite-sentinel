@@ -35,6 +35,7 @@ TEXT = {
         "closed": "{rid} está cerrada en la serie de {cid}: no se deriva de nuevo.",
         "next_move": "/split {pid} --change {cid} --move --unit <C-NN> --from <rA> --to <rB> --reason \"...\" --ba \"...\" --tech \"...\"",
         "next_pick": "Elegí una de las releases abiertas: {open}.",
+        "next_specs": "Revisá {path}; después /backlog {pid} --change {cid} --release {rid} deriva las historias de {rid}.",
         "next_done": "/next {pid} --change {cid}",
         "close_specs": "{rid} no se puede cerrar: sus unidades no están al día ({why}); derivala de nuevo con /specs {pid} --change {cid} --release {rid} y /backlog {pid} --change {cid} --release {rid}",
         "close_backlog": "{rid} no se puede cerrar: sus historias no son las de sus unidades actuales; derivalas de nuevo con /backlog {pid} --change {cid} --release {rid}",
@@ -51,6 +52,7 @@ TEXT = {
         "closed": "{rid} is already closed in the series of {cid}: it is not derived again.",
         "next_move": "/split {pid} --change {cid} --move --unit <C-NN> --from <rA> --to <rB> --reason \"...\" --ba \"...\" --tech \"...\"",
         "next_pick": "Pick one of the open releases: {open}.",
+        "next_specs": "Review {path}; then /backlog {pid} --change {cid} --release {rid} derives the stories of {rid}.",
         "next_done": "/next {pid} --change {cid}",
         "close_specs": "{rid} cannot close: its units are not current ({why}); derive it again with /specs {pid} --change {cid} --release {rid} and /backlog {pid} --change {cid} --release {rid}",
         "close_backlog": "{rid} cannot close: its stories are not those of its current units; derive them again with /backlog {pid} --change {cid} --release {rid}",
@@ -119,14 +121,31 @@ def _owners(unit: dict[str, Any], releases: list[str], held: dict[str, dict[str,
             if any(s and q and (s in q or q in s) for s in surfaces for q in held.get(rid, {}).get("surfaces", set()))], True
 
 
+ROUTES_FILE = "unit_routes.json"
+
+
+def unit_routes(project_id: str, change_id: str) -> dict[str, str]:
+    """B-04: the units the BA routed to another release than the one their surface says (`/split --move --unit SPEC-U-nnn`)."""
+    from .core.io import read_json
+    from .series_scope import series_dir
+
+    stored = read_json(series_dir(workspace_path(project_id), change_id) / ROUTES_FILE, None)
+    routes = stored.get("routes") if isinstance(stored, dict) else None
+    return {str(unit): str(rid) for unit, rid in routes.items()} if isinstance(routes, dict) else {}
+
+
 def _assign(project_id: str, change_id: str) -> tuple[dict[str, list[str]], list[dict[str, str]]]:
     from .compilers.change_backlog import read_change_units
 
     text = _text(project_id, change_id)
     releases, held, _partition = _series(project_id, change_id)
+    routes = unit_routes(project_id, change_id)
     result: dict[str, list[str]] = {rid: [] for rid in releases}
     contained: list[dict[str, str]] = []
     for unit in read_change_units(project_id, change_id):
+        if routes.get(unit["id"]) in result:  # a unit the BA routed: that release owns it, whatever its surface says
+            result[routes[unit["id"]]].append(unit["id"])
+            continue
         owners, by_containment = _owners(unit, releases, held)
         if len(owners) > 1:
             raise ChangeReleaseError(
@@ -152,6 +171,43 @@ def closed_releases(project_id: str, change_id: str) -> list[str]:
     releases, _held, partition = _series(project_id, change_id)
     closed = partition.get("closed") or {}
     return [rid for rid in releases if rid in closed]
+
+
+def closed_owner_units(project_id: str, change_id: str) -> dict[str, list[str]]:
+    """B-04: closed release -> the units of the change it owns by surface that it did not deliver (they arrived after its close).
+
+    `_assign` owns by surface and does not look at the close; the units a release delivered are frozen in `partition.json`.
+    A close made before 7d froze none: nothing is said about it."""
+    releases, _held, partition = _series(project_id, change_id)
+    closed = partition.get("closed") or {}
+    if not closed:
+        return {}
+    try:
+        owned = release_units(project_id, change_id)
+    except (ChangeReleaseError, OSError):
+        return {}  # a unit with two owners or none is reported on its own
+    found: dict[str, list[str]] = {}
+    for rid in releases:
+        frozen = (closed.get(rid) or {}).get("units") if rid in closed else None
+        if not isinstance(frozen, list):
+            continue
+        late = [u for u in owned.get(rid, []) if u not in {str(f) for f in frozen}]
+        if late:
+            found[rid] = late
+    return found
+
+
+def route_unit(project_id: str, change_id: str, unit_id: str, target: str) -> None:
+    """Route one unit of the change to `target` (an open release of the series): `unit_routes.json` of the series."""
+    import json
+
+    from .core.io import write_text
+    from .series_scope import series_dir
+
+    routes = unit_routes(project_id, change_id)
+    routes[unit_id] = target
+    write_text(series_dir(workspace_path(project_id), change_id) / ROUTES_FILE,
+               json.dumps({"routes": dict(sorted(routes.items()))}, ensure_ascii=False, indent=2) + "\n")
 
 
 def closed_others(project_id: str, change_id: str, rid: str) -> list[str]:
@@ -257,7 +313,8 @@ def derive_release_specs(project_id: str, change_id: str, rid: str, whole: dict[
         "path": (folder / "specs.md").relative_to(base).as_posix(),
         "functionalities": [f["id"] for f in funs],
         "containment": [c for c in contained if c["release"] == rid],
-        "next_step": whole.get("next_step", ""),
+        "next_step": _text(project_id, change_id)["next_specs"].format(  # B-30: about this release, not the whole change
+            path=(folder / "specs.md").relative_to(base).as_posix(), pid=project_id, cid=change_id, rid=rid),
     }
 
 
@@ -340,6 +397,10 @@ def series_step(project_id: str, change_id: str, change: dict[str, Any]) -> dict
         owned: dict[str, list[str]] | None = release_units(project_id, change_id)
     except (ChangeReleaseError, OSError):
         owned = None
+    late = closed_owner_units(project_id, change_id)
+    first_open = next((rid for rid in releases if rid not in closed), "")
+    if late and first_open:  # B-04: a unit that landed on a closed release is moved to an open one before that one is built
+        return {"key": "series_closed_units", "release": first_open, "units": late}
     for rid in releases:
         if rid in closed:
             continue

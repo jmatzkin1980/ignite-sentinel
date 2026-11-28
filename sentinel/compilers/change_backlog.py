@@ -709,6 +709,10 @@ def _compile_change_backlog(project_id: str, change_id: str, story_format: str |
 
         write_release_stories(project_id, change_id, release, stories)
 
+    from ..backlog.refinement import rerender_refinements
+
+    refinements = rerender_refinements(project_id, change_id)  # IMP-435 (A-02): the change's accepted refinements survive
+
     # Graph: ids equal the registry ids (upsert, never add_node).
     upsert_node(project_id, epic_id, "epic", epic_path, title, domain="product")
     add_edge(project_id, change_id, epic_id, "decomposes_to")
@@ -827,6 +831,7 @@ def _compile_change_backlog(project_id: str, change_id: str, story_format: str |
         "slices": slices_out,
         "slice_plan": plan_md,
         "report": report,
+        **({"refinements_dropped": refinements["dropped"]} if refinements["dropped"] else {}),
         "backlog_board": board["path"],
         "next_step": text["next"].format(board="04_backlog/BACKLOG.md", cid=change_id, epic=epic_rel),
     }

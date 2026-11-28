@@ -168,8 +168,11 @@ class DynamicBacklogDerivationTests(unittest.TestCase):
         self.assertIn("StaleDataBanner", anchor_text)
         self.assertIn("Stale Data Context", anchor_text)
         story_markdown = (workspace / "04_backlog" / "US-004.md").read_text(encoding="utf-8")
-        self.assertIn("Anchor:", story_markdown)
-        self.assertIn("Stale Data Context", story_markdown)
+        # IMP-435 (B-09, Q5): the story names the pack sections; the retrieved text and its anchor stay in the pack.
+        self.assertNotIn("Anchor:", story_markdown)
+        self.assertNotIn("Stale Data Context", story_markdown)
+        self.assertIn("| Critical surfaces | Confirmed: `critical_surfaces`, `technical_dependencies` in "
+                      "`08_context_packs/backlog_generation.json` |", story_markdown)
         self.assertEqual(stories["US-004"]["context_pack_section"], "per_story.US-004")
         self.assertEqual(stories["US-005"]["context_pack_section"], "per_story.US-005")
 

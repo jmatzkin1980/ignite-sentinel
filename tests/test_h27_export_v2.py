@@ -268,7 +268,7 @@ class FinalStep(ExportCase):
         step = self.next_step()
         self.assertEqual(step["key"], "export_final", step)
         self.assertTrue(step["command"].startswith(f"/gaps {PID} --change {CID} --id GAP-"), step)
-        self.assertIn("--impact construccion|operativo", step["command"])
+        self.assertIn("--impact operativo", step["command"])
         self.assertIn("NOT_READY", step["text"])
         class_deferred(PID, CID)
         forget_read_snapshots()

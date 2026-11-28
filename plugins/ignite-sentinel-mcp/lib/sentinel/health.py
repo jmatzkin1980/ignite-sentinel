@@ -14,6 +14,7 @@ from .protocols import HAND_EDITS_DIR, evaluate_needs_context, hand_edited_artif
 from .core.graph import children_of, load_graph, parents_of
 from .workspace import load_config, memory_path, read_json, state_path, update_state, workspace_path, write_json
 from .core.io import write_text
+from .core.markdown import parse_table_rows
 from .core.paths import is_absolute_path, workspace_relative
 
 METRIC_RE = re.compile(r"(\d+(?:[.,]\d+)?\s?%|\$\s?\d+)", re.I)
@@ -150,7 +151,7 @@ def collect_health(project_id: str) -> dict:
     # IMP-369: the semantic-change review clears by regeneration too; when only the
     # backlog artifacts are left, /backlog is the step that clears it.
     pending_review = pending_suspicious_links(project_id) if suspicious else None
-    if pending_review and pending_review["pending"] and all(rel in BACKLOG_OWNED_ARTIFACTS for rel in pending_review["pending"]):
+    if pending_review and all(rel in BACKLOG_OWNED_ARTIFACTS for rel in pending_review["pending"]):
         remediated_by_backlog = [*remediated_by_backlog, *suspicious]
     privacy = backlog_privacy_findings(project_id)
     findings.extend(privacy["findings"])
@@ -309,11 +310,17 @@ def _not_regenerated(project_id: str, payload: object) -> list[str]:
         return []
     artifacts = [str(item) for item in payload.get("downstream_artifacts", []) if item]
     recorded_at = str(payload.get("recorded_at", ""))
+    recorded_ns = payload.get("recorded_at_ns")  # I-1: sub-second stamp; older markers fall back to recorded_at
     pending = []
     for item in artifacts:
         path = Path(item)
         if recorded_at:
             if not path.exists():
+                continue
+            if isinstance(recorded_ns, int) and not isinstance(recorded_ns, bool):
+                if path.stat().st_mtime_ns > recorded_ns:
+                    continue
+                pending.append(workspace_relative(project_id, item))
                 continue
             mtime_iso = datetime.fromtimestamp(path.stat().st_mtime, timezone.utc).replace(microsecond=0).isoformat()
             if mtime_iso > recorded_at:
@@ -352,6 +359,11 @@ def pending_suspicious_links(project_id: str) -> dict | None:
     or regenerates the downstream artifacts the change feeds (brief, PRD,
     specs, backlog) after it. Markers written before IMP-369 carry no
     `recorded_at`; only the review clears those.
+
+    IMP-435 (A-01, Q1): regenerating alone no longer clears it: the documents are rebuilt from the same
+    confirmed answers, so nothing of the change reached them. Only `/trace --reviewed CHG-NNN`, or an answer
+    applied from that change followed by the regeneration, does. With everything regenerated and neither,
+    it stays pending with an empty `pending` list.
     """
     state = read_json(workspace_path(project_id) / "state.json", {})
     payload = state.get("suspicious_trace_links", {})
@@ -362,12 +374,22 @@ def pending_suspicious_links(project_id: str) -> dict | None:
         return None
     if payload.get("recorded_at"):
         pending = _not_regenerated(project_id, payload)
-        if not pending:
+        if not pending and _answer_applied_from(project_id, str(payload.get("change_id") or "")):
             return None
     else:
         pending = [rel for rel in STALE_ARTIFACT_OWNERS if (workspace_path(project_id) / rel).exists()]
     return {"change_id": str(payload.get("change_id") or "latest change"), "links": links, "pending": pending,
             "legacy": not payload.get("recorded_at")}
+
+
+def _answer_applied_from(project_id: str, change_id: str) -> bool:
+    """IMP-435 (A-01): a confirmed gap answer (`### GAP-...`) was applied from this change: its row names the change as source."""
+    if not change_id:
+        return False
+    base = workspace_path(project_id) / "01_discovery"
+    text = "\n".join(path.read_text(encoding="utf-8") for path in (base / "identity_seeds.md", base / "decisions.md") if path.exists())
+    return any(len(row) >= 5 and row[1].strip("` ").startswith("GAP-") and row[2].upper() == "CONFIRMED"
+               and row[4].strip("` ") == change_id for row in parse_table_rows(text, skip_separator_rows=True))
 
 
 def review_suspicious_links(project_id: str, change_id: str, reason: str = "") -> dict:
@@ -407,9 +429,14 @@ def review_suspicious_links(project_id: str, change_id: str, reason: str = "") -
     return {"change_id": current, "reviewed_links": edges, **reviewed}
 
 
-def regeneration_steps(pending: list[str]) -> list[str]:
-    """IMP-360/369: the commands that regenerate `pending` artifacts, in order, ending with /backlog."""
+def regeneration_steps(pending: list[str], project_id: str | None = None) -> list[str]:
+    """IMP-360/369: the commands that regenerate `pending` artifacts, in order, ending with /backlog.
+
+    IMP-435 (A-13.3): without specs there is nothing to regenerate in a chain: `/specs` compiles the brief it needs, and
+    `/brief` then `/backlog` would not reach the specs `/backlog` waits for."""
     steps = list(dict.fromkeys(STALE_ARTIFACT_OWNERS.get(rel, "/backlog") for rel in pending))
+    if project_id and not (workspace_path(project_id) / "03_specs" / "specs.md").exists():
+        return ["/specs", "/backlog"]
     order = ["/brief", "/specs"]
     return [step for step in order if step in steps] + ["/backlog"]
 
@@ -421,7 +448,14 @@ def suspicious_trace_link_findings(project_id: str) -> list[str]:
     change_id = pending["change_id"]
     targets = ", ".join(str(item.get("to")) for item in pending["links"][:8] if item.get("to"))
     suffix = f" Targets: {targets}." if targets else ""
-    chain = ", then ".join(regeneration_steps(pending["pending"]))
+    chain = ", then ".join(regeneration_steps(pending["pending"], project_id))
+    if not pending["pending"] and not pending.get("legacy"):
+        return [
+            f"Semantic change may invalidate downstream trace links for {change_id}; BA review required before "
+            f"implementation handoff.{suffix} The documents were regenerated, but nothing of the change reached them. "
+            f"Apply it as an answer (### GAP-...) and regenerate, or record the review with "
+            f"/trace {project_id} --reviewed {change_id}."
+        ]
     if pending.get("legacy"):
         return [
             f"Semantic change may invalidate downstream trace links for {change_id}; BA review required before "
@@ -496,8 +530,8 @@ def health_fixes(project_id: str, collected: dict | None = None) -> list[dict]:
                 add("gaps", 1, finding, f"Decide the late change{'s' if len(changes) > 1 else ''}: run "
                     + ", then ".join(steps) + ".", steps)
             else:
-                add("gaps", 1, finding, f"Close them with the client's answers: run /resolve-gaps {pid} --source ANSWERS.",
-                    [f"/resolve-gaps {pid} --source ANSWERS"])
+                fix, steps = blocking_gap_fix(project_id)
+                add("gaps", 1, finding, fix, steps)
         elif finding.startswith("Open implementation feedback blocks DoD"):
             add("feedback", 2, finding, f"Record the decision on each finding with /implementation-feedback {pid} "
                 "--source FILE (same id, status resolved).", [f"/implementation-feedback {pid} --source FILE"])
@@ -521,7 +555,7 @@ def health_fixes(project_id: str, collected: dict | None = None) -> list[dict]:
         entry["label"] = " ".join(entry["findings"])
     if knowledge or suspicious:
         pending = list(dict.fromkeys(pending))
-        steps = regeneration_steps(pending)
+        steps = regeneration_steps(pending, project_id)
         fix = "Run " + ", then ".join(steps) + "."
         labels = []
         if knowledge:
@@ -535,15 +569,54 @@ def health_fixes(project_id: str, collected: dict | None = None) -> list[dict]:
             fix = ("Review the targets, then " + fix[0].lower() + fix[1:]
                    + f" If nothing downstream has to change, record the review instead with "
                    f"/trace {pid} --reviewed {review['change_id']}.")
-            if review.get("legacy") and not knowledge:
-                # recorded before IMP-369: regeneration cannot be dated against it
+            if (review.get("legacy") or not review["pending"]) and not knowledge:
+                # recorded before IMP-369 (regeneration cannot be dated against it), or regenerated without applying anything
                 steps = [f"/trace {pid} --reviewed {review['change_id']}"]
-                fix = f"Review the targets, then record the review with /trace {pid} --reviewed {review['change_id']}."
+                fix = (f"Review the targets, then record the review with /trace {pid} --reviewed {review['change_id']}"
+                       + ("." if review.get("legacy") else "; or apply the change as an answer (### GAP-...) and regenerate."))
         entries["chain"] = {"kind": "review" if review and not knowledge else "chain", "rank": 5,
                             "findings": knowledge + suspicious, "label": " ".join(labels), "fix": fix,
                             "steps": steps, "pending": pending, "review": review}
     return [{k: v for k, v in entry.items() if k != "rank"}
             for entry in sorted(entries.values(), key=lambda e: e["rank"])]
+
+
+def open_blocking_gaps(project_id: str) -> list[str]:
+    """The ids of the blocking gaps still open in gaps.md, in the order the file lists them."""
+    path = workspace_path(project_id) / "01_discovery" / "gaps.md"
+    if not path.exists():
+        return []
+    blocking = blocking_severities(load_config(project_id))
+    return [str(gap.get("id", "")).strip("`") for gap in parse_gap_table(path.read_text(encoding="utf-8"), include_legacy=True)
+            if is_blocking(gap, blocking)]
+
+
+def blocking_gap_fix(project_id: str) -> tuple[str, list[str]]:
+    """IMP-435 (A-13): what closes each blocking gap: the brief settings are confirmed with /brief, the rest are the client's answers."""
+    from .brief_schema import SETTINGS_GAP_ID, brief_settings_proposal
+
+    from .core.text import project_language
+
+    es = project_language(project_id) == "es"  # IMP-435 (M-2)
+    pid = project_id
+    ids = open_blocking_gaps(project_id)
+    steps: list[str] = []
+    parts: list[str] = []
+    if SETTINGS_GAP_ID in ids:
+        proposal = brief_settings_proposal(project_id)
+        steps.append(f"/brief {pid} --profile {','.join(proposal['profiles'])} --genesis {proposal['genesis']}")
+        parts.append(f"Confirmá los ajustes del brief ({SETTINGS_GAP_ID}): corré {steps[-1]}." if es
+                     else f"Confirm the brief settings ({SETTINGS_GAP_ID}): run {steps[-1]}.")
+    rest = [gap for gap in ids if gap != SETTINGS_GAP_ID]
+    if rest or not steps:
+        steps.append(f"/resolve-gaps {pid} --source ANSWERS")
+        if es:
+            parts.append((f"Cerrá {', '.join(rest)} " if rest else "Cerralos ")
+                         + f"con las respuestas del cliente: corré /resolve-gaps {pid} --source ANSWERS.")
+        else:
+            parts.append((f"Close {', '.join(rest)} " if rest else "Close them ")
+                         + f"with the client's answers: run /resolve-gaps {pid} --source ANSWERS.")
+    return " ".join(parts), steps
 
 
 def _open_change_gaps(project_id: str) -> list[str]:

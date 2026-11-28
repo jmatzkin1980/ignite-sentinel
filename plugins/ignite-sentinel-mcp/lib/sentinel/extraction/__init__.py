@@ -123,6 +123,13 @@ def run_extract(
             else f"{who}: {n} proposal(s) recorded, {r} rejected, {f} flagged, "
             f"{u} unchanged (still confirmed), {s} without treatment"
         )
+        if r and not n and not u:  # B-38: nothing was recorded, and exit 0 alone says nothing; the reasons say why
+            import sys
+
+            reasons = "; ".join(reason for errors in result["rejected"].values() for reason in errors)
+            print(f"sentinel warning: {who}: " + (
+                f"ninguna propuesta se registró, {r} rechazada(s): {reasons}" if es
+                else f"no proposal was recorded, {r} rejected: {reasons}"), file=sys.stderr)
     elif action == "confirm":
         n, h, i = len(result["confirmed"]), len(result["held"]), len(result.get("invalid", {}))
         message = (

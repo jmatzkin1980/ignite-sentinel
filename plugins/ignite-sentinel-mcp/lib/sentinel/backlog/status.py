@@ -119,11 +119,19 @@ def update_story_status(
     base = workspace_path(project_id)
     story_path = base / "04_backlog" / f"{story_id}.md"
     if not story_path.exists():
-        raise StoryGateRefusal(f"Story does not exist: {story_id}. Run /backlog before /story-status.")
+        known = sorted(path.stem for path in (base / "04_backlog").glob("US-*.md"))
+        if not known:
+            raise StoryGateRefusal(f"Story does not exist: {story_id}. Run /backlog before /story-status.",
+                                   next_step=f"/backlog {project_id}")
+        # A-34: the backlog is there; the id is what is wrong
+        raise StoryStatusError(f"Story does not exist: {story_id}. Known stories: {', '.join(known)}.",
+                               next_step=f"/backlog-status {project_id}")
 
     current = lifecycle_for_story(project_id, story_id)
     current_status = current["status"]
     if next_status != current_status and next_status not in LEGAL_TRANSITIONS[current_status]:
+        raise StoryStatusError(f"Illegal story transition: {current_status} -> {next_status}.")
+    if current_status == "Done" and next_status == "Done":  # A-34: after Done only Stale is legal
         raise StoryStatusError(f"Illegal story transition: {current_status} -> {next_status}.")
 
     next_owner = current["owner"] if owner is None else str(owner).strip()

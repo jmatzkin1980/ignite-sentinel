@@ -15,7 +15,8 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from helpers import class_deferred, complete_extraction, run_ok, waive_coherence, waive_crosses  # noqa: E402
-from test_h27_consolidation import CID, PID, ConsolidationCase  # noqa: E402
+from test_h27_consolidated_export import FinalCase  # noqa: E402
+from test_h27_consolidation import CID, PID  # noqa: E402
 
 from sentinel.compilers.change_backlog import read_change_units  # noqa: E402
 from sentinel.compilers.change_spec_doc import BLOCKS  # noqa: E402
@@ -23,7 +24,7 @@ from sentinel.core.io import forget_read_snapshots  # noqa: E402
 from sentinel.workspace import workspace_path  # noqa: E402
 
 
-class FunctionalSpecsWalk(ConsolidationCase):
+class FunctionalSpecsWalk(FinalCase):
     def setUp(self):
         super().setUp()
         self.submit_text(self.rep())
@@ -35,6 +36,12 @@ class FunctionalSpecsWalk(ConsolidationCase):
         complete_extraction(PID, CID, skip=("RN-02", "RN-06"))
         forget_read_snapshots()
         run_ok(["extract", PID, "--change", CID, "--confirm-item", "HU-03"])  # the one the extraction flagged
+        # IMP-435 (B-22): PD-01 still holds the losing figure of the same decision; it is consolidated too
+        result = self.submit_text("\n".join(["### PD-01", f"- Decisión: {self.dis}", f"- Líneas: {self.lines_of('PD-01')}",
+                                    "- Texto: El umbral de aprobación se configura por parámetro y arranca en 1.000.000.", ""]), "pd.md")
+        self.assertEqual(result["recorded"], ["PD-01"], result)
+        forget_read_snapshots()
+        run_ok(["extract", PID, "--change", CID, "--confirm-replacement", "PD-01"])
         run_ok(["brief", PID, "--change", CID])
         forget_read_snapshots()
         class_deferred(PID, CID)

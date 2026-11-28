@@ -104,9 +104,9 @@ class SetupCommandTests(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual(json.loads(out)["status"], "installed")
 
-    def test_cli_offline_from_corrupt_exits_1(self) -> None:
+    def test_cli_offline_from_corrupt_exits_3(self) -> None:
         code, out, err = run_cli_err(["/setup", "--semantic-memory", "--offline-from", str(self._source(bad=True)), "--root", str(self.root)])
-        self.assertEqual(code, 1)
+        self.assertEqual(code, 3)  # IMP-435 (C-07): a bad file is input, not a bug
         self.assertIn("sha256 mismatch", err)
         self.assertFalse((self.home / "semantic.json").exists())
 

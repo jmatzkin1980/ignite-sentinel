@@ -270,6 +270,85 @@ ENABLER_TEXT_EN = {
 }
 
 
+# IMP-435 (A-08, Q2): the story statement is built from its parts (actor, capability, benefit) in the workspace
+# language, instead of pasting the whole EARS sentence after "I want" under a fixed persona.
+_MODAL = r"(?:the system|el sistema)\s+(?:shall|should|must|debe|deberá|debería)\s+"
+_EARS_PARTS = re.compile(
+    r"^(?:When|While|If|Where|Cuando|Mientras|Si|Donde)\s+(?P<trigger>.+?),\s*(?:then\s+|entonces\s+)?" + _MODAL + r"(?P<response>.+)$",
+    re.I | re.S)
+_EARS_RESPONSE_ONLY = re.compile(r"^" + _MODAL + r"(?P<response>.+)$", re.I | re.S)
+_USERS_LEAD = re.compile(
+    r"^(?:(?:the\s+)?(?:primary|main|target)\s+(?:users?|actors?)\s*(?:are|is|:)"
+    r"|(?:los\s+)?usuarios?\s*(?:primari[oa]s?|principales)?\s*(?:son|es|:))\s*", re.I)
+_ARTICLES = ("el", "la", "los", "las", "un", "una", "the", "a", "an")
+_LINKS = ("de", "del", "of", "for", "para", "y", "e", "and", "or", "o", "en", "in")
+_EN_VERBS = {"are", "is", "use", "uses", "load", "loads", "review", "reviews", "approve", "approves", "submit", "submits",
+             "create", "creates", "manage", "manages", "operate", "operates", "can", "must", "should", "will", "only",
+             "who", "that", "enter", "enters", "register", "registers", "consume", "consumes", "see", "sees"}
+STORY_ACTOR_DEFAULT = {"es": "usuario", "en": "a user"}
+STORY_ACTOR_ENABLER = {"es": "equipo de entrega", "en": "the delivery team"}
+
+
+def story_statement_parts(statement: str) -> dict[str, str]:
+    """`{"trigger", "capability"}` of an EARS sentence: its response without "the system shall", and what triggers it."""
+    flat = " ".join(str(statement).split())
+    for pattern in (_EARS_PARTS, _EARS_RESPONSE_ONLY):
+        match = pattern.match(flat)
+        if match:
+            groups = match.groupdict()
+            return {"trigger": str(groups.get("trigger") or "").strip(), "capability": groups["response"].strip().rstrip(".")}
+    return {"trigger": "", "capability": strip_ears_lead(flat).rstrip(".")}
+
+
+def story_actor(users_answer: str, language: str = "en") -> str:
+    """The first actor of a confirmed `GAP-USERS` answer ("Los analistas de Compras cargan las altas..." -> "los analistas de Compras")."""
+    clause = re.split(r"[.;:\n]| y | and ", " ".join(str(users_answer).split()), maxsplit=1)[0].strip(" ,")
+    clause = _USERS_LEAD.sub("", clause + " ").strip()
+    words = clause.split()
+    if not words:
+        return ""
+    cut = min(len(words), 8)
+    for index in range(1, len(words)):
+        word, before = words[index].lower().strip(","), words[index - 1].lower()
+        if before in _LINKS or before in _ARTICLES:
+            continue  # "de Compras", "La Jefa": a noun, not the verb
+        verb = word.endswith(("an", "en", "ó", "a", "e")) if language == "es" else word in _EN_VERBS
+        if verb and word not in _LINKS and word not in _ARTICLES:
+            cut = min(cut, index)
+            break
+    actor = " ".join(words[:cut]).strip(" ,")
+    return actor[0].lower() + actor[1:] if words[0].lower() in _ARTICLES else actor
+
+
+def confirmed_story_answers(project_id: str) -> dict[str, str]:
+    """The confirmed `GAP-USERS` and `GAP-OBJECTIVE` answers the story statement is built from (empty when not confirmed)."""
+    from ..gaps import parse_gap_answers
+
+    base = workspace_path(project_id) / "01_discovery"
+    text = "\n".join(path.read_text(encoding="utf-8") for path in (base / "identity_seeds.md", base / "decisions.md") if path.exists())
+    answers = parse_gap_answers(text)
+    return {gap: str(answers[gap]["statement"]).strip() for gap in ("GAP-USERS", "GAP-OBJECTIVE") if gap in answers}
+
+
+def story_voice(project_id: str, language: str) -> dict[str, str]:
+    """What the value stories of a run say with the BA's own words: `actor` (GAP-USERS) and `benefit` (GAP-OBJECTIVE), or ""."""
+    answers = confirmed_story_answers(project_id)
+    return {"actor": story_actor(answers.get("GAP-USERS", ""), language),
+            "benefit": answers.get("GAP-OBJECTIVE", "").strip().rstrip(".")}
+
+
+def story_statement_fields(unit: dict[str, Any], language: str, voice: dict[str, str], benefit: str) -> dict[str, Any]:
+    """The parts of a value story's statement: what it does, when, for whom and why (the BA's words when confirmed)."""
+    statement = str(unit.get("statement", "")).strip()
+    parts = story_statement_parts(statement) if statement else {"trigger": "", "capability": ""}
+    fallback = STORY_TEXT.get(language, STORY_TEXT["en"])["goal_fallback"].format(unit=unit.get("id", "SPEC-U-PENDING"))
+    fields = {"goal": parts["capability"] or fallback, "trigger": parts["trigger"], "actor": voice["actor"],
+              "benefit": voice["benefit"] or benefit, "language": language}
+    if voice["benefit"]:
+        fields["benefit_is_goal"] = True  # the BA's objective is a purpose ("reduce ..."), the generic benefit is a clause
+    return fields
+
+
 def story_language(project_id: str) -> str:
     """The project's language for generated story text: "es" or "en" (the default)."""
     from ..workspace import read_state
@@ -293,6 +372,7 @@ def build_backlog_story_specs(
 ) -> list[dict[str, Any]]:
     language = language if language in STORY_TEXT else story_language(project_id)
     text = STORY_TEXT[language]
+    voice = story_voice(project_id, language)
     specs: list[dict[str, Any]] = []
     global_domain_coverage = build_domain_context_coverage(backlog_context)
     backlog_context["domain_context_coverage"] = global_domain_coverage
@@ -313,7 +393,6 @@ def build_backlog_story_specs(
         trace = trace_ids_for_spec_unit(unit)
         statement = str(unit.get("statement", "")).strip()
         title = title_for_spec_unit_story(unit)
-        goal = goal_for_spec_unit(unit, language)
         slicing_decision = slicing_decision_for_spec_unit(unit, slicing_model)
         story = {
             "id": story_id,
@@ -325,8 +404,7 @@ def build_backlog_story_specs(
             "slicing": slicing_decision["slicing"],
             "slicing_rationale": slicing_decision["rationale"],
             "description": text["description"].format(unit=unit.get("id", "SPEC-U-PENDING")),
-            "goal": goal,
-            "benefit": text["benefit"],
+            **story_statement_fields(unit, language, voice, text["benefit"]),
             "domain": domain_for_spec_unit(unit),
             "trace": trace,
             "context": source_context,
@@ -467,6 +545,7 @@ def pending_backlog_story(
         "description": "No evidence-backed `SPEC-U-*` unit exists yet, so Sentinel preserves the missing input instead of creating placeholder stories.",
         "goal": text["pending_goal"],
         "benefit": text["pending_benefit"],
+        "language": language,
         "domain": "functional",
         "trace": ["REQ-001", "PRD-001", "SPEC-001", "GAP-PRD-FR-AC", "GAP-BACKLOG-SLICING-READINESS"],
         "context": {
@@ -621,6 +700,7 @@ def build_cross_cutting_enabler_specs(
             "description": description,
             "goal": goal,
             "benefit": benefit,
+            "language": language,
             "domain": "technical",
             "trace": trace,
             "context": {
@@ -706,6 +786,7 @@ def build_new_surface_enabler_specs(
             "description": texts["description"].format(**values),
             "goal": texts["goal"].format(**values),
             "benefit": texts["benefit"].format(**values),
+            "language": language,
             "domain": "technical",
             "trace": [change, *units],
             "context": {"need": "cross_cutting_enabler", "artifact_id": change, "artifact_type": "change_border",
@@ -925,6 +1006,7 @@ def build_slice_story_specs(
     """IMP-416: one value story per slice (functionality x delta); the project path keeps build_backlog_story_specs."""
     language = language if language in STORY_TEXT else "en"
     text = STORY_TEXT[language]
+    voice = story_voice(project_id, language)
     rationale_text = {
         "es": "{fun}: {n} unidad(es) de {name}; {rationale}",
         "en": "{fun}: {n} unit(s) of {name}; {rationale}",
@@ -966,8 +1048,7 @@ def build_slice_story_specs(
                 fun=item["functionality"], n=len(units), name=item["name"], rationale=item["rationale"]
             ),
             "description": text["description"].format(unit=", ".join(item["units"])),
-            "goal": goal_for_spec_unit(first, language),
-            "benefit": text["benefit"],
+            **story_statement_fields(first, language, voice, text["benefit"]),
             "domain": domain_for_spec_unit(first),
             "trace": sorted(trace),
             "context": context_row_for_spec_unit(first),

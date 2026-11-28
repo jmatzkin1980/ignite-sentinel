@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from helpers import SnapshotWorkspaceCase, run_ok  # noqa: E402
+from helpers import SnapshotWorkspaceCase, place_harvest_docs, run_ok  # noqa: E402
 from test_change_flow import SCOPE_ANSWER  # noqa: E402
 
 from sentinel.change_requirements import load_change_ears, parse_delta  # noqa: E402
@@ -60,6 +60,7 @@ class ChangeFunctionalities(SnapshotWorkspaceCase):
         run_ok(["init", PID])
         run_ok(["ingest", PID, "--source", "pedido.md", "--change"])
         run_ok(["resolve-gaps", PID, "--source", "scope.md", "--change", CID])
+        place_harvest_docs(PID, (root / "harvest_compras.md").read_text(encoding="utf-8"))  # IMP-435 (B-37)
         run_ok(["harvest", PID, "--source", "harvest_compras.md", "--change", CID])
         accept_new_surface(PID, CID, new_surface_candidates(PID, CID)[0]["id"], "pantalla", NEW)
         run_ok(["resolve-gaps", PID, "--source", "answers.md", "--change", CID])

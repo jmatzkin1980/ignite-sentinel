@@ -57,8 +57,6 @@ Sweet spot: identify affected journeys, screens, decisions, states, and UX const
 
 - [PENDING INPUT]: no evidence in client input yet; tracked by `GAP-TECH-DATA-SOURCE`. Provide via the domain context pack.
 
-Data and contract depth: include key entities, critical fields, and contract direction
-
 [TRUNCATED IN GENERATED ARTIFACT - retrieve focused source context if needed]
 
 ## Backlog-Relevant Contract
@@ -99,16 +97,16 @@ These rows are parsed from `02_requirements/requirements.md` and remain source-o
 
 ## Progressive Disclosure Context Map
 
-| PRD / Specs Need | Retrieved Signal | Artifact | Trace |
+| PRD / Specs Need | Lenses | Trace | Context Pack |
 | --- | --- | --- | --- |
-| strategic_foundation | ## 1. Identidad y Valor  Initiative: Operations Risk Dashboard _(source: `00_raw/`)_  Main pain: - Domains: product, functional, quality  Outcome and metrics: - Expected outcome: " | `REQ-003` | REQ-003 |
-| personas | \| PRD Section \| Required Discovery Signal \| Evidence Source \| If Missing \| \| --- \| --- \| --- \| --- \| \| Personas \| Primary/secondary personas, goals, pains, proficiency, usage frequ | `REQ-003` | REQ-003 |
-| functional_requirements | - `GAP-BUSINESS-RULES` (business, medium): Business rules, exclusions, or decision rules are not explicit enough for downstream slicing. - `GAP-PRD-PERSONA-DETAIL` (business, mediu | `REQ-003` | REQ-003 |
-| nfr_kpi | ## 5. Lente Tecnico: Datos, Conectividad y Arquitectura  - [PENDING INPUT]: no evidence in client input yet; tracked by `GAP-TECH-DATA-SOURCE`. Provide via the domain context pack. | `REQ-003` | REQ-003 |
-| jtbd_traceability | \| PRD Section \| Required Discovery Signal \| Evidence Source \| If Missing \| \| --- \| --- \| --- \| --- \| \| Personas \| Primary/secondary personas, goals, pains, proficiency, usage frequ | `REQ-003` | REQ-003 |
-| execution_plan | - `GAP-BUSINESS-RULES` (business, medium): Business rules, exclusions, or decision rules are not explicit enough for downstream slicing. - `GAP-PRD-PERSONA-DETAIL` (business, mediu | `REQ-003` | REQ-003 |
-| governance | \| PRD Section \| Required Discovery Signal \| Evidence Source \| If Missing \| \| --- \| --- \| --- \| --- \| \| Personas \| Primary/secondary personas, goals, pains, proficiency, usage frequ | `REQ-003` | REQ-003 |
-| backlog_handoff | - PRD can expand this brief only from confirmed seeds, decisions, context folders, and traceable source material. - Specs must preserve system boundaries, data ownership, UX states | `REQ-003` | REQ-003 |
+| strategic_foundation | business, product | REQ-001, REQ-003 | `08_context_packs/specs_generation.json` |
+| personas | business, product, design | REQ-001, REQ-003 | `08_context_packs/specs_generation.json` |
+| functional_requirements | product, quality | REQ-001, REQ-003 | `08_context_packs/specs_generation.json` |
+| nfr_kpi | technical, quality, compliance, business | REQ-001, REQ-003 | `08_context_packs/specs_generation.json` |
+| jtbd_traceability | business, product | REQ-001, REQ-003 | `08_context_packs/specs_generation.json` |
+| execution_plan | delivery, technical | REQ-001, REQ-003 | `08_context_packs/specs_generation.json` |
+| governance | compliance, delivery | REQ-001, REQ-003 | `08_context_packs/specs_generation.json` |
+| backlog_handoff | product, quality, delivery | REQ-001, REQ-003 | `08_context_packs/specs_generation.json` |
 
 ## Retrieval Plan For Backlog Agents
 

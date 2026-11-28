@@ -60,7 +60,7 @@ test_h27_inc7a_walk  # 12 s
 test_h27_series_scope  # 13 s
 test_h27_change_split  # 25 s
 test_h27_inc7c_walk  # 11 s
-test_h27_change_release  # 176 s
+test_h27_change_release  # 249 s (re-measured 2026-11-28, IMP-435)
 test_h27_inc7d_walk  # 21 s
 test_h27_change_quality  # 73 s
 test_h27_inc8a_walk  # 18 s
@@ -68,3 +68,11 @@ test_h27_change_refine  # 55 s
 test_h27_change_compose  # 56 s
 test_h27_change_feedback  # 48 s
 test_h27_inc8b_walk  # 21 s
+test_inc9a_baseline  # 29 s
+test_inc9a_refusals  # 30 s
+test_inc9a_backlog  # 39 s
+test_inc9a_project_next  # 41 s
+test_inc9a_change_final  # 18 s
+test_inc9a_change_series  # 93 s
+test_inc9a_deterministic  # 64 s (IMP-435 inc 9a, measured 2026-11-28)
+test_inc9a_walk  # 43 s (IMP-435 inc 9a task 8, measured 2026-11-28)

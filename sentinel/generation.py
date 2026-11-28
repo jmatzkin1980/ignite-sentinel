@@ -6,7 +6,6 @@ from pathlib import Path
 import re
 from typing import Any
 
-from .core.markdown import table_cell
 from .memory import apply_pack_disclosure_budget, get_multi_domain_context, shared_broker, shared_brokers
 from . import id_registry
 from .story_ids import carry_modificada_por, ensure_story_ids_seeded, is_change_story
@@ -19,6 +18,7 @@ from .core.markdown import parse_table_rows
 from .deltas import DELTA_LEGEND, DeltaStatus, delta_marker
 from .compilers.backlog import (
     build_agent_execution_contract,
+    context_signal_reference,
     build_domain_context_coverage,
     render_backlog_context_summary,
     render_enabler_boundary,
@@ -83,7 +83,8 @@ from .compilers.slicing import (
     trace_ids_for_spec_unit,
 )
 from .gaps import parse_non_goals
-from .maturity import evaluate, parse_gap_answers, prd_gate_warnings, prd_section_readiness
+from .maturity import evaluate, known_gap_ids, parse_gap_answers, prd_gate_warnings, prd_section_readiness
+from .backlog.refinement import rerender_refinements, strip_refinement_section
 from .prd import render_prd_compositions
 from .retrieval_plans import compose_plan_query, load_retrieval_plan, select_source_context
 from .slice_plan import generate_slice_plan
@@ -223,6 +224,34 @@ def enforce_foundation_drift_gate(project_id: str, phase: str, config: dict) -> 
     return warnings
 
 
+def blocked_refusal(project_id: str, command: str, maturity: dict[str, object]) -> GateRefusal:
+    """IMP-435 (A-13.1): `/specs` and `/backlog` on a blocked project name each blocking gap and the command that closes it."""
+    from .core.text import project_language
+    from .health import blocking_gap_fix
+
+    gaps = [str(gap) for gap in maturity.get("blocking_gaps", [])]
+    _fix, steps = blocking_gap_fix(project_id)
+    again = f"/{command} {project_id}"
+    if project_language(project_id) == "es":  # IMP-435 (M-2)
+        return GateRefusal(
+            f"No se puede generar {command} mientras la madurez de los requisitos está BLOQUEADA"
+            + (f" por {', '.join(gaps)}." if gaps else ".") + " " + _fix,
+            next_step="Corré " + ", y después ".join([*steps, again]) + ".",
+        )
+    return GateRefusal(
+        f"Cannot generate {command} while requirement maturity is BLOCKED"
+        + (f" by {', '.join(gaps)}." if gaps else ".") + " " + _fix,
+        next_step="Run " + ", then ".join([*steps, again]) + ".",
+    )
+
+
+def health_after_generation(project_id: str) -> str:
+    """IMP-435 (A-01): a regeneration is CLEAN unless a semantic change still waits for the BA's review (or an applied answer)."""
+    from .health import pending_suspicious_links
+
+    return "DIRTY" if pending_suspicious_links(project_id) is not None else "CLEAN"
+
+
 def generate_specs(project_id: str) -> dict[str, object]:
     # IMP-345: one broker (embedder + LanceDB) for the whole command, not one per artifact.
     with shared_brokers():
@@ -232,7 +261,7 @@ def generate_specs(project_id: str) -> dict[str, object]:
 def _generate_specs(project_id: str) -> dict[str, object]:
     maturity = evaluate(project_id)
     if maturity["readiness"] == "BLOCKED":
-        raise GateRefusal("Cannot generate specs while requirement maturity is BLOCKED.")
+        raise blocked_refusal(project_id, "specs", maturity)
     base = workspace_path(project_id)
     config = load_config(project_id)
     # IMP-151: soft gate — warn when the foundation drifted since last generation.
@@ -267,7 +296,7 @@ def _generate_specs(project_id: str) -> dict[str, object]:
     previous_spec_units = spec_unit_snapshot(base)
     prd_text = render_prd(project_id, req_text, context, source_path.name, language, evidence_text)
     write_text(prd_path, render_prd_compositions(project_id, prd_text))
-    prd_readiness = prd_section_readiness(prd_path.read_text(encoding="utf-8"))
+    prd_readiness = prd_section_readiness(prd_path.read_text(encoding="utf-8"), known_gap_ids(project_id))
     specs_gate = config.get("specs_gate", {}) if isinstance(config.get("specs_gate", {}), dict) else {}
     specs_threshold = float(specs_gate.get("threshold", 0.75))
     specs_strict = bool(specs_gate.get("strict", False))
@@ -347,7 +376,7 @@ def _generate_specs(project_id: str) -> dict[str, object]:
     update_state(
         project_id,
         phase="specs_completed",
-        health="CLEAN",
+        health=health_after_generation(project_id),
         readiness_stage="READY_FOR_BACKLOG",
         prd_section_readiness=prd_readiness,
         specs_gate=gate_result,
@@ -390,7 +419,7 @@ def _generate_backlog(
 ) -> dict[str, str]:
     maturity = evaluate(project_id)
     if maturity["readiness"] == "BLOCKED":
-        raise GateRefusal("Cannot generate backlog while requirement maturity is BLOCKED.")
+        raise blocked_refusal(project_id, "backlog", maturity)
     specs = nodes_by_type(project_id, "spec")
     if not specs:
         generate_specs(project_id)
@@ -438,7 +467,9 @@ def _generate_backlog(
     epic_path = base / "04_backlog" / "EPIC-001.md"
     previous_epic = epic_path.read_text(encoding="utf-8") if epic_path.exists() else ""
     write_text(epic_path, render_epic(project_id, story_specs, backlog_context, effective_story_format))
-    record_regeneration_diff(project_id, "EPIC-001.md", previous_epic, epic_path.read_text(encoding="utf-8"))
+    # IMP-435: the BA's accepted refinements are rendered again below, so they are not a change of the regenerated epic
+    previous_for_diff = strip_refinement_section(previous_epic) if "## Agent Backlog Refinements" in previous_epic else previous_epic
+    record_regeneration_diff(project_id, "EPIC-001.md", previous_for_diff, epic_path.read_text(encoding="utf-8"))
     epic_id = add_node(project_id, "EPIC", "epic", epic_path, "Deliver validated requirement value", domain="product")
     for spec in specs:
         add_edge(project_id, spec["id"], epic_id, "decomposes_to")
@@ -516,6 +547,8 @@ def _generate_backlog(
         if stale_story_path not in active_story_paths and not is_change_story(stale_story_path):
             remove(stale_story_path)
 
+    refinements = rerender_refinements(project_id)  # IMP-435 (A-02): what the BA accepted survives the new backlog
+
     assert_backlog_privacy_clean(project_id)
 
     broker = shared_broker(project_id)
@@ -537,7 +570,7 @@ def _generate_backlog(
     update_state(
         project_id,
         phase="backlog_completed",
-        health="CLEAN",
+        health=health_after_generation(project_id),
         metrics={"requirements": 1, "gaps_open": 0, "decisions_pending": 1, "user_stories": len(story_ids), "epics": len(epic_ids)},
     )
     # IMP-148: snapshot the fingerprint of the specs the backlog was derived from.
@@ -556,6 +589,7 @@ def _generate_backlog(
         "task_seed_contracts": "enabled" if with_task_seeds else "disabled",
         # IMP-370: what is still stale AFTER this run (a stale specs stays stale; the backlog was just rebuilt).
         "foundation_warnings": foundation_drift_warnings(project_id, "backlog"),
+        **({"refinements_dropped": refinements["dropped"]} if refinements["dropped"] else {}),
     }
 
 
@@ -865,11 +899,9 @@ def task_seed_surfaces(story: dict[str, Any]) -> list[str]:
     signal = story.get("execution_contract", {}).get("critical_surfaces", {})
     if not isinstance(signal, dict):
         return ["[PENDING DOMAIN CONTEXT] Critical surfaces are not confirmed."]
-    status = str(signal.get("status", "Pending"))
-    summary = str(signal.get("summary", "")).strip()
-    source = str(signal.get("source", "")).strip()
-    if status == "Confirmed" and summary:
-        return [table_cell(f"{source}: {summary}" if source else summary, 220)]
+    if str(signal.get("status", "Pending")) == "Confirmed":
+        # IMP-435 (B-09, Q5): the seed names the pack sections; the retrieved surface text stays in the pack.
+        return [context_signal_reference("critical_surfaces")]
     return ["[PENDING DOMAIN CONTEXT] Critical surfaces are not confirmed."]
 
 

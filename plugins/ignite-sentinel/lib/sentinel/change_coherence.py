@@ -82,22 +82,26 @@ def _inputs_stamp(project_id: str, change_id: str) -> str:
     return hashlib.sha256(json.dumps(sorted(items)).encode("utf-8")).hexdigest()
 
 
-def view_fingerprint(project_id: str, change_id: str) -> str:
-    """The fingerprint of the lens view; the view is rendered again only when the stamp of its inputs moved (IMP-410 I3)."""
+def view_fingerprint(project_id: str, change_id: str, persist: bool = False) -> str:
+    """The fingerprint of the lens view; the view is rendered again only when the stamp of its inputs moved (IMP-410 I3).
+
+    IMP-435 (C-06): `fingerprint.json` is a cache that only `/self-review --crosses` and `/cross` write (`persist=True`);
+    a read (`/status`, `/next`, `/view`, `/dashboard`) computes the fingerprint in memory and writes nothing."""
     base = workspace_path(project_id)
     folder = coherence_dir(base, change_id)
     stamp = _inputs_stamp(project_id, change_id)
     key = (str(base), change_id)
     cached = _FINGERPRINTS.get(key)
-    if cached and cached[0] == stamp:
-        return cached[1]
     stored = read_json(folder / "fingerprint.json", {})
-    if isinstance(stored, dict) and stored.get("stamp") == stamp and stored.get("fingerprint"):
+    stored_current = isinstance(stored, dict) and stored.get("stamp") == stamp and bool(stored.get("fingerprint"))
+    if cached and cached[0] == stamp:
+        fingerprint = cached[1]
+    elif stored_current:
         fingerprint = str(stored["fingerprint"])
     else:
         fingerprint = coherence_view(project_id, change_id)["fingerprint"]
-        if folder.is_dir():
-            write_json(folder / "fingerprint.json", {"stamp": stamp, "fingerprint": fingerprint})
+    if persist and folder.is_dir() and not (stored_current and stored.get("fingerprint") == fingerprint):
+        write_json(folder / "fingerprint.json", {"stamp": stamp, "fingerprint": fingerprint})
     _FINGERPRINTS[key] = (stamp, fingerprint)
     return fingerprint
 
@@ -107,7 +111,7 @@ def _checks_file(base: Path, change_id: str) -> dict[str, Any]:
     return found if isinstance(found, dict) else {}
 
 
-def refresh_coherence(project_id: str, change_id: str) -> dict[str, Any] | None:
+def refresh_coherence(project_id: str, change_id: str, persist: bool = False) -> dict[str, Any] | None:
     """Write `view.md` and `checks.json` when what they come from changed; None while the change is not ready."""
     from .cross_checks import run_cross_checks
 
@@ -116,7 +120,7 @@ def refresh_coherence(project_id: str, change_id: str) -> dict[str, Any] | None:
     base = workspace_path(project_id)
     folder = coherence_dir(base, change_id)
     recorded = _checks_file(base, change_id)
-    fingerprint = view_fingerprint(project_id, change_id)
+    fingerprint = view_fingerprint(project_id, change_id, persist=persist)
     if recorded.get("fingerprint") != fingerprint or not (folder / "view.md").is_file():
         view = coherence_view(project_id, change_id)
         fingerprint = view["fingerprint"]
@@ -351,7 +355,7 @@ def run_change_coherence(project_id: str, change_id: str, source: str | None, sk
         action, outcome = "crosses", record_change_coherence(project_id, change_id, Path(source))
     elif skip:
         action, outcome = "skip", skip_change_coherence(project_id, change_id, reason or "")
-    refreshed = refresh_coherence(project_id, change_id) or {}
+    refreshed = refresh_coherence(project_id, change_id, persist=True) or {}
     state = coherence_state(project_id, change_id)
     view_path = refreshed.get("view_path", "")
     if action == "crosses":

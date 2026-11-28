@@ -53,6 +53,10 @@
     // Kilo's own default rather than to a stricter rule invented here.
     "bash": {
       "python -m sentinel *": "allow",
+      // IMP-435 (C-10): /setup --semantic-memory downloads a model (512 MB) and runs only when the user asks.
+      // Kilo takes the last matching rule, so these two follow the wildcard.
+      "python -m sentinel setup *": "ask",
+      "python -m sentinel /setup *": "ask",
       "python -m sentinel.adapters": "allow",
       "python -m unittest discover -s tests": "allow",
       "powershell -ExecutionPolicy Bypass -File installers/sentinel.ps1 *": "allow",

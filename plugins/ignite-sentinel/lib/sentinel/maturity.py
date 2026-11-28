@@ -65,8 +65,22 @@ for _gap, _sec in PRD_SECTION_FOR_GAP.items():
     _GAPS_FOR_PRD_SECTION.setdefault(_sec, []).append(_gap)
 
 
-def brief_section_readiness(brief_text: str) -> dict[str, object]:
-    """Classify narrative lenses 1-6 as populated/pending and score coverage (v1 or v2)."""
+def known_gap_ids(project_id: str) -> set[str]:
+    """IMP-435 (A-11): the ids `gaps.md` tracks; an answer under any other id is rejected, so none is named as a way to feed a section."""
+    path = workspace_path(project_id) / "01_discovery" / "gaps.md"
+    if not path.exists():
+        return set()
+    return {str(row.get("id", "")).strip("`") for row in parse_gap_rows(path.read_text(encoding="utf-8"))}
+
+
+def _feeding(gaps: list[str], known: set[str] | None) -> list[str]:
+    return sorted(gaps if known is None else (gap for gap in gaps if gap in known))
+
+
+def brief_section_readiness(brief_text: str, known_gaps: set[str] | None = None) -> dict[str, object]:
+    """Classify narrative lenses 1-6 as populated/pending and score coverage (v1 or v2).
+
+    With `known_gaps` (the ids in gaps.md) only those are named as feeding a section."""
     model = parse_brief(brief_text)
     sections: dict[str, dict[str, object]] = {}
     poor: list[dict[str, object]] = []
@@ -78,7 +92,7 @@ def brief_section_readiness(brief_text: str) -> dict[str, object]:
         status = "pending" if is_pending else "populated"
         sections[sec] = {"status": status, "evidence_citations": citations}
         if is_pending:
-            feeding = sorted(_GAPS_FOR_BRIEF_SECTION.get(sec, []))
+            feeding = _feeding(_GAPS_FOR_BRIEF_SECTION.get(sec, []), known_gaps)
             sections[sec]["feeding_gaps"] = feeding
             poor.append({"section": sec, "title": _BRIEF_SECTION_TITLES[sec], "feeding_gaps": feeding})
         else:
@@ -130,7 +144,7 @@ def implementability_gate_warnings(summary: dict[str, object], language: str = "
     return warnings
 
 
-def prd_section_readiness(prd_text: str) -> dict[str, object]:
+def prd_section_readiness(prd_text: str, known_gaps: set[str] | None = None) -> dict[str, object]:
     """Classify numbered PRD sections as populated/pending and score coverage."""
     bodies: dict[str, list[str]] = {}
     current = None
@@ -153,7 +167,7 @@ def prd_section_readiness(prd_text: str) -> dict[str, object]:
         status = "pending" if is_pending else "populated"
         sections[sec] = {"status": status, "evidence_citations": citations}
         if is_pending:
-            feeding = sorted(_GAPS_FOR_PRD_SECTION.get(sec, []))
+            feeding = _feeding(_GAPS_FOR_PRD_SECTION.get(sec, []), known_gaps)
             sections[sec]["feeding_gaps"] = feeding
             poor.append({"section": sec, "title": _PRD_SECTION_TITLES[sec], "feeding_gaps": feeding})
         else:
@@ -329,7 +343,8 @@ def maturity_metrics(
     )
 
     if evidence_score is None:
-        maturity_score = gap_closure_rate
+        # IMP-435 (A-36): a project with no gaps.md has discovered nothing yet; "every gap closed" is not maturity
+        maturity_score = gap_closure_rate if gaps_path.exists() else 0.0
     else:
         maturity_score = round((gap_closure_rate + evidence_score) / 2, 3)
     metrics: dict[str, object] = {
@@ -346,10 +361,10 @@ def maturity_metrics(
     # IMP-025: per-section brief readiness once a brief exists.
     brief_path = base / "02_requirements" / "project-brief.md"
     if brief_path.exists():
-        metrics["brief_section_readiness"] = brief_section_readiness(brief_path.read_text(encoding="utf-8"))
+        metrics["brief_section_readiness"] = brief_section_readiness(brief_path.read_text(encoding="utf-8"), known_gap_ids(project_id))
     prd_path = base / "03_specs" / "prd.md"
     if prd_path.exists():
-        metrics["prd_section_readiness"] = prd_section_readiness(prd_path.read_text(encoding="utf-8"))
+        metrics["prd_section_readiness"] = prd_section_readiness(prd_path.read_text(encoding="utf-8"), known_gap_ids(project_id))
     # IMP-028: maturation-cycle telemetry.
     metrics["maturation_telemetry"] = maturation_telemetry(project_id)
     assumptions_path = base / "01_discovery" / "assumptions.md"
@@ -454,8 +469,12 @@ def refuse_change_only_brief(project_id: str) -> None:
 
     open_changes = sorted(list_changes(project_id))
     if open_changes:
+        from .changes import refusal_language
+
+        es = refusal_language(project_id, open_changes[0]) == "es"
         raise GateRefusal(
-            f"{project_id} sólo tiene cambios: no hay 02_requirements/requirements.md del proyecto",
+            f"{project_id} sólo tiene cambios: no hay 02_requirements/requirements.md del proyecto" if es
+            else f"{project_id} only has changes: there is no project 02_requirements/requirements.md",
             next_step=f"/brief {project_id} --change {open_changes[0]}",
         )
 
@@ -471,7 +490,7 @@ def refuse_change_only_maturity(project_id: str) -> None:
     raise GateRefusal(
         f"{project_id} sólo tiene cambios: /maturity mide el brief del proyecto, que no existe. "
         f"La preparación de un cambio se ve con /next {project_id} --change {first}" if es
-        else f"{project_id} only holds changes: /maturity measures the project brief, which does not exist. "
+        else f"{project_id} only has changes: /maturity measures the project brief, which does not exist. "
         f"A change's readiness is shown by /next {project_id} --change {first}",
         next_step=f"/status {project_id} --change {first}",
     )
@@ -496,7 +515,7 @@ def generate_project_brief(project_id: str) -> dict[str, object]:
     strict = bool(gate.get("strict", False))
     language = config.get("project_language") if config.get("project_language") in {"es", "en"} else "en"
     brief_text = brief_path.read_text(encoding="utf-8")
-    readiness = brief_section_readiness(brief_text)
+    readiness = brief_section_readiness(brief_text, known_gap_ids(project_id))
     below = float(readiness["coverage_score"]) < threshold
     warnings = brief_gate_warnings(readiness, language) if below else []
     # IMP-118: soft governing gate on per-RU implementability. By default it

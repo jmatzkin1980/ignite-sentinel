@@ -11,6 +11,7 @@ TEXT = {
         "third_party_contract": "Las filas {rows} modifican o quitan {surfaces}, un contrato que usan terceros.",
         "suggest": "El BA decide: partir el cambio en releases con /split {project} --change {change} --propose, o seguir como un cambio",
         "kept_single": "decidido: sigue como un cambio ({reason})",
+        "series_decided": "decidido: el cambio se parte en la serie confirmada ({releases})",
     },
     "en": {
         "several_processes": "The change border touches {surfaces}: {count} processes or new or adjacent integrations for a request of {elements} elements (threshold {threshold}).",
@@ -18,6 +19,7 @@ TEXT = {
         "third_party_contract": "Rows {rows} modify or remove {surfaces}, a contract third parties rely on.",
         "suggest": "The BA decides: split the change into releases with /split {project} --change {change} --propose, or keep it as one change",
         "kept_single": "decided: it stays one change ({reason})",
+        "series_decided": "decided: the change is split into the confirmed series ({releases})",
     },
 }
 
@@ -59,6 +61,12 @@ def escalation_warnings(project_id: str, change_id: str) -> list[dict]:
     A BA decision (`/sources --keep-single`) replaces the warnings it covered with one `decided` notice."""
     change = get_change(project_id, change_id)
     warnings = _raw_warnings(project_id, change_id)
+    releases = _confirmed_series_releases(project_id, change_id) if warnings else []
+    if releases:
+        # I-2: the split is already decided; /split --propose stays available to the BA but is not advised here
+        text = TEXT.get(change_language(project_id, change), TEXT["es"])
+        return [{"trigger": "series_decided", "surfaces": [], "rows": [], "decided": True,
+                 "message": text["series_decided"].format(releases=", ".join(releases))}]
     decision = change.get("keep_single")
     if not isinstance(decision, dict):
         return warnings
@@ -75,6 +83,20 @@ def escalation_warnings(project_id: str, change_id: str) -> list[dict]:
     decided = {"trigger": "kept_single", "surfaces": [], "rows": [], "decided": True,
                "message": text["kept_single"].format(reason=decision.get("reason", ""))}
     return [decided, *(w for w in warnings if not covers(w))]
+
+
+def _confirmed_series_releases(project_id: str, change_id: str) -> list[str]:
+    """The release ids of the confirmed series of the change; [] when it has none."""
+    from .core.io import read_json
+    from .series_scope import series_dir
+    from .workspace import workspace_path
+
+    partition = read_json(series_dir(workspace_path(project_id), change_id) / "partition.json", None)
+    if not isinstance(partition, dict) or partition.get("status") != "confirmed":
+        return []
+    releases = partition.get("releases")
+    ids = [str(r.get("id") or r.get("rid") or "") for r in releases if isinstance(r, dict)] if isinstance(releases, list) else []
+    return [i for i in ids if i] or ["confirmed"]
 
 
 def _raw_warnings(project_id: str, change_id: str) -> list[dict]:

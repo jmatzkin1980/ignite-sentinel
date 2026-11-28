@@ -6,7 +6,12 @@ from ..core.markdown import table_cell
 from ..brief_model import load_brief_model
 from ..core.markdown import frontmatter_list
 from ..slicing_model import load_slicing_model
-from .prd import EARS_REQUIREMENT_ID_RE, ears_trace_ids, render_ears_requirements_table
+from .prd import (
+    BACKLOG_TRACE_TYPES, EARS_REQUIREMENT_ID_RE, context_trace_cell, ears_trace_ids, graph_trace_ids, plan_lenses_cell,
+    render_ears_requirements_table,
+)
+
+BACKLOG_CONTEXT_PACK = "08_context_packs/backlog_generation.json"
 
 TASK_SEED_BOUNDARY_NOTE = (
     "Task seeds are optional implementation intentions for downstream agents. "
@@ -16,17 +21,19 @@ TASK_SEED_BOUNDARY_NOTE = (
 )
 
 
+DOMAIN_SPECS = (
+    ("Product", ("epic_value", "functional_slicing"), "Defines value, scope, slicing, FR/JTBD links and acceptance intent."),
+    ("Technology", ("technical_dependencies", "execution_commands", "critical_surfaces", "engineering_practices"), "Defines architecture, commands, affected surfaces, constraints and implementation risks."),
+    ("Design", ("ux_states", "design_match"), "Defines journeys, screens, states, components, tokens and interaction rules."),
+    ("Quality", ("quality_risks", "regression_contract"), "Defines testability, regression, evidence, test data and quality gates."),
+    ("Delivery", ("open_uncertainty",), "Defines blockers, sequencing, dependencies, roadmap and planning uncertainty."),
+)
+
+
 def build_domain_context_coverage(backlog_context: dict[str, Any]) -> list[dict[str, str]]:
     sections = backlog_context.get("sections", {}) if isinstance(backlog_context, dict) else {}
-    domain_specs = [
-        ("Product", ("epic_value", "functional_slicing"), "Defines value, scope, slicing, FR/JTBD links and acceptance intent."),
-        ("Technology", ("technical_dependencies", "execution_commands", "critical_surfaces", "engineering_practices"), "Defines architecture, commands, affected surfaces, constraints and implementation risks."),
-        ("Design", ("ux_states", "design_match"), "Defines journeys, screens, states, components, tokens and interaction rules."),
-        ("Quality", ("quality_risks", "regression_contract"), "Defines testability, regression, evidence, test data and quality gates."),
-        ("Delivery", ("open_uncertainty",), "Defines blockers, sequencing, dependencies, roadmap and planning uncertainty."),
-    ]
     coverage: list[dict[str, str]] = []
-    for domain, keys, impact in domain_specs:
+    for domain, keys, impact in DOMAIN_SPECS:
         evidence = first_context_result(sections, keys)
         status = "Confirmed" if evidence else "Pending"
         coverage.append(
@@ -75,10 +82,10 @@ def build_agent_execution_contract(
         "readiness": "Ready With Domain Evidence" if execution_ready else "Needs Domain Context",
         "agent_profile": agent_profile_for_story(story),
         "decision_priority": "Business value > correctness > safety/privacy > test evidence > implementation elegance",
-        "commands": context_signal(sections, ("execution_commands",), "[PENDING TECHNOLOGY CONTEXT] Provide build, lint, test, typecheck, migration or boot commands."),
-        "critical_surfaces": context_signal(sections, ("critical_surfaces", "technical_dependencies"), "[PENDING TECHNOLOGY CONTEXT] Provide affected files, services, APIs, data stores, modules or shared surfaces."),
+        "commands": context_signal(sections, CONTRACT_SIGNAL_KEYS["commands"], "[PENDING TECHNOLOGY CONTEXT] Provide build, lint, test, typecheck, migration or boot commands."),
+        "critical_surfaces": context_signal(sections, CONTRACT_SIGNAL_KEYS["critical_surfaces"], "[PENDING TECHNOLOGY CONTEXT] Provide affected files, services, APIs, data stores, modules or shared surfaces."),
         "design_match": design_signal_for_story(story, sections),
-        "engineering_practices": context_signal(sections, ("engineering_practices",), "[PENDING TECHNOLOGY CONTEXT] Provide engineering handbook, ADRs, style rules, logging/error patterns or repo conventions."),
+        "engineering_practices": context_signal(sections, CONTRACT_SIGNAL_KEYS["engineering_practices"], "[PENDING TECHNOLOGY CONTEXT] Provide engineering handbook, ADRs, style rules, logging/error patterns or repo conventions."),
         "validation": validation_contract_for_story(story),
         "autonomy": autonomy_contract_for_story(story),
         "blast_radius": blast_radius_for_story(story),
@@ -104,6 +111,22 @@ def context_signal(sections: dict[str, Any], keys: tuple[str, ...], pending: str
         "summary": str(row.get("summary", "Context retrieved"))[:320],
         "anchor": anchor_for_context_row(row),
     }
+
+
+# IMP-435 (B-09, Q5): the plan sections each contract field reads, in the order `context_signal` tries them. The
+# governed Markdown names these and the pack; the retrieved hit and its anchor stay in the JSON packs.
+CONTRACT_SIGNAL_KEYS = {
+    "commands": ("execution_commands",),
+    "critical_surfaces": ("critical_surfaces", "technical_dependencies"),
+    "design_match": ("design_match", "ux_states"),
+    "engineering_practices": ("engineering_practices",),
+}
+
+
+def context_signal_reference(field: str) -> str:
+    """The deterministic reference of a confirmed contract field: its plan sections in the backlog context pack."""
+    names = ", ".join(f"`{key}`" for key in CONTRACT_SIGNAL_KEYS[field])
+    return f"{names} in `{BACKLOG_CONTEXT_PACK}`"
 
 
 def anchor_for_context_row(row: dict[str, Any]) -> dict[str, Any]:
@@ -145,7 +168,7 @@ def read_plan_for_row(row: dict[str, Any]) -> dict[str, Any]:
 def design_signal_for_story(story: dict[str, Any], sections: dict[str, Any]) -> dict[str, Any]:
     if story.get("domain") != "design" and story.get("label") != "Enabler":
         return {"status": "Not Applicable", "source": "N/A", "summary": "No direct design execution contract is required for this story unless design context later marks it as impacted."}
-    return context_signal(sections, ("design_match", "ux_states"), "[PENDING DESIGN CONTEXT] Provide prototype, UX states, components, tokens, accessibility or interaction rules.")
+    return context_signal(sections, CONTRACT_SIGNAL_KEYS["design_match"], "[PENDING DESIGN CONTEXT] Provide prototype, UX states, components, tokens, accessibility or interaction rules.")
 
 
 def agent_profile_for_story(story: dict[str, Any]) -> str:
@@ -339,7 +362,7 @@ Backlog generation consumes living domain context when Technology, Design, Quali
 
 ## Retrieved Context Summary
 
-{render_backlog_context_summary(backlog_context)}
+{render_backlog_context_summary(backlog_context, graph_trace_ids(project_id, BACKLOG_TRACE_TYPES))}
 
 ## Stories
 
@@ -433,7 +456,7 @@ An item belongs here only when all checks pass:
 
 ## Retrieved Context Summary
 
-{render_backlog_context_summary(backlog_context)}
+{render_backlog_context_summary(backlog_context, graph_trace_ids(project_id, BACKLOG_TRACE_TYPES))}
 
 ## Stories
 
@@ -442,8 +465,7 @@ An item belongs here only when all checks pass:
 
 
 # IMP-198: optional JTBD-native ("job story") phrasing for the story statement.
-# Default is the persona-neutral user-story shape ("As a target user..."), whose
-# output stays byte-identical to pre-IMP-198. The job format leads with the
+# Default is the user-story shape, built from its parts since IMP-435 (A-08). The job format leads with the
 # operational situation instead of a persona (so it never invents one) and reuses
 # the same derived goal/benefit fields: a missing outcome surfaces as
 # `[PENDING INPUT]`, never hand-completed, exactly like the user-story format does
@@ -471,11 +493,30 @@ def render_story_narrative(story: dict[str, Any], story_format: str = "user", *,
         if inline:
             return f"When {_JOB_STORY_SITUATION}, I want {motivation} so I can {outcome}"
         return f"When {_JOB_STORY_SITUATION},\nI want {motivation},\nSo I can {outcome}"
-    goal = story["goal"].lower()
-    benefit = story["benefit"].lower()
-    if inline:
-        return f"As a target user, I want {goal} so that {benefit}"
-    return f"As a target user,\nI want {goal},\nSo that {benefit}"
+    return _story_statement(story, inline)
+
+
+def _story_statement(story: dict[str, Any], inline: bool) -> str:
+    """IMP-435 (A-08): "Como <actor>, quiero <capacidad> cuando <disparador>, para <beneficio>" from the parts of the story,
+    in the language of the workspace; an actor nobody confirmed is "usuario" / "a user", never a fixed persona."""
+    from .slicing import STORY_ACTOR_DEFAULT, STORY_ACTOR_ENABLER
+
+    language = "es" if story.get("language") == "es" else "en"
+    default = STORY_ACTOR_ENABLER if story.get("type") == "cross_cutting_enabler" else STORY_ACTOR_DEFAULT
+    actor = str(story.get("actor") or default[language]).strip()
+
+    def lowered(text: str) -> str:
+        return text[:1].lower() + text[1:]
+
+    goal, benefit = lowered(str(story["goal"]).strip()), lowered(str(story["benefit"]).strip())
+    trigger = lowered(str(story.get("trigger") or "").strip())
+    if language == "es":
+        want = f"quiero {goal}" + (f" cuando {trigger}" if trigger else "")
+        parts = [f"Como {actor}", want, ("para " if story.get("benefit_is_goal") else "para que ") + benefit]
+    else:
+        want = f"I want to {goal}" + (f" when {trigger}" if trigger else "")
+        parts = [f"As {actor}", want, ("to " if story.get("benefit_is_goal") else "so that ") + benefit]
+    return ", ".join(parts) if inline else ",\n".join(parts)
 
 
 def render_story_section(story: dict[str, Any], story_format: str = "user") -> str:
@@ -578,11 +619,19 @@ def render_gherkin_criterion(criterion: dict[str, str]) -> str:
 > Then {criterion['then']}."""
 
 
+def coverage_evidence_cell(row: dict[str, str]) -> str:
+    """IMP-435 (B-09, Q5): a confirmed domain names the backlog-pack needs that cover it; the hit stays in the pack."""
+    keys = next((keys for domain, keys, _ in DOMAIN_SPECS if domain == row.get("domain")), ())
+    if row.get("status") == "Confirmed" and keys:
+        return ", ".join(f"`{key}`" for key in keys)
+    return str(row.get("evidence", "[PENDING DOMAIN CONTEXT]"))
+
+
 def render_domain_context_coverage(coverage: list[dict[str, str]]) -> str:
     if not coverage:
         return "| Domain | Evidence Used | Status | Impact |\n| --- | --- | --- | --- |\n| All | [PENDING DOMAIN CONTEXT] | Pending | No domain coverage was available at generation time. |"
     rows = "\n".join(
-        f"| {row.get('domain', 'Unknown')} | {row.get('evidence', '[PENDING DOMAIN CONTEXT]')} | {row.get('status', 'Pending')} | {table_cell(row.get('impact', ''), 180)} |"
+        f"| {row.get('domain', 'Unknown')} | {coverage_evidence_cell(row)} | {row.get('status', 'Pending')} | {table_cell(row.get('impact', ''), 180)} |"
         for row in coverage
     )
     return f"""| Domain | Evidence Used | Status | Impact |
@@ -604,10 +653,10 @@ def render_agent_execution_contract(contract: dict[str, Any]) -> str:
 | Readiness | {contract.get('readiness', 'Needs Domain Context')} |
 | Agent profile | {contract.get('agent_profile', 'Planning agent')} |
 | Decision priority | {contract.get('decision_priority', 'Business value > correctness > safety > evidence')} |
-| Commands | {render_context_signal_inline(commands)} |
-| Critical surfaces | {render_context_signal_inline(critical_surfaces)} |
-| Design match | {render_context_signal_inline(design_match)} |
-| Engineering practices | {render_context_signal_inline(engineering_practices)} |
+| Commands | {render_context_signal_inline(commands, "commands")} |
+| Critical surfaces | {render_context_signal_inline(critical_surfaces, "critical_surfaces")} |
+| Design match | {render_context_signal_inline(design_match, "design_match")} |
+| Engineering practices | {render_context_signal_inline(engineering_practices, "engineering_practices")} |
 | Fail-to-Pass | {validation.get('fail_to_pass', '[PENDING QUALITY CONTEXT]')} |
 | Pass-to-Pass | {validation.get('pass_to_pass', '[PENDING QUALITY CONTEXT]')} |
 | Evidence | {validation.get('evidence', '[PENDING QUALITY CONTEXT]')} |
@@ -665,13 +714,13 @@ def render_task_seed_row(seed: dict[str, Any]) -> str:
     )
 
 
-def render_context_signal_inline(signal: dict[str, Any]) -> str:
+def render_context_signal_inline(signal: dict[str, Any], field: str) -> str:
+    """IMP-435 (B-09, Q5): a confirmed row names its pack sections; the hit text and its anchor stay in the pack."""
     status = signal.get("status", "Pending")
+    if status == "Confirmed":
+        return f"{status}: {context_signal_reference(field)}"
     source = signal.get("source", "[PENDING DOMAIN CONTEXT]")
     summary = table_cell(signal.get("summary", ""), 220)
-    anchor = render_anchor_inline(signal.get("anchor", {}))
-    if anchor:
-        return f"{status}: {source} - {summary} ({anchor})"
     return f"{status}: {source} - {summary}"
 
 
@@ -804,24 +853,13 @@ This file mirrors the story embedded in its parent epic so quality and traceabil
 """
 
 
-def render_backlog_context_summary(context: dict[str, object]) -> str:
+def render_backlog_context_summary(context: dict[str, object], trace: list[str] | None = None,
+                                   pack: str = BACKLOG_CONTEXT_PACK) -> str:
+    """IMP-435 (B-09, Q5): one row per need of the plan, with its lenses, the graph trace and the pack; no hit is quoted."""
     sections = context.get("sections", {}) if isinstance(context, dict) else {}
+    header = "| Backlog Need | Lenses | Trace | Context Pack |\n| --- | --- | --- | --- |\n"
     if not isinstance(sections, dict) or not sections:
-        return "| Need | Retrieved Signal | Artifact | Trace |\n| --- | --- | --- | --- |\n| backlog | No focused context retrieved. | N/A | N/A |"
-    rows: list[str] = []
-    for section, payload in sections.items():
-        if not isinstance(payload, dict):
-            continue
-        results = payload.get("results", [])
-        if not results:
-            rows.append(f"| {section} | No focused context retrieved. | N/A | N/A |")
-            continue
-        top = results[0]
-        if not isinstance(top, dict):
-            continue
-        trace_ids = top.get("trace_ids", [])
-        trace = ", ".join(trace_ids) if isinstance(trace_ids, list) else str(trace_ids)
-        rows.append(
-            f"| {section} | {table_cell(top.get('summary', 'Context retrieved'), 180)} | `{top.get('artifact_id', 'N/A')}` | {table_cell(trace or 'N/A', 80)} |"
-        )
-    return "| Backlog Need | Retrieved Signal | Artifact | Trace |\n| --- | --- | --- | --- |\n" + "\n".join(rows)
+        return header + f"| backlog | any | {context_trace_cell(trace)} | `{pack}` |"
+    rows = [f"| {section} | {plan_lenses_cell(payload)} | {context_trace_cell(trace)} | `{pack}` |"
+            for section, payload in sections.items() if isinstance(payload, dict)]
+    return header + "\n".join(rows)

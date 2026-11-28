@@ -9,7 +9,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from helpers import IDS_SCOPE_ANSWER, SnapshotWorkspaceCase, run_ok  # noqa: E402
+from helpers import IDS_SCOPE_ANSWER, SnapshotWorkspaceCase, place_harvest_docs, run_ok  # noqa: E402
 
 from sentinel.changes import confirm_border, list_changes, parse_border  # noqa: E402
 from sentinel.core.io import forget_read_snapshots  # noqa: E402
@@ -34,6 +34,7 @@ class SurfaceCase(SnapshotWorkspaceCase):
         run_ok(["init", PID])
         run_ok(["ingest", PID, "--source", "pedido.md", "--change"])
         run_ok(["resolve-gaps", PID, "--source", "scope.md", "--change", CID])
+        place_harvest_docs(PID, (root / "harvest_compras.md").read_text(encoding="utf-8"))  # IMP-435 (B-37)
         run_ok(["harvest", PID, "--source", "harvest_compras.md", "--change", CID])
 
     def setUp(self):
@@ -64,6 +65,7 @@ class Harvest(SurfaceCase):
 
     def test_project_harvest_adds_no_harvests(self):
         run_ok(["init", "CRZP"])
+        place_harvest_docs("CRZP", Path("harvest_compras.md").read_text(encoding="utf-8"))  # IMP-435 (B-37)
         run_ok(["harvest", "CRZP", "--source", "harvest_compras.md"])
         self.assertEqual(list_changes("CRZP"), {})
         self.assertNotIn("harvests", read_state("CRZP"))
@@ -141,6 +143,7 @@ class Accepting(SurfaceCase):
         shutil.copy(CROSSES / "pedido_contradiccion.md", Path.cwd() / "otro.md")
         run_ok(["init", "CRZQ"])
         run_ok(["ingest", "CRZQ", "--source", "otro.md", "--change"])
+        place_harvest_docs("CRZQ", Path("harvest_compras.md").read_text(encoding="utf-8"))  # IMP-435 (B-37)
         run_ok(["harvest", "CRZQ", "--source", "harvest_compras.md", "--change", CID])
         cid = new_surface_candidates("CRZQ", CID)[0]["id"]
         with self.assertRaises(GateRefusal):

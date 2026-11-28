@@ -35,6 +35,18 @@ def run_ok(argv: list[str]) -> str:
     return out
 
 
+def place_harvest_docs(project_id: str, text: str) -> None:
+    """IMP-435 (B-37): a harvest lists documents the workspace has; put the ones `text` names where it says they are."""
+    from sentinel.harvest import harvest_doc_paths
+    from sentinel.workspace import workspace_path
+
+    for name, path in harvest_doc_paths(text).items():
+        target = workspace_path(project_id) / path
+        if path.startswith("00_raw/") and not target.exists():
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(f"# {name}\n", encoding="utf-8")
+
+
 IDS_SCOPE_ANSWER = "\n".join([
     "### GAP-SCOPE",
     "- Respuesta: El alta de proveedores con aprobación por monto.",

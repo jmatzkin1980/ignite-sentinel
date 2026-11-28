@@ -24,17 +24,26 @@ from .injection import shield_source
 from .secrets_scan import ingest_source, pii_report_enabled
 from .source_formats import read_source, target_suffix
 from .source_conflicts import closing_block_note, scan_source_conflicts
-from .sources import discover_source_novelty, mark_source_processed, open_source_row, record_duplicate_source, source_row
+from .sources import already_loaded_source, discover_source_novelty, mark_source_processed, open_source_row, record_duplicate_source, source_row
 from .core.graph import add_edge, add_node, children_of, count_by_type, load_graph, save_graph
 from .core.io import append_text, write_text
 from .core.text import project_language, unique_path
+from .core.time import utc_now_ns
 from .workspace import load_config, read_json, update_state, utc_now, workspace_path
 
 
-def sync_change(project_id: str, source: Path, note: str = "", digest: bool = False) -> dict[str, object]:
+def sync_change(project_id: str, source: Path, note: str = "", digest: bool = False, reload: bool = False) -> dict[str, object]:
     base = workspace_path(project_id)
     if not base.exists():
         raise GateRefusal(f"Workspace not found: {project_id}")
+    if not reload and source.is_file() and (loaded := already_loaded_source(project_id, source)):
+        # IMP-435 (A-10): the same content again is the change it already was, not a second CHG that dirties the project again
+        # `source_id` as in any sync result; no top-level `change_id`, since no change was opened (it is in `already_loaded`).
+        return {"project_id": project_id, "already_loaded": loaded, "source_id": loaded["source_id"],
+                "source": str(source.as_posix()),
+                "message": (f"{source.name} ya está cargado como {loaded['source_id']} ({loaded['change_id']}); no se escribió nada."
+                            if project_language(project_id) == "es" else
+                            f"{source.name} is already loaded as {loaded['source_id']} ({loaded['change_id']}); nothing was written.")}
 
     target_dir = change_target_dir(base, source)
     target = unique_path(target_dir / f"{source.stem}{target_suffix(source)}")
@@ -185,6 +194,8 @@ def sync_change(project_id: str, source: Path, note: str = "", digest: bool = Fa
             else "CLEAN"
         ),
         last_change_id=change_id,
+        # IMP-435 (A-01): what this note changed nothing of, kept for /next until the next /sync
+        prose_notice={"change_id": change_id, "notice": prose["notice"]} if prose["notice"] else {},
         **suspicious_links_state(project_id, change_id, suspicious_links),
     )
     return {
@@ -231,7 +242,7 @@ def sync_change_with_analysis(
     data = load_change_analysis(analysis)
     note_text = read_source(source).text
     candidates = validate_change_analysis(project_id, data, note_text)
-    result = sync_change(project_id, source, note, digest=digest)
+    result = sync_change(project_id, source, note, digest=digest, reload=True)  # the analysis is new input on a note
     result["change_analysis"] = apply_change_analysis(
         project_id, analysis, data, candidates,
         change_id=str(result["change_id"]), source_id=str(result["source_id"]), note_text=note_text,
@@ -298,7 +309,7 @@ def sync_pending_sources(project_id: str, note: str = "autonomous sync", digest:
     source_ids: dict[str, str] = {}
     for item in pending:
         source = item["path"]
-        result = sync_change(project_id, source, f"{note}; detected={item['reason']}", digest=digest)
+        result = sync_change(project_id, source, f"{note}; detected={item['reason']}", digest=digest, reload=True)
         result["detected_reason"] = item["reason"]
         results.append(result)
         source_ids[item["key"]] = str(result["source_id"])
@@ -436,6 +447,7 @@ def suspicious_links_state(project_id: str, change_id: str, links: list[dict[str
             "count": len(links),
             "links": links,
             "recorded_at": utc_now(),
+            "recorded_at_ns": utc_now_ns(),
             "downstream_artifacts": downstream_stale_artifacts(workspace_path(project_id)) if links else [],
         }
     }

@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from helpers import SnapshotWorkspaceCase, build_matured_workspace, gap_acceptance_answer, run_ok  # noqa: E402
+from helpers import SnapshotWorkspaceCase, build_matured_workspace, gap_acceptance_answer, place_harvest_docs, run_ok  # noqa: E402
 from sentinel.compilers.change_backlog import read_change_units  # noqa: E402
 from sentinel.core.markdown import parse_frontmatter  # noqa: E402
 from sentinel.crosses.surfaces import accept_new_surface, new_surface_candidates  # noqa: E402
@@ -62,6 +62,7 @@ class ChangeEnablersPlan(SnapshotWorkspaceCase):
         cid = cls.cid = open_change(PID)
         shutil.copy(FIXTURES / "change_crosses" / "harvest_compras.md", "harvest_compras.md")
         Path("a.md").write_text(ANSWERS, encoding="utf-8")
+        place_harvest_docs(PID, Path("harvest_compras.md").read_text(encoding="utf-8"))  # IMP-435 (B-37)
         run_ok(["harvest", PID, "--source", "harvest_compras.md", "--change", cid])
         accept_new_surface(PID, cid, new_surface_candidates(PID, cid)[0]["id"], "pantalla", NEW)
         run_ok(["resolve-gaps", PID, "--source", "a.md", "--change", cid])

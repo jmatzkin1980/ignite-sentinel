@@ -116,6 +116,15 @@ def release_stories(base: Path, project_id: str, rid: str, change_id: str | None
     return {sid: str((lifecycle.get(sid) or {}).get("status", "Draft")) for sid in stories}
 
 
+def _in_spanish(project_id: str, change_id: str | None) -> bool:
+    """B-31: a change speaks its own language; the project's text stays as it was."""
+    if not change_id:
+        return False
+    from .changes import change_language, get_change
+
+    return change_language(project_id, get_change(project_id, change_id)) == "es"
+
+
 def close_release(project_id: str, rid: str, evidence: str, ba: str, tech: str, today: str | None = None,
                   change_id: str | None = None) -> dict[str, Any]:
     """Close a release: every story Done and the evidence of its closing check. Nothing changes on a refusal."""
@@ -129,18 +138,23 @@ def close_release(project_id: str, rid: str, evidence: str, ba: str, tech: str, 
 
     base = workspace_path(project_id)
     partition, payload = _series(base, change_id)
+    es = _in_spanish(project_id, change_id)
     if rid not in (partition.get("releases") or []):
-        raise ReleaseSplitError(f"{rid} is not a release of the confirmed series")
+        raise ReleaseSplitError(f"{rid} no es una release de la serie confirmada" if es
+                                else f"{rid} is not a release of the confirmed series")
     closed = dict(partition.get("closed") or {})
     if rid in closed:
-        raise ReleaseSplitError(f"{rid} is already closed ({closed[rid].get('date')})", gate=True)
+        raise ReleaseSplitError(f"{rid} ya está cerrada ({closed[rid].get('date')})" if es
+                                else f"{rid} is already closed ({closed[rid].get('date')})", gate=True)
     proof = Path(evidence) if evidence else None
     if proof is None or not proof.is_file():
-        raise ReleaseSplitError("/split --close needs --evidence PATH: a local file with the result of the release's closing check")
+        raise ReleaseSplitError("/split --close necesita --evidence PATH: un archivo local con el resultado de la verificación de cierre" if es
+                                else "/split --close needs --evidence PATH: a local file with the result of the release's closing check")
     stories = release_stories(base, project_id, rid, change_id)
     derive = f"/backlog {project_id} --change {change_id} --release {rid}" if change_id else f"/backlog --release {rid}"
     if not stories:
-        raise ReleaseSplitError(f"{rid} has no stories yet: derive it (/specs, {derive}) and build it before closing", gate=True)
+        raise ReleaseSplitError(f"{rid} todavía no tiene historias: derivala (/specs, {derive}) y construila antes de cerrarla" if es
+                                else f"{rid} has no stories yet: derive it (/specs, {derive}) and build it before closing", gate=True)
     units: list[str] | None = None
     if change_id:  # IMP-429 (I4): its specs and its stories must be current, and what it delivers is frozen at the close
         from .change_release import close_gate
@@ -149,7 +163,8 @@ def close_release(project_id: str, rid: str, evidence: str, ba: str, tech: str, 
     pending = sorted(sid for sid, status in stories.items() if status != "Done")
     if pending:
         again = f"/story-status {project_id} --story US-NNN --set Done" if change_id else f"/story-status --release {rid}"
-        raise ReleaseSplitError(f"{rid} cannot close: stories not Done: {', '.join(pending)} ({again})", gate=True)
+        raise ReleaseSplitError(f"{rid} no puede cerrar: historias sin Done: {', '.join(pending)} ({again})" if es
+                                else f"{rid} cannot close: stories not Done: {', '.join(pending)} ({again})", gate=True)
     closed[rid] = {"date": today or utc_now()[:10], "evidence": proof.as_posix(),
                    "evidence_sha256": hashlib.sha256(proof.read_bytes()).hexdigest(),
                    "closed_by": {"ba": _s(ba), "technical_team": _s(tech)}, "stories": sorted(stories)}

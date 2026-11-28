@@ -116,7 +116,13 @@ def change_status(project_id: str, change_id: str) -> dict[str, object]:
 
     control = consolidation_control(project_id, change_id)  # IMP-414: only a change with an inventory has the key
     from .readiness_verdict import _change_quality_old
+    from .change_release import closed_owner_units
+    from .release_split import ReleaseSplitError
 
+    try:  # B-04: the units that landed on a closed release (only a change with a confirmed series has the key)
+        closed_units = closed_owner_units(project_id, change_id)
+    except ReleaseSplitError:
+        closed_units = {}
     audit = change.get("quality")  # IMP-431: only a change with a quality audit has the key
     return {
         "project_id": project_id,
@@ -132,6 +138,7 @@ def change_status(project_id: str, change_id: str) -> dict[str, object]:
         **({"a_confirmar": to_confirm} if to_confirm else {}),
         **({"consolidation": {**control["counts"], "unconfirmed": control["unconfirmed"]}}
            if control["state"] != "missing" else {}),
+        **({"series_closed_units": closed_units} if closed_units else {}),
         **({"quality": {"verdict": audit.get("verdict"), "counts": audit.get("counts", {}), "audit": audit.get("audit"),
                         "current": not _change_quality_old(project_id, change_id, change)}} if audit else {}),
         "verdict": build_change_verdict(project_id, change_id),

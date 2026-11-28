@@ -41,7 +41,13 @@ _REVISION_RE = re.compile(r"^[0-9a-f]{40}$")
 
 
 class SetupError(Exception):
-    pass
+    """A refusal of `/setup`. `kind` is `"input"` (a bad file or payload, exit 3) or `"prerequisite"` (something to
+    install first, exit 4; `next_step` says what)."""
+
+    def __init__(self, message: str, kind: str = "input", next_step: str = "") -> None:
+        super().__init__(message)
+        self.kind = kind
+        self.next_step = next_step
 
 
 def sentinel_home() -> Path:
@@ -130,6 +136,17 @@ def _clear_dir(path: Path, home: Path) -> None:
     core_io.remove(path, root=home)
 
 
+def _pip_command(root: Path | None) -> str:
+    """M-5: the install command of `_pip_hint`, alone: the documented one in a clone, the package form elsewhere."""
+    from . import doctor
+
+    command = PIP_COMMAND
+    if not doctor.is_framework_root((Path(root) if root is not None else Path.cwd()).resolve()):
+        for clone_form, package_form in doctor._runtime_installs():
+            command = command.replace(clone_form, package_form)
+    return command
+
+
 def _pip_hint(root: Path | None) -> str:
     """The install command for this kind of install (clone, plugin, wheel or .pyz), as /doctor words it."""
     from . import doctor
@@ -152,7 +169,7 @@ def install_semantic_memory(
     manifest = manifest if manifest is not None else load_manifest()
     model = _model(manifest)
     if model["embedder"] == "model2vec" and importlib.util.find_spec("model2vec") is None:
-        raise SetupError(_pip_hint(root))
+        raise SetupError(_pip_hint(root), kind="prerequisite", next_step=_pip_command(root))
 
     staging = core_io.confine(home / "models" / f".staging-{model['id']}", home)
     destination = core_io.confine(model_dir(home, model), home)

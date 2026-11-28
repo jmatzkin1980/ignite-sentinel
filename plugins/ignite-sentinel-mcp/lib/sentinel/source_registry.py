@@ -539,13 +539,24 @@ def render_source_log(project_id: str, manifest: dict[str, Any], language: str =
             row.get("kind"),
             row.get("from") or copy["unknown"],
             f"`{str(row.get('hash', ''))[:12]}`",
-            "<br>".join(f"`{path}`" for path in row.get("paths", [])),
+            "<br>".join(f"`{display_source_path(path)}`" for path in row.get("paths", [])),
             copy["lifecycle"].get(str(row.get("lifecycle")), row.get("lifecycle")),
             copy["validity"].get(str(row.get("validity")), row.get("validity")),
             "; ".join(notes),
         )
         lines.append("| " + " | ".join(_cell(value) for value in cells) + " |")
     return "\n".join(lines) + "\n"
+
+
+_ABSOLUTE = re.compile(r"^(?:[A-Za-z]:)?[/\\]")
+
+
+def display_source_path(path: object) -> str:
+    """IMP-435 (B-08): how a deliverable shows a source path. A source inside the working folder keeps its relative key;
+    one outside it (stored absolute) shows only its file name, so no machine path or user name travels in a deliverable.
+    The key itself (`source_manifest.json`, `paths`) does not change."""
+    text = str(path)
+    return text.replace("\\", "/").rsplit("/", 1)[-1] if _ABSOLUTE.match(text) else text
 
 
 def write_source_log(project_id: str, manifest: dict[str, Any], path: Path, language: str = "en") -> None:

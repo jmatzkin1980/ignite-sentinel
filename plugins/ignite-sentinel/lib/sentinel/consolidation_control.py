@@ -16,7 +16,7 @@ from .changes import change_language, get_change
 from .core.io import write_json, write_text
 from .core.paths import workspace_path
 from .extraction.consolidation import (
-    KEEPS_REQUEST, RETIRES, decisions_moved, keeps_request, linked, load_consolidation, retires,
+    KEEPS_REQUEST, RETIRES, decisions_moved, governing_decisions, keeps_request, linked, load_consolidation, retires,
 )
 from .extraction.inventory import element_lines
 from .extraction.lines import format_ranges
@@ -66,7 +66,6 @@ def _sha_text(text: str) -> str:
 
 def _build(project_id: str, change_id: str) -> tuple[dict, dict[str, dict]]:
     """The control and, per pending element that needs a replacement, `{"gaps", "lines"}` for the worksheet."""
-    from .decision_memory import closed_decisions
     from .extraction.coverage import extraction_view
 
     change = get_change(project_id, change_id)
@@ -76,7 +75,7 @@ def _build(project_id: str, change_id: str) -> tuple[dict, dict[str, dict]]:
     if view["state"] == "missing":
         return empty, {}
     store = load_consolidation(workspace_path(project_id), change_id)
-    decisions = closed_decisions(project_id, change_id)
+    decisions = governing_decisions(project_id, change_id)
     rows: list[dict] = []
     needs: dict[str, dict] = {}
     unconfirmed: list[str] = []

@@ -91,6 +91,9 @@ class HarvestFunctionalApply(unittest.TestCase):
         return self.quiet(["harvest", "FUN", "--source", name])
 
     def test_docs_accumulate_in_harvest_json(self):
+        doc = self.temp / "workspaces" / "FUN" / "00_raw" / "01_business_context" / "manual-compras.md"  # B-37: it has to be there
+        doc.parent.mkdir(parents=True, exist_ok=True)
+        doc.write_text("# Manual de Compras\n", encoding="utf-8")
         self.assertEqual(self.harvest("h1.md", DOC + "## B6 Pantallas\n- [HECHO manual-compras:m.md] Cuatro pasos.\n"), 0)
         self.assertEqual(self.harvest("h2.md", "## B7 Flujos\n- [HECHO manual-compras:m.md] Aprobacion.\n"), 0)
         record = json.loads(self.record_path.read_text(encoding="utf-8"))

@@ -21,7 +21,7 @@ python -m sentinel /sync PROJECT_ID --source PATH --note "NOTE"
 python -m sentinel /sync PROJECT_ID --change CHG-NNN --source PATH --role pedido|linea_de_base|plan_previo|diseno_nuevo [--supersedes F-NN]
 ```
 
-Without `--source`, Sentinel scans known input and workspace context folders, detects new or modified files by hash, processes each novelty as a `CHG` event, and indexes the result into local LanceDB memory. With `--source`, Sentinel processes only the specified file.
+Without `--source`, Sentinel scans known input and workspace context folders, detects new or modified files by hash, processes each novelty as a `CHG` event, and indexes the result into local LanceDB memory. With `--source`, Sentinel processes only the specified file. A file whose content is already loaded is not synced again: the result says `already_loaded` with its `source_id` (`F-NN`) and `change_id` (`CHG-NNN`) and nothing is written, the same content the scan reports as `duplicate_content`. A note in plain prose is stored and indexed, not interpreted: a `sentinel warning:` on stderr says how many lines changed nothing, and `/next` repeats it until the next `/sync`; rewrite those lines as gap answers (`### GAP-...`) or pass a cited analysis with `--analysis FILE`.
 
 With `--change CHG-NNN`, Sentinel syncs one open change instead: it loads the new source by role (or scans the shared role folders for files not yet registered to another change), confirms whether it is a new version (`--supersedes F-NN` confirms it; without it the version stays a candidate until `/sources --id F-NN --superseded-by F-MM`), carries the claims that stay literal and marks what to re-read in `01_discovery/CHG-NNN/sync_report.md`. The project `/sync` is unchanged.
 

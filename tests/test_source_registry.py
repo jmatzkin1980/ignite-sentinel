@@ -92,9 +92,12 @@ class SourceRegistryFlowTests(unittest.TestCase):
         second = _run(["sync", "REG", "--source", str(meeting)])
         self.assertEqual(first["source_id"], "F-02")
         self.assertEqual(second["source_id"], "F-02")
+        # IMP-435 (A-10): the same content again is the change it already was; the second sync writes nothing.
+        self.assertNotIn("change_id", second)
+        self.assertEqual(second["already_loaded"], {"source_id": "F-02", "change_id": first["change_id"]})
         rows = self._rows()
         self.assertEqual([row["id"] for row in rows], ["F-01", "F-02"])
-        self.assertEqual(len(rows[1]["events"]), 2)
+        self.assertEqual(len(rows[1]["events"]), 1)
         self.assertEqual(rows[1]["lifecycle"], "closed")
 
     def test_same_source_in_two_paths_is_one_row(self) -> None:

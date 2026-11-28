@@ -23,7 +23,7 @@ EXEMPT = "exempt"
 
 VIEW_ARTIFACTS = frozenset({"gaps", "brief", "prd", "specs", "backlog", "readiness", "release-guide", "prototype",
                             "prototype-trace", "prototype-manual", "diagrams", "borde", "decisiones"})
-EXPORT_ARTIFACTS = ("gaps", "brief", "context-request", "prd", "borde", "decisiones")
+EXPORT_ARTIFACTS = ("gaps", "brief", "context-request", "prd", "borde", "decisiones", "release-guide")
 
 
 @dataclass(frozen=True)

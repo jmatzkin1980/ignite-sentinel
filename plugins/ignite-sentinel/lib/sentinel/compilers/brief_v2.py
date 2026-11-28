@@ -40,6 +40,7 @@ from ..brief_schema import applicability, load_brief_schema
 from ..core.io import read_json
 from ..core.markdown import parse_table_rows
 from ..deltas import DeltaStatus, delta_marker
+from ..source_registry import display_source_path
 
 _OBJECTIVE_CUES = ("the goal", "goal is", "objetivo", "objective", "aim to", "purpose", "so that", "in order to")
 _ASIS_CUES = ("today", "currently", "right now", "hoy", "actualmente", "proceso actual", "by hand", "a mano", "manual")
@@ -694,7 +695,7 @@ def render_brief_v2(inputs: BriefInputs) -> tuple[str, dict[str, Any]]:
     _fill(body["9"], "9.1", [f"#### {_block_title(w, '9.1', 'items')}", "", *build, "",
                              f"#### {_block_title(w, '9.1', 'non_software')}", "", non_software, "",
                              f"#### {_block_title(w, '9.1', 'conclusion')}", "", ready])
-    sources = [f"- `{row['id']}` {', '.join(f'`{p}`' for p in row.get('paths', []))} ({row.get('validity', '')})"
+    sources = [f"- `{row['id']}` {', '.join(f'`{display_source_path(p)}`' for p in row.get('paths', []))} ({row.get('validity', '')})"
                + (f" — {copy['derived_from'].format(id=row['derived_from'])}" if row.get("derived_from") else "")
                for row in inputs.registry] or [copy["no_sources"]]
     cert = [copy["cert_header"], "|---|---|---|---|---|"]

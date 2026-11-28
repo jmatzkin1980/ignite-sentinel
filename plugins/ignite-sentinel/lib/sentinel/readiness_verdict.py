@@ -405,6 +405,10 @@ NEXT_STEPS: dict[str, tuple[str, str, str]] = {
                 "/validate {pid}"),
 }
 
+SPECS_WITH_OPEN_GAPS = (
+    " No blocking gap is open: /specs does not wait for the other gaps. Close them with /resolve-gaps whenever the "
+    "answers arrive, or leave them marked as pending."
+)
 ASSUMED_BLOCKING_NOTE = (
     " An assumption is registered for {ids}: it keeps the work visible but never unblocks. To move on without "
     "the client, confirm the answer in your own name with /resolve-gaps (Decision status: confirmed, Owner / "
@@ -540,13 +544,16 @@ def next_step(
             key = "handoff"
         else:
             key = "quality" if has_stories else "backlog"
+    elif has_brief:
+        # IMP-435 (A-03): no blocking gap and the brief is compiled: /specs does not wait for the other gaps.
+        key = "specs"
     elif counts.get("open") or counts.get("answered") or counts.get("partially_closed"):
         key = "resolve_gaps"
-    elif not has_brief:
-        key = "brief"
     else:
-        key = "specs"
+        key = "brief"
     title, text, command = NEXT_STEPS[key]
+    if key == "specs" and (counts.get("open") or counts.get("answered") or counts.get("partially_closed")):
+        text += SPECS_WITH_OPEN_GAPS
     changes = [gap_id for gap_id in verdict.get("blocking_open", []) if str(gap_id).startswith("GAP-CHG-")]
     if key == "resolve_blocking" and changes:
         # IMP-337: a late change waits for the BA, not for the client.
@@ -565,6 +572,9 @@ def next_step(
                              genesis=proposal.get("genesis", "greenfield"), kind=scope.get("kind", ""),
                              first_orphan=scope.get("first_orphan", "ID"))
     command = release_scoped_command(command)
+    text = text.replace("PROJECT_ID", project_id)  # IMP-435 (A-36): the real id, never the placeholder
+    if (notice := (state.get("prose_notice") or {}).get("notice")) and key != "ingest":
+        text += " " + str(notice)  # IMP-435 (A-01): what the last note changed nothing of, said again where the BA looks
     return {"key": key, "title": title, "text": text, "command": command, "skill": skill_for_command(command)}
 
 
@@ -661,8 +671,8 @@ CHANGE_TEXT = {
         "export_not_ready": ("Resolver los pendientes antes de sellar el brief",
                              "El veredicto de {cid} es NOT_READY ({blockers}), y /export --final no sella un brief que lo "
                              "contradice. Cada pendiente abierto que no frena se responde (/resolve-gaps) o se clasifica con "
-                             "/gaps {pid} --change {cid} --id GAP --impact construccion|operativo --reason \"…\" (los "
-                             "operativos no frenan). Sin --final, /export deja un borrador."),
+                             "/gaps {pid} --change {cid} --id GAP --impact operativo --reason \"…\" (construccion "
+                             "en lugar de operativo si frena; los operativos no frenan). Sin --final, /export deja un borrador."),
         "consolidate": ("Consolidar el brief",
                         "{n} elemento(s) de {cid} sin consolidar: la planilla está en 01_discovery/{cid}/consolidation_control.md"),
         "consolidate_confirm": ("Confirmar los reemplazos",
@@ -673,6 +683,9 @@ CHANGE_TEXT = {
                          "(veredicto {verdict}, cobertura {coverage}, {deferred} pendiente(s) diferido(s)). Después siguen las specs."),
         "specs": ("Preparar las specs del cambio", "Corré /specs --change {cid}: faltan o no están al día con sus filas EARS."),
         "backlog": ("Preparar el backlog del cambio", "Corré /backlog --change {cid}: falta o está atrasado respecto de las specs."),
+        "series_closed_units": ("Mover lo que llegó a una release cerrada",
+                                "Estas unidades de {cid} llegaron a una release ya cerrada y nadie las construye: {units}. "
+                                "Movelas a la release abierta {rid_to} con el comando de abajo (una por vez)."),
         "quality": ("Auditar la calidad de las historias del cambio",
                     "Corré /quality --change {cid}: las historias del cambio no tienen una auditoría vigente."),
         "validate": ("Validar el cambio", "Corré /validate --change {cid}: hay hallazgos por corregir."),
@@ -772,8 +785,8 @@ CHANGE_TEXT = {
         "export_not_ready": ("Resolve the open items before sealing the brief",
                              "The verdict of {cid} is NOT_READY ({blockers}), and /export --final does not seal a brief that "
                              "contradicts it. Answer each open non-blocking item (/resolve-gaps) or class it with "
-                             "/gaps {pid} --change {cid} --id GAP --impact construccion|operativo --reason \"…\" (operational "
-                             "ones do not block). Without --final, /export leaves a draft."),
+                             "/gaps {pid} --change {cid} --id GAP --impact operativo --reason \"…\" (construccion "
+                             "instead of operativo if it blocks; operational ones do not block). Without --final, /export leaves a draft."),
         "consolidate": ("Consolidate the brief",
                         "{n} element(s) of {cid} not consolidated: the worksheet is 01_discovery/{cid}/consolidation_control.md"),
         "consolidate_confirm": ("Confirm the replacements",
@@ -784,6 +797,9 @@ CHANGE_TEXT = {
                          "(verdict {verdict}, coverage {coverage}, {deferred} deferred item(s)). The specs follow."),
         "specs": ("Prepare the change specs", "Run /specs --change {cid}: they are missing or not current with its EARS rows."),
         "backlog": ("Prepare the change backlog", "Run /backlog --change {cid}: it is missing or behind the specs."),
+        "series_closed_units": ("Move what landed on a closed release",
+                                "These units of {cid} landed on a release that is already closed and nobody builds them: {units}. "
+                                "Move them to the open release {rid_to} with the command below (one at a time)."),
         "quality": ("Check the change stories",
                     "Run /quality --change {cid}: the change stories have no current audit."),
         "validate": ("Validate the change", "Run /validate --change {cid}: there are findings to fix."),
@@ -814,11 +830,13 @@ CHANGE_COMMANDS = {
     "consolidate": "/extract {pid} --change {cid} --consolidate PATH",
     "consolidate_confirm": "/extract {pid} --change {cid} --confirm-replacement {first_replacement}",
     "export_final": "/export {pid} --artifact brief --change {cid} --final",
-    "export_not_ready": "/gaps {pid} --change {cid} --id {first_deferred} --impact construccion|operativo --reason \"...\"",
+    "export_not_ready": "/gaps {pid} --change {cid} --id {first_deferred} --impact operativo --reason \"...\"",
     "extract_verify": "/extract {pid} --change {cid} --verify",
     "extract_verify_result": "/extract {pid} --change {cid} --verify-result PATH",
     "specs": "/specs {pid} --change {cid}",
     "backlog": "/backlog {pid} --change {cid}",
+    "series_closed_units": "/split {pid} --change {cid} --move --unit {unit} --from {rid_from} --to {rid_to} "
+                           "--reason TEXT --ba NAME --tech NAME",
     "quality": "/quality {pid} --change {cid}",
     "validate": "/validate {pid} --change {cid}",
     "done": "",
@@ -1142,6 +1160,15 @@ def change_next_step(project_id: str, change_id: str) -> dict[str, Any]:
         "first_orphan": orphans[0]["id"] if orphans else "ID",
     }
     ctx["first_replacement"] = "ID"
+    ctx.update(units="", unit="SPEC-U-NNN", rid_from="rA", rid_to="rB")
+    if key == "series_closed_units":
+        from .change_release import series_step
+
+        walking = series_step(project_id, change_id, change) or {}
+        late = walking.get("units") or {}
+        rid_from = next(iter(late), "rA")
+        ctx.update(units="; ".join(f"{unit} ({rid})" for rid, found in late.items() for unit in found),
+                   unit=(late.get(rid_from) or ["SPEC-U-NNN"])[0], rid_from=rid_from, rid_to=walking.get("release", "rB"))
     if key in ("consolidate", "consolidate_confirm"):
         from .consolidation_control import consolidation_control
 
@@ -1370,9 +1397,8 @@ def health_fix_step(project_id: str, fixes: list[dict[str, Any]]) -> dict[str, s
 def unconfirmed_brief_settings(project_id: str) -> dict[str, Any] | None:
     """IMP-311: the proposed settings when the project is on brief v2 and has not confirmed them; else None."""
     from .brief_schema import brief_settings, settings_status
-    from .discovery.channels import raw_input_text
 
     if int(brief_settings(project_id).get("brief_version", 1) or 1) != 2:
         return None
-    status = settings_status(project_id, raw_input_text(workspace_path(project_id)))
+    status = settings_status(project_id)
     return None if status["confirmed"] else status["proposal"]

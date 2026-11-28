@@ -347,6 +347,10 @@ class InstallTests(_Base):
         self.assertNotIn("-e .", str(outside.exception))
         self.assertIn("model2vec sentence-transformers", str(outside.exception))
         self.assertIn(sys.executable, str(outside.exception))
+        # M-5: the next step is the same command as the hint, and it does not lean on a path of the clone
+        self.assertEqual(in_clone.exception.next_step, "python -m pip install -c constraints/memory-semantic.txt -e .[memory-semantic]")
+        self.assertIn(outside.exception.next_step, str(outside.exception))
+        self.assertNotIn("constraints/", outside.exception.next_step)
 
     def test_config_records_the_pinned_revision(self) -> None:
         self.install()

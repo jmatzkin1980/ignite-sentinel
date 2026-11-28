@@ -119,6 +119,8 @@ def linked(decision: dict, element: dict) -> bool:
     """The decision touches the element: it lists it, or a citation of the request falls inside its lines."""
     if str(element.get("id")) in (decision.get("elements") or []):
         return True
+    if str(element.get("id")) in (decision.get("holders") or []):  # IMP-435: it holds the literal the decision gave up
+        return True
     first, last = element_lines(element)
     for cite in decision.get("citations") or []:
         if cite.get("side") == "pedido" and cite.get("line") and str(cite.get("source_id")) == str(element.get("source_id")):
@@ -142,6 +144,64 @@ def keeps_request(decision: dict, element: dict) -> bool:
         cite = cites[index]
         return str(cite.get("source_id")) == str(element.get("source_id")) and first <= int(cite["line"]) <= last
     return option in KEEPS_REQUEST.get(family, set())
+
+
+def _losing_tokens(decision: dict, elements: list[dict]) -> list[str]:
+    """IMP-435 (B-22): the numbers the request says where the decision does not keep it, and neither the answer nor
+    the other side quote repeat (`5.000.000` when the design says `1.000.000`)."""
+    cites = [c for c in decision.get("citations") or [] if c.get("quote")]
+    winning = " ".join([str(decision.get("answer") or ""),
+                        *(str(c["quote"]) for c in cites if c.get("side") != "pedido")])
+    found: list[str] = []
+    for element in elements:
+        if str(element.get("id")) not in (decision.get("elements") or []) or keeps_request(decision, element):
+            continue
+        first, last = element_lines(element)
+        for cite in cites:
+            if (cite.get("side") == "pedido" and cite.get("line") and str(cite.get("source_id")) == str(element.get("source_id"))
+                    and first <= int(cite["line"]) <= last):
+                found.extend(t for t in _significant_tokens(str(cite["quote"])) if not _has_token(t, winning))
+    return list(dict.fromkeys(found))
+
+
+def _holders_by_gap(project_id: str, change_id: str, decisions: list[dict]) -> dict[str, list[str]]:
+    """Per closed decision that changes the request, the elements OTHER than the ones it links that still say the
+    literal it gave up (the consolidation only linked the element the cross-read quoted)."""
+    base = workspace_path(project_id)
+    elements = list((load_inventory(base, change_id) or {}).get("elements", []))
+    if not elements:
+        return {}
+    cache: dict[str, list[str] | None] = {}
+    texts = {str(e["id"]): _element_text_cached(base, e, cache) or "" for e in elements}
+    out: dict[str, list[str]] = {}
+    for decision in decisions:
+        if retires(decision):
+            continue
+        tokens = _losing_tokens(decision, elements)
+        if not tokens:
+            continue
+        held = [str(e["id"]) for e in elements
+                if not linked(decision, e) and any(_has_token(t, texts[str(e["id"])]) for t in tokens)]
+        if held:
+            out[str(decision["id"])] = held
+    return out
+
+
+def losing_literal_holders(project_id: str, change_id: str) -> list[str]:
+    """IMP-435 (B-22): the elements, besides the ones a decision links, that still hold the figure it gave up."""
+    from ..decision_memory import closed_decisions
+
+    held = _holders_by_gap(project_id, change_id, closed_decisions(project_id, change_id))
+    return list(dict.fromkeys(e for ids in held.values() for e in ids))
+
+
+def governing_decisions(project_id: str, change_id: str) -> list[dict]:
+    """The closed decisions, each with `holders`: the elements that still say what it gave up."""
+    from ..decision_memory import closed_decisions
+
+    decisions = closed_decisions(project_id, change_id)
+    held = _holders_by_gap(project_id, change_id, decisions)
+    return [{**d, "holders": held[d["id"]]} if d["id"] in held else d for d in decisions]
 
 
 def decision_sha(decision: dict) -> str:
@@ -193,6 +253,22 @@ def _tokens(sentence: str) -> list[str]:
     ids = _ID_TOKEN.findall(sentence)
     rest = _ID_TOKEN.sub(" ", sentence)
     return [*ids, *_NUMBER_TOKEN.findall(rest)]
+
+
+_CURRENCY = r"(?:[$€£]|USD|ARS|EUR|US\$|pesos|d[oó]lares|euros)"
+
+
+def _significant_tokens(sentence: str) -> list[str]:
+    """IMP-435 (M-1): the tokens of the sentence worth chasing in other elements: ids, numbers of 3+ digits, with a
+    thousands/decimal separator, `%` or a currency mark. `30` or `2` match half the request by chance."""
+    out = []
+    for token in _tokens(sentence):
+        shown = re.escape(token)
+        currency = re.search(rf"{_CURRENCY}\s*{shown}(?!\d)|(?<!\d){shown}\s*{_CURRENCY}", sentence, re.I)
+        if (_ID_TOKEN.fullmatch(token) or token.endswith("%") or len(re.sub(r"\D", "", token)) >= 3
+                or re.search(r"[.,]", token) or currency):
+            out.append(token)
+    return out
 
 
 def _numbers_unknown(sentence: str, haystack: str) -> list[str]:
@@ -390,9 +466,7 @@ def _precondition(project_id: str, change_id: str, change: dict, language: str) 
 
 
 def _closed_by_id(project_id: str, change_id: str) -> dict[str, dict]:
-    from ..decision_memory import closed_decisions
-
-    return {d["id"]: d for d in closed_decisions(project_id, change_id)}
+    return {d["id"]: d for d in governing_decisions(project_id, change_id)}
 
 
 def _extraction_confirmed(items: dict, element: dict) -> bool:
