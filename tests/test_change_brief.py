@@ -9,7 +9,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from helpers import SnapshotWorkspaceCase, run_ok  # noqa: E402
+from helpers import SnapshotWorkspaceCase, place_harvest_docs, run_ok  # noqa: E402
 
 from sentinel.compilers.change_brief import (  # noqa: E402
     collect_change_brief_inputs,
@@ -95,6 +95,7 @@ def _build(*, scope: str | None = SCOPE_ANSWER, baseline: bool = True, extra: st
         run_ok(["resolve-gaps", "BORR", "--source", "extra.md", "--change", "CHG-001"])
     if harvest:
         (root / "h.md").write_text(harvest, encoding="utf-8")
+        place_harvest_docs("BORR", harvest)
         run_ok(["harvest", "BORR", "--source", "h.md", "--change", "CHG-001"])
 
 

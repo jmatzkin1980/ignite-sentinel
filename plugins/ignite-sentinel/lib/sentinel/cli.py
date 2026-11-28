@@ -59,7 +59,17 @@ _TEXT_SOURCE_SUFFIXES = {".md", ".markdown", ".txt", ".json", ".html", ".htm", "
 
 
 def check_source_exists(args) -> None:
-    """IMP-312: a `--source` file that does not exist is invalid input (exit 3), not a traceback."""
+    """IMP-312: a `--source` file that does not exist is invalid input (exit 3), not a traceback.
+
+    C-20: `--override` (the gate override of /validate, /quality and /backlog-status) is a file too."""
+    override = getattr(args, "override", None)
+    if override and not Path(override).is_file():
+        from .errors import InputError
+
+        raise InputError(
+            f"--override file not found: {override}",
+            next_step=f"Check the path; it is read relative to the folder you run Sentinel from ({Path.cwd()}).",
+        )
     source = getattr(args, "source", None)
     if not source or (args.command == "prototype" and getattr(args, "inventory", False)):
         return  # --inventory takes a source id (F-NN), not a path
@@ -272,9 +282,9 @@ def _run_project_command(args) -> int:
 
                 es = change_language(args.project_id, get_change(args.project_id, args.change)) == "es"
                 raise InputError(
-                    "/gaps --change con --id va con --impact construccion|operativo --reason TEXTO." if es
-                    else "/gaps --change with --id goes with --impact construccion|operativo --reason TEXT.",
-                    next_step=f"/gaps {args.project_id} --change {args.change} --id {args.gap_id} --impact construccion|operativo --reason TEXTO",
+                    "/gaps --change con --id va con --impact IMPACT --reason TEXTO (IMPACT = construccion u operativo)." if es
+                    else "/gaps --change with --id goes with --impact IMPACT --reason TEXT (IMPACT = construccion or operativo).",
+                    next_step=f"/gaps {args.project_id} --change {args.change} --id {args.gap_id} --impact IMPACT --reason TEXTO",
                 )
             elif args.change and (args.gap_id or args.disposition or args.top is not None):
                 from .errors import InputError

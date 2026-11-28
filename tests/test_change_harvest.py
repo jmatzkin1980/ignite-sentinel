@@ -10,7 +10,7 @@ from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from helpers import SnapshotWorkspaceCase, run_ok  # noqa: E402
+from helpers import SnapshotWorkspaceCase, place_harvest_docs, run_ok  # noqa: E402
 
 from sentinel.changes import change_gaps_path, list_changes  # noqa: E402
 from sentinel.cli import main  # noqa: E402
@@ -57,6 +57,7 @@ class ChangeHarvest(SnapshotWorkspaceCase):
         return workspace_path("BORR")
 
     def write(self, name: str, text: str) -> str:
+        place_harvest_docs("BORR", text)  # B-37: the documents a harvest lists are in the workspace
         Path(name).write_text(text, encoding="utf-8")
         return name
 

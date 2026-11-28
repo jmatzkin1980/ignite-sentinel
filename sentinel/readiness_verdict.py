@@ -661,8 +661,8 @@ CHANGE_TEXT = {
         "export_not_ready": ("Resolver los pendientes antes de sellar el brief",
                              "El veredicto de {cid} es NOT_READY ({blockers}), y /export --final no sella un brief que lo "
                              "contradice. Cada pendiente abierto que no frena se responde (/resolve-gaps) o se clasifica con "
-                             "/gaps {pid} --change {cid} --id GAP --impact construccion|operativo --reason \"…\" (los "
-                             "operativos no frenan). Sin --final, /export deja un borrador."),
+                             "/gaps {pid} --change {cid} --id GAP --impact IMPACT --reason \"…\" (IMPACT = construccion "
+                             "u operativo; los operativos no frenan). Sin --final, /export deja un borrador."),
         "consolidate": ("Consolidar el brief",
                         "{n} elemento(s) de {cid} sin consolidar: la planilla está en 01_discovery/{cid}/consolidation_control.md"),
         "consolidate_confirm": ("Confirmar los reemplazos",
@@ -772,8 +772,8 @@ CHANGE_TEXT = {
         "export_not_ready": ("Resolve the open items before sealing the brief",
                              "The verdict of {cid} is NOT_READY ({blockers}), and /export --final does not seal a brief that "
                              "contradicts it. Answer each open non-blocking item (/resolve-gaps) or class it with "
-                             "/gaps {pid} --change {cid} --id GAP --impact construccion|operativo --reason \"…\" (operational "
-                             "ones do not block). Without --final, /export leaves a draft."),
+                             "/gaps {pid} --change {cid} --id GAP --impact IMPACT --reason \"…\" (IMPACT = construccion or "
+                             "operativo; operational ones do not block). Without --final, /export leaves a draft."),
         "consolidate": ("Consolidate the brief",
                         "{n} element(s) of {cid} not consolidated: the worksheet is 01_discovery/{cid}/consolidation_control.md"),
         "consolidate_confirm": ("Confirm the replacements",
@@ -814,7 +814,7 @@ CHANGE_COMMANDS = {
     "consolidate": "/extract {pid} --change {cid} --consolidate PATH",
     "consolidate_confirm": "/extract {pid} --change {cid} --confirm-replacement {first_replacement}",
     "export_final": "/export {pid} --artifact brief --change {cid} --final",
-    "export_not_ready": "/gaps {pid} --change {cid} --id {first_deferred} --impact construccion|operativo --reason \"...\"",
+    "export_not_ready": "/gaps {pid} --change {cid} --id {first_deferred} --impact IMPACT --reason \"...\"",
     "extract_verify": "/extract {pid} --change {cid} --verify",
     "extract_verify_result": "/extract {pid} --change {cid} --verify-result PATH",
     "specs": "/specs {pid} --change {cid}",

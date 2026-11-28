@@ -294,7 +294,7 @@ class FinalGuards(ExportCase):
         self.assertEqual(code, 4, out)  # gate refusal
         self.assertIn("NOT_READY", out)
         self.assertIn(held[0], out)
-        self.assertIn(f"/gaps {EXPORT_PID} --change {CID} --id {held[0]} --impact construccion|operativo --reason TEXTO", out)
+        self.assertIn(f"/gaps {EXPORT_PID} --change {CID} --id {held[0]} --impact IMPACT --reason TEXTO", out)
         self.assertEqual(self.final_export(), {})
         draft = json.loads(run_ok(["export", EXPORT_PID, "--artifact", "brief", "--change", CID]))
         self.assertIn("**Estado:** borrador", Path(draft["path"]).read_text(encoding="utf-8"))

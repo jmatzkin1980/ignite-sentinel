@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from .errors import InputError  # IMP-302: typed errors
+from .errors import GateRefusal, InputError  # IMP-302: typed errors
 
 import json
 import shutil
@@ -48,7 +48,7 @@ def export_artifact(project_id: str, artifact: str, fmt: str = "md", domain: str
         refuse_change_only_deliverable(project_id, "export", artifact)
     source = artifact_source(base, artifact, domain, change_id)
     if not source.exists():
-        raise InputError(f"Export source not found: {source}")
+        raise _missing_source(project_id, artifact, domain, change_id, source)
     # IMP-272: a deliverable has zero pending marks or says it is a draft
     # IMP-334: counted as /validate counts them (the brief v2 compile report when there is one)
     extraction = change_extraction_pending(base, change_id) if change_id and artifact.lower() == "brief" else []
@@ -61,6 +61,35 @@ def export_artifact(project_id: str, artifact: str, fmt: str = "md", domain: str
     if final and change_id and artifact.lower() == "brief" and fmt == "md":
         _record_final_export(project_id, change_id, result["path"])
     return {**result, **verdict}
+
+
+TEXT = {
+    "es": {"missing": "Falta {path} para exportar {artifact}: todavía no se generó."},
+    "en": {"missing": "{path} is missing, so {artifact} cannot be exported: it was not generated yet."},
+}
+
+
+def _missing_source(project_id: str, artifact: str, domain: str | None, change_id: str | None, source: Path) -> GateRefusal:
+    """A-05, A-23: the file to export is a prerequisite that was never produced: a gate refusal that names the command making it."""
+    artifact = artifact.lower()
+    where = f" --change {change_id}" if change_id else ""
+    if artifact == "context-request":
+        command = f"/context-request {project_id} --domain {(domain or 'design').lower()}"
+    elif artifact == "gaps":
+        command = f"/gaps {project_id} --change {change_id}" if change_id else f"/ingest {project_id} --source PATH"
+    elif artifact == "brief":
+        command = f"/brief {project_id}{where}"
+    elif artifact == "prd":
+        command = f"/specs {project_id}"
+    elif artifact == "release-guide":
+        command = f"/split {project_id} --assess{where}"
+    elif artifact.startswith("prototype"):
+        command = f"/prototype {project_id}{where}"
+    else:
+        command = f"/status {project_id}{where}"
+    message = TEXT[_language(project_id, change_id)]["missing"].format(
+        path=workspace_relative(project_id, source), artifact=artifact)
+    return GateRefusal(message, next_step=command)
 
 
 def _check_final_change(project_id: str, change_id: str) -> None:
@@ -98,9 +127,11 @@ def _check_final_change(project_id: str, change_id: str) -> None:
         reasons = "; ".join(found["blockers"])
         if held:
             command = (f"/gaps {project_id} --change {change_id} --id {first['id']} "
-                       "--impact construccion|operativo --reason TEXTO")
-            how_es = f"Respondelos o clasificalos con {command}; /export sin --final deja un borrador."
-            how_en = f"Answer them or class them with {command}; /export without --final leaves a draft."
+                       "--impact IMPACT --reason TEXTO")
+            how_es = (f"Respondelos o clasificalos con {command} (IMPACT = construccion u operativo); "
+                      "/export sin --final deja un borrador.")
+            how_en = (f"Answer them or class them with {command} (IMPACT = construccion or operativo); "
+                      "/export without --final leaves a draft.")
         else:
             command = f"/next {project_id} --change {change_id}"
             how_es = f"Resolvé lo que dice el veredicto ({command} dice por dónde); /export sin --final deja un borrador."

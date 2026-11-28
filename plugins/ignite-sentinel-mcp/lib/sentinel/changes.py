@@ -52,10 +52,13 @@ def check_change_deliverable(project_id: str, command: str, artifact: str, chang
     """`/view` and `/export` with --change: the change's own artifacts, and only of an open change.
 
     IMP-412: `fmt` (an export) must be one the artifact takes: the review views are Markdown only."""
-    if artifact.lower() not in CHANGE_DELIVERABLES:
+    from .commands import EXPORT_ARTIFACTS
+
+    taken = tuple(name for name in CHANGE_DELIVERABLES if command != "export" or name in EXPORT_ARTIFACTS)
+    if artifact.lower() not in taken:  # B-17: the refusal lists what the command takes, and its next step is a command
         raise InputError(
-            f"/{command} --change sólo admite {' o '.join(CHANGE_DELIVERABLES)}, no {artifact}: el resto es del proyecto.",
-            next_step=f"Quitá --change para {artifact}, o usá --artifact {'|'.join(CHANGE_DELIVERABLES)} --change {change_id}.",
+            f"/{command} --change sólo admite {' o '.join(taken)}, no {artifact}: el resto es del proyecto (sin --change).",
+            next_step=f"/{command} {project_id} --artifact {artifact}",
         )
     get_change(project_id, change_id)
     allowed = CHANGE_FORMATS.get(artifact.lower(), ())

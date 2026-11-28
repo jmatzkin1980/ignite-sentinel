@@ -35,6 +35,7 @@ TEXT = {
         "closed": "{rid} está cerrada en la serie de {cid}: no se deriva de nuevo.",
         "next_move": "/split {pid} --change {cid} --move --unit <C-NN> --from <rA> --to <rB> --reason \"...\" --ba \"...\" --tech \"...\"",
         "next_pick": "Elegí una de las releases abiertas: {open}.",
+        "next_specs": "Revisá {path}; después /backlog {pid} --change {cid} --release {rid} deriva las historias de {rid}.",
         "next_done": "/next {pid} --change {cid}",
         "close_specs": "{rid} no se puede cerrar: sus unidades no están al día ({why}); derivala de nuevo con /specs {pid} --change {cid} --release {rid} y /backlog {pid} --change {cid} --release {rid}",
         "close_backlog": "{rid} no se puede cerrar: sus historias no son las de sus unidades actuales; derivalas de nuevo con /backlog {pid} --change {cid} --release {rid}",
@@ -51,6 +52,7 @@ TEXT = {
         "closed": "{rid} is already closed in the series of {cid}: it is not derived again.",
         "next_move": "/split {pid} --change {cid} --move --unit <C-NN> --from <rA> --to <rB> --reason \"...\" --ba \"...\" --tech \"...\"",
         "next_pick": "Pick one of the open releases: {open}.",
+        "next_specs": "Review {path}; then /backlog {pid} --change {cid} --release {rid} derives the stories of {rid}.",
         "next_done": "/next {pid} --change {cid}",
         "close_specs": "{rid} cannot close: its units are not current ({why}); derive it again with /specs {pid} --change {cid} --release {rid} and /backlog {pid} --change {cid} --release {rid}",
         "close_backlog": "{rid} cannot close: its stories are not those of its current units; derive them again with /backlog {pid} --change {cid} --release {rid}",
@@ -257,7 +259,8 @@ def derive_release_specs(project_id: str, change_id: str, rid: str, whole: dict[
         "path": (folder / "specs.md").relative_to(base).as_posix(),
         "functionalities": [f["id"] for f in funs],
         "containment": [c for c in contained if c["release"] == rid],
-        "next_step": whole.get("next_step", ""),
+        "next_step": _text(project_id, change_id)["next_specs"].format(  # B-30: about this release, not the whole change
+            path=(folder / "specs.md").relative_to(base).as_posix(), pid=project_id, cid=change_id, rid=rid),
     }
 
 

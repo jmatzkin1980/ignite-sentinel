@@ -61,7 +61,7 @@ _TAG_RE = re.compile(rf"^\s*[-*]\s*\[(?P<tag>{_KNOWN}|[A-ZÁÉÍÓÚÑ]+)(?:\s+(
 _BLOCK_RE = re.compile(r"^#{2,3}\s*(?P<block>B[0-8])\b")
 _ANY_BLOCK_RE = re.compile(r"^#{2,3}\s*B\d+\b")  # a block heading outside B0-B8 closes the current block
 _REPO_RE = re.compile(r"^\s*[-*]\s*repo\s*:\s*(?P<name>[\w.\-/]+)", re.I)
-_DOC_RE = re.compile(r"^\s*[-*]\s*doc\s*:\s*(?P<name>[\w.\-/]+)", re.I)
+_DOC_RE = re.compile(r"^\s*[-*]\s*doc\s*:\s*(?P<name>[\w.\-/]+)(?:\s*[—–-]+\s*(?P<path>\S+))?", re.I)
 
 
 class HarvestError(InputError):
@@ -126,6 +126,58 @@ def parse_harvest(text: str, known_repos: tuple[str, ...] | list[str] = (),
     return {"repos": repos, "docs": docs, "entries": entries, "errors": errors, "coverage": coverage}
 
 
+def harvest_doc_paths(text: str) -> dict[str, str]:
+    """B0 `- doc: name — path` lines: the path each document says it has. Pure."""
+    found: dict[str, str] = {}
+    block = ""
+    for line in text.splitlines():
+        heading = _BLOCK_RE.match(line)
+        if heading:
+            block = heading.group("block")
+            continue
+        if _ANY_BLOCK_RE.match(line):
+            block = ""
+            continue
+        doc = _DOC_RE.match(line)
+        if doc and block == "B0" and doc.group("path"):
+            found[doc.group("name")] = doc.group("path")
+    return found
+
+
+def _check_docs_in_workspace(project_id: str, base: Path, doc_paths: dict[str, str], change_id: str | None) -> None:
+    """B-37: a `doc:` of B0 that points into the workspace's `00_raw/` is a document the workspace has (loaded
+    with /sources or /sync); a harvest that cites one it does not have is rejected before anything is written."""
+    from .source_registry import ROLE_FOLDERS
+
+    missing = []
+    for name, path in doc_paths.items():
+        target = base / path
+        if not path.startswith("00_raw/") or target.is_file() or any(
+                other.stem == target.stem for other in target.parent.glob("*") if other.is_file()):
+            continue  # an outside path (a repo or a share) is not the workspace's to check; a converted .docx keeps its stem
+        missing.append((name, path))
+    if not missing:
+        return
+    first = missing[0][1]
+    role = next((r for r, folder in ROLE_FOLDERS.items() if first.startswith(folder + "/")), "")
+    where = f" --change {change_id}" if change_id else ""
+    if role or change_id:
+        command = f"/sources {project_id} --load PATH --role {role or 'linea_de_base'}{where}"
+    else:
+        command = f"/sync {project_id} --source PATH"
+    from .core.text import project_language
+
+    es = project_language(project_id) == "es"
+    if change_id:
+        from .changes import change_language, get_change
+
+        es = change_language(project_id, get_change(project_id, change_id)) == "es"
+    lines = [(f"el documento {name!r} ({path}) no está en el workspace" if es
+              else f"document {name!r} ({path}) is not in the workspace") for name, path in missing]
+    tail = f"Cargalo con {command} y corré /harvest de nuevo." if es else f"Load it with {command} and run /harvest again."
+    raise HarvestError("Harvest rejected:\n- " + "\n- ".join(lines) + "\n" + tail, next_step=command)
+
+
 def _gap(entry: dict[str, str], language: str, change: bool = False) -> dict[str, str] | None:
     digest = hashlib.sha256(f"{entry['kind']}|{entry['ref']}|{entry['text']}".encode("utf-8")).hexdigest()[:8].upper()
     es = language == "es"
@@ -187,9 +239,11 @@ def apply_harvest(project_id: str, source: Path, change_id: str | None = None) -
     # (alerts are recorded below, once the harvest is accepted).
     from .secrets_scan import detect_secrets, load_allowlist, redact
 
-    parsed = parse_harvest(redact(raw, detect_secrets(raw, load_allowlist(base))), previous_repos, previous_docs)
+    redacted = redact(raw, detect_secrets(raw, load_allowlist(base)))
+    parsed = parse_harvest(redacted, previous_repos, previous_docs)
     if parsed["errors"]:
         raise HarvestError("Harvest rejected:\n- " + "\n- ".join(parsed["errors"]))
+    _check_docs_in_workspace(project_id, base, harvest_doc_paths(redacted), change_id)
     source_id = open_source_row(project_id, source, "harvested")
     target = base / "00_raw" / "02_technology_context" / "harvest" / source.name
     sanitized = sanitize_text(base, source.name, raw)

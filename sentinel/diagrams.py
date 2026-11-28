@@ -640,6 +640,12 @@ def _change_diagrams_input(project_id: str, change_id: str) -> tuple[list[dict[s
     return cards, scope.language, fingerprints, dated
 
 
+CHANGE_ONLY_TEXT = {
+    "es": "{pid} sólo tiene cambios: no hay brief del proyecto para /view diagrams; el diagrama es del cambio.",
+    "en": "{pid} only has changes: there is no project brief for /view diagrams; the diagrams belong to the change.",
+}
+
+
 def collect_diagrams_model(project_id: str, change_id: str | None = None) -> dict[str, Any]:
     base = workspace_path(project_id)
     if change_id is not None:
@@ -647,6 +653,15 @@ def collect_diagrams_model(project_id: str, change_id: str | None = None) -> dic
     else:
         brief = base / "02_requirements" / "project-brief.md"
         if not brief.is_file():
+            from .changes import is_change_only, list_changes, refusal_language
+
+            if is_change_only(project_id):  # C-13: the only brief there is belongs to a change
+                first = sorted(list_changes(project_id))[0]
+                raise DiagramsError(
+                    CHANGE_ONLY_TEXT[refusal_language(project_id)].format(pid=project_id),
+                    next_step=f"/view {project_id} --artifact diagrams --change {first}",
+                    gate=True,
+                )
             raise DiagramsError(
                 f"/view diagrams needs the brief: workspaces/{project_id}/02_requirements/project-brief.md does not exist.",
                 next_step=f"Run /brief {project_id} first.",

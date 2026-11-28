@@ -76,13 +76,14 @@ def read_source(source: Path, *, extracted_at: str | None = None, media_stem: st
     if source.suffix.lower() == DOCX_SUFFIX:
         return read_docx(source, extracted_at=extracted_at, media_stem=media_stem)
     data = source.read_bytes()
+    refusal = (f"{source.name}: not UTF-8 text and not a supported document "
+               f"(supported: {', '.join(SUPPORTED_SUFFIXES)}). Convert it to Markdown first.")
+    if source.suffix.lower() == ".pdf" or data.startswith(b"%PDF-"):  # A-32: a PDF is a PDF even when its bytes decode
+        raise SourceFormatError(refusal)
     try:
         text = data.decode("utf-8")
     except UnicodeDecodeError as exc:
-        raise SourceFormatError(
-            f"{source.name}: not UTF-8 text and not a supported document "
-            f"(supported: {', '.join(SUPPORTED_SUFFIXES)}). Convert it to Markdown first."
-        ) from exc
+        raise SourceFormatError(refusal) from exc
     warning = None
     if source.suffix.lower() not in TEXT_SUFFIXES:
         warning = f"{source.name}: unknown extension {source.suffix or '(none)'}; stored as Markdown."
