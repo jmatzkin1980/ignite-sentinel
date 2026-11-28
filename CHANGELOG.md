@@ -6,6 +6,8 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+## [0.41.0] — 2026-11-28
+
 ### Changed
 
 - A semantic-change review left by `/sync` (IMP-369) is cleared only by `/trace --reviewed CHG-NNN` or by a confirmed answer that names that change, applied and regenerated; regenerating alone keeps health DIRTY, and a note whose prose changed nothing says so on stderr and in `/next` until the next `/sync` (A-01, IMP-435).
