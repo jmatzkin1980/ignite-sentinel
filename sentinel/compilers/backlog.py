@@ -465,8 +465,7 @@ An item belongs here only when all checks pass:
 
 
 # IMP-198: optional JTBD-native ("job story") phrasing for the story statement.
-# Default is the persona-neutral user-story shape ("As a target user..."), whose
-# output stays byte-identical to pre-IMP-198. The job format leads with the
+# Default is the user-story shape, built from its parts since IMP-435 (A-08). The job format leads with the
 # operational situation instead of a persona (so it never invents one) and reuses
 # the same derived goal/benefit fields: a missing outcome surfaces as
 # `[PENDING INPUT]`, never hand-completed, exactly like the user-story format does

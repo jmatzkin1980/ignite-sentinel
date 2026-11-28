@@ -307,6 +307,48 @@ def write_json(path: Path, data: Any, *, root: Path | str | None = None) -> None
     _remember_snapshot(destination)
 
 
+def _holds(destination: Path, data: bytes) -> bool:
+    try:
+        return destination.is_file() and destination.stat().st_size == len(data) and destination.read_bytes() == data
+    except OSError:
+        return False
+
+
+def write_text_if_changed(
+    path: Path | str, text: str, *, root: Path | str | None = None, newline: str | None = None
+) -> bool:
+    """IMP-435 (C-15): `write_text` that leaves a file already holding these bytes untouched (same mtime). True if written."""
+    data = _translate_newlines(text, newline).encode("utf-8")
+    if _holds(confine(path, root), data):
+        return False
+    write_bytes(path, data, root=root)
+    return True
+
+
+def write_json_if_changed(path: Path, data: Any, *, root: Path | str | None = None) -> bool:
+    """IMP-435 (C-15): `write_json` that leaves a file already holding these bytes untouched. True if written."""
+    if _holds(confine(path, root), (json.dumps(data, indent=2, ensure_ascii=False) + "\n").encode("utf-8")):
+        return False
+    write_json(path, data, root=root)
+    return True
+
+
+def copy_file_if_changed(source: Path | str, destination: Path | str, *, root: Path | str | None = None) -> bool:
+    """IMP-435 (C-15): `copy_file` after comparing the sha256 of both files; an equal copy is left untouched."""
+    target = confine(destination, root)
+    try:
+        if target.is_file() and target.stat().st_size == Path(source).stat().st_size:
+            digest = sha256()
+            for block in _read_blocks(Path(source)):
+                digest.update(block)
+            if digest.hexdigest() == _file_hash(target):
+                return False
+    except OSError:
+        pass
+    copy_file(source, destination, root=root)
+    return True
+
+
 def append_bytes(path: Path | str, data: bytes, *, root: Path | str | None = None) -> Path:
     """Append-only write: existing bytes are never rewritten (fsynced, not atomic by nature)."""
     destination = confine(path, root)

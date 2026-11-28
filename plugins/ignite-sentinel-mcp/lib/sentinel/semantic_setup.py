@@ -31,6 +31,7 @@ from .errors import WorkspaceBusy
 from .resources import package_resource, read_package_json
 
 CONFIG_FILE = "semantic.json"
+PIP_NEXT_STEP = "pip install -r constraints/memory-semantic.txt"
 PIP_COMMAND = "python -m pip install -c constraints/memory-semantic.txt -e .[memory-semantic]"
 
 # fetch(url, dest, allowed_hosts, max_bytes)
@@ -41,7 +42,13 @@ _REVISION_RE = re.compile(r"^[0-9a-f]{40}$")
 
 
 class SetupError(Exception):
-    pass
+    """A refusal of `/setup`. `kind` is `"input"` (a bad file or payload, exit 3) or `"prerequisite"` (something to
+    install first, exit 4; `next_step` says what)."""
+
+    def __init__(self, message: str, kind: str = "input", next_step: str = "") -> None:
+        super().__init__(message)
+        self.kind = kind
+        self.next_step = next_step
 
 
 def sentinel_home() -> Path:
@@ -152,7 +159,7 @@ def install_semantic_memory(
     manifest = manifest if manifest is not None else load_manifest()
     model = _model(manifest)
     if model["embedder"] == "model2vec" and importlib.util.find_spec("model2vec") is None:
-        raise SetupError(_pip_hint(root))
+        raise SetupError(_pip_hint(root), kind="prerequisite", next_step=PIP_NEXT_STEP)
 
     staging = core_io.confine(home / "models" / f".staging-{model['id']}", home)
     destination = core_io.confine(model_dir(home, model), home)

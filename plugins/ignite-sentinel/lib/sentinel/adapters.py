@@ -274,7 +274,17 @@ if __name__ == "__main__":
 
     from .plugin_package import plugin_out_of_sync, regenerate_plugin
 
-    if "--plugin" in sys.argv[1:]:
+    import argparse
+
+    # IMP-435 (C-22): `--help` explains; it never runs the generator (which rewrites the mirrors).
+    _parser = argparse.ArgumentParser(
+        prog="python -m sentinel.adapters",
+        description="Regenerate the command, skill and plugin mirrors from their canonical sources.",
+    )
+    _parser.add_argument("--plugin", action="store_true",
+                         help="regenerate only the Claude Code marketplace and the plugins under plugins/")
+    _args = _parser.parse_args()
+    if _args.plugin:
         # IMP-279: only the Claude Code marketplace and plugins under plugins/.
         print(json.dumps({"regenerated_plugin": regenerate_plugin(), "out_of_sync": plugin_out_of_sync()}, indent=2))
     else:

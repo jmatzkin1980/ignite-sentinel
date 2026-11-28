@@ -722,6 +722,9 @@ def build_server():
 
 
 def main(argv: list[str] | None = None) -> int:
+    from .errors import utf8_stderr
+
+    utf8_stderr()
     argv = list(sys.argv[1:] if argv is None else argv)
     if "--describe" in argv:
         print(json.dumps({"server": "ignite-sentinel", "tools": describe_tools()}, indent=2))

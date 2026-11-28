@@ -61,6 +61,26 @@ def _line_kind(line: str) -> str | None:
     return None
 
 
+def _literal_markers() -> tuple[str, ...]:
+    """The words that open a block of the final brief that quotes the request or its consolidated text (B-03)."""
+    copy = read_package_json("templates/change_brief.json").get("copy") or {}
+    found: set[str] = set()
+    for language in copy.values():
+        for key in ("extracted_content", "consolidated_content"):
+            template = str((language or {}).get(key) or "")
+            if " — " in template and "(`" in template:
+                found.add(template.split(" — ", 1)[1].split("(`", 1)[0].strip())
+    return tuple(sorted(found - {""}))
+
+
+LITERAL_HEAD_RE = re.compile(r"\(`[^`]+`:\d+(?:-\d+)?(?:; [^)]*)?\):$")
+
+
+def _opens_literal_block(line: str, markers: tuple[str, ...]) -> bool:
+    """`- [tag] ID — texto literal del pedido (`path`:a-b):` cites the request by its lines; the lines after it are its text."""
+    return LITERAL_HEAD_RE.search(line.rstrip()) is not None and any(f" — {m} (`" in line for m in markers)
+
+
 def anchor_report(text: str, registry: list[dict[str, Any]]) -> dict[str, Any]:
     """Structured findings ({code, place, line, detail}) and the site count of a v2 brief."""
     model = parse_brief(text)
@@ -70,11 +90,21 @@ def anchor_report(text: str, registry: list[dict[str, Any]]) -> dict[str, Any]:
     exempt_places = set(exempt_data()["places"])
     findings: list[dict[str, Any]] = []
     sites = holding = 0
+    markers = _literal_markers()
+    literal = False  # inside the text of a block that cites the request it quotes: the head is its anchor
     for number, line in enumerate(text.splitlines(), start=1):
         place = model.section_id_at_line(number)
         if not place or place in exempt_places or place.split(".")[0] == "0":
+            literal = False
             continue
+        if line.lstrip().startswith("#"):
+            literal = False
         if _line_kind(line) is not None:
+            continue
+        if literal and not parse_citations(line) and not _opens_literal_block(line, markers):
+            continue  # the text of the block above: its head names the request lines it quotes
+        literal = _opens_literal_block(line, markers)
+        if literal:
             continue
         citations = [c for c in parse_citations(line)]
         if not citations:

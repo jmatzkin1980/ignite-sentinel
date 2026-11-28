@@ -106,11 +106,11 @@ class FaqExportLifecycleTests(unittest.TestCase):
         self.assertEqual(build_faq("DEMO"), faq_path.read_text(encoding="utf-8"))
 
     def test_faq_gate_is_before_ingest_only(self):
-        # IMP-361: the documented gates. Before /ingest there is no gaps.md → exit 3 (like
-        # `interview`); right after /ingest, with nothing resolved, the FAQ is written
+        # IMP-361: the documented gates. Before /ingest there is no gaps.md → exit 4 (IMP-435
+        # A-05/A-23: a never-produced source is a gate naming /ingest); right after /ingest, with nothing resolved, the FAQ is written
         # (exit 0); exit 4 only when gaps.md exists without decisions.md and identity_seeds.md.
         self.assertEqual(main(["init", "FRESH"]), 0)
-        self.assertEqual(main(["export", "FRESH", "--artifact", "gaps", "--format", "faq"]), 3)
+        self.assertEqual(main(["export", "FRESH", "--artifact", "gaps", "--format", "faq"]), 4)
         discovery = self.ws / "01_discovery"
         self.assertTrue((discovery / "decisions.md").exists())
         self.assertTrue((discovery / "identity_seeds.md").exists())

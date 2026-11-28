@@ -7,7 +7,7 @@ import traceback
 from pathlib import Path
 
 from .commands import COMMANDS, VIEW_ARTIFACTS, build_parser, skill_for_next_text  # noqa: F401  IMP-303: the single command registry
-from .errors import EXIT_BUG, EXIT_OK, EXIT_VERDICT, exit_code_for, next_step_for
+from .errors import EXIT_BUG, EXIT_OK, EXIT_VERDICT, exit_code_for, next_step_for, utf8_stderr
 from .protocols import postflight_command, preflight_command
 
 
@@ -23,7 +23,27 @@ def require_retrieve_workflow(workflow: str | None) -> str:
     return workflow
 
 
+# IMP-435 (A-35, C-26, B-31): the refusals of a change follow the change's language (the pattern of `TEXT` above).
+TEXT_GAPS_CLASH = {
+    "es": {"message": "/gaps --change no se combina con {clash}: --change sólo regenera los gaps del cambio.",
+           "next": "/gaps {project} --change {change}"},
+    "en": {"message": "/gaps --change does not combine with {clash}: --change only regenerates the change's gaps.",
+           "next": "/gaps {project} --change {change}"},
+}
+TEXT_SELF_REVIEW_CROSSES = {
+    "es": "/self-review --change va con --crosses",
+    "en": "/self-review --change goes with --crosses",
+}
+TEXT_BRIEF_CLASH = {
+    "es": {"message": "/brief --change no se combina con {clash}: esos ajustes son del proyecto.",
+           "next": "/brief {project} --change {change}"},
+    "en": {"message": "/brief --change does not combine with {clash}: those settings belong to the project.",
+           "next": "/brief {project} --change {change}"},
+}
+
+
 def main(argv: list[str] | None = None) -> int:
+    utf8_stderr()
     argv = normalize_slash_command(sys.argv[1:] if argv is None else argv)
     args = build_parser().parse_args(argv)
     from .core.lock import command_scope
@@ -192,8 +212,10 @@ def _run_project_command(args) -> int:
                     offline = Path(args.offline_from) if args.offline_from else None
                     result = semantic_setup.install_semantic_memory(offline_from=offline, root=Path(args.root))
             except semantic_setup.SetupError as exc:
-                print(f"sentinel error: {exc}", file=sys.stderr)
-                return EXIT_BUG
+                from .errors import GateRefusal, InputError
+
+                # IMP-435 (C-07): a missing extra is a gate (4) and names the install; a bad file or download is input (3).
+                raise (GateRefusal if exc.kind == "prerequisite" else InputError)(str(exc), next_step=exc.next_step) from None
             print_json(result)
         elif args.command == "dashboard":
             from .dashboard import generate_dashboard
@@ -313,10 +335,13 @@ def _run_project_command(args) -> int:
             elif args.change and (args.gap_id or args.disposition or args.top is not None):
                 from .errors import InputError
 
+                from .changes import change_language, get_change
+
                 clash = "--id/--disposition" if (args.gap_id or args.disposition) else "--top"
+                text = TEXT_GAPS_CLASH[change_language(args.project_id, get_change(args.project_id, args.change))]
                 raise InputError(
-                    f"/gaps --change no se combina con {clash}: --change sólo regenera los gaps del cambio.",
-                    next_step="Corré /gaps --change CHG-NNN solo, o quitá --change para usar " + clash + ".",
+                    text["message"].format(clash=clash),
+                    next_step=text["next"].format(project=args.project_id, change=args.change, clash=clash),
                 )
             elif args.gap_id or args.disposition:
                 if not (args.gap_id and args.disposition):
@@ -426,7 +451,10 @@ def _run_project_command(args) -> int:
         elif args.command == "self-review" and args.change and not args.crosses:
             from .errors import InputError
 
-            raise InputError("/self-review --change va con --crosses")
+            from .changes import refusal_language
+
+            raise InputError(TEXT_SELF_REVIEW_CROSSES[refusal_language(args.project_id, args.change)],
+                             next_step=f"/self-review {args.project_id} --change {args.change} --crosses")
         elif args.command == "self-review" and args.skip and not args.change:
             from .errors import InputError
 
@@ -525,10 +553,11 @@ def _run_project_command(args) -> int:
 
                 clash = [flag for flag, value in project_flags.items() if value is not None]
                 if clash:
-                    raise InputError(
-                        f"/brief --change no se combina con {', '.join(clash)}: esos ajustes son del proyecto.",
-                        next_step=f"Corré /brief {args.project_id} --change {args.change} solo, o quitá --change para ajustar el proyecto.",
-                    )
+                    from .changes import refusal_language
+
+                    text = TEXT_BRIEF_CLASH[refusal_language(args.project_id, args.change)]
+                    raise InputError(text["message"].format(clash=", ".join(clash)),
+                                     next_step=text["next"].format(project=args.project_id, change=args.change))
                 from .changes import get_change
                 from .compilers.change_brief import compile_change_brief
 

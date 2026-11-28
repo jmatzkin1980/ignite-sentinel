@@ -88,3 +88,15 @@ def exit_code_for(exc: BaseException) -> int:
 
 def next_step_for(exc: BaseException) -> str:
     return getattr(exc, "next_step", "") or (infer_next_step(str(exc)) if exit_code_for(exc) != EXIT_BUG else "")
+
+
+def utf8_stderr() -> None:
+    """IMP-435 (C-05): refusals carry accents; a pipe or a file on Windows would get them in the console code page."""
+    import sys
+
+    reconfigure = getattr(sys.stderr, "reconfigure", None)
+    if reconfigure is not None:
+        try:
+            reconfigure(encoding="utf-8", errors="replace")
+        except (OSError, ValueError):
+            pass

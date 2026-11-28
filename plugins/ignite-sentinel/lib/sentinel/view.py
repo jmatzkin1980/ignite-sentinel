@@ -18,7 +18,7 @@ from .shell import (
 )
 from .themes import DEFAULT_THEME, ThemeError, legend_html, load_theme, user_theme_dirs
 from .workspace import load_config, read_json, workspace_path
-from .core.io import write_text
+from .core.io import write_text_if_changed
 from .citations import is_v2_artifact
 from .secrets_scan import assert_no_leaks
 
@@ -803,7 +803,7 @@ def generate_artifact_view(project_id: str, artifact: str, open_browser: bool = 
     out_dir.mkdir(parents=True, exist_ok=True)
     out = out_dir / (f"{change_id}-{artifact}.html" if change_id else f"{artifact}.html")
     assert_no_leaks(project_id, rendered, workspace_path(project_id), f"/view {artifact}")
-    write_text(out, rendered, newline="\n")
+    write_text_if_changed(out, rendered, newline="\n")  # IMP-435 (C-15): an unchanged view keeps its file as it was
     if open_browser:
         open_local_file(out)
     return {

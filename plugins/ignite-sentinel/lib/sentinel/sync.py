@@ -37,7 +37,9 @@ def sync_change(project_id: str, source: Path, note: str = "", digest: bool = Fa
         raise GateRefusal(f"Workspace not found: {project_id}")
     if not reload and source.is_file() and (loaded := already_loaded_source(project_id, source)):
         # IMP-435 (A-10): the same content again is the change it already was, not a second CHG that dirties the project again
-        return {"project_id": project_id, "already_loaded": loaded, "source": str(source.as_posix()),
+        # `source_id` as in any sync result; no top-level `change_id`, since no change was opened (it is in `already_loaded`).
+        return {"project_id": project_id, "already_loaded": loaded, "source_id": loaded["source_id"],
+                "source": str(source.as_posix()),
                 "message": f"{source.name} is already loaded as {loaded['source_id']} ({loaded['change_id']}); nothing was written."}
 
     target_dir = change_target_dir(base, source)
