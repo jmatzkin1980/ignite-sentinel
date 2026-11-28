@@ -444,6 +444,52 @@ def render_backlog_refinements(base: Path, refinements: list[dict[str, Any]], ep
             ))
 
 
+def rerender_refinements(project_id: str, change_id: str | None = None) -> dict[str, list[str]]:
+    """IMP-435 (A-02): `/backlog` writes the epic and the stories again, so what the BA accepted through `/refine-backlog` is rendered
+    again from `accepted_refinements.json` (as `/specs` does with the PRD compositions). A proposal whose target story no longer exists
+    is not rendered: it is named in `refinements/rerender_report.md` and in `dropped`."""
+    from ..core.io import remove
+
+    base = workspace_path(project_id)
+    folder = _refinement_dir(base, change_id)
+    recorded = read_json(folder / "accepted_refinements.json", [])
+    report_path = folder / "rerender_report.md"
+    result: dict[str, list[str]] = {"rendered": [], "dropped": []}
+    if not isinstance(recorded, list) or not recorded:
+        return result
+    if change_id:
+        from ..compilers.change_backlog import epic_id_for
+
+        epic_path = base / "04_backlog" / f"{epic_id_for(change_id)}.md"
+    else:
+        epic_path = base / "04_backlog" / "EPIC-001.md"
+    if not epic_path.exists():
+        return result
+    stories = {sid for sid, row in load_story_index(base, change_id).items() if not row.get("pending")}
+    kept: list[dict[str, Any]] = []
+    gone: list[tuple[str, list[str]]] = []
+    for item in recorded:
+        if not isinstance(item, dict):
+            continue
+        missing = [str(sid) for sid in item.get("target_stories", []) if str(sid) not in stories]
+        if missing:
+            gone.append((str(item.get("id", "?")), missing))
+        else:
+            kept.append(item)
+    render_backlog_refinements(base, kept, epic_path, stories)
+    result["rendered"] = [str(item.get("id", "?")) for item in kept]
+    result["dropped"] = [pid for pid, _missing in gone]
+    if gone:
+        rows = "\n".join(f"| `{pid}` | {', '.join(f'`{sid}`' for sid in missing)} |" for pid, missing in gone)
+        write_text(report_path, "# Backlog refinements not rendered again\n\n"
+                   "`/backlog` wrote the stories again and these accepted proposals point at a story that no longer exists, so they were not "
+                   "rendered. They stay in `accepted_refinements.json`; refine again with `/refine-backlog` against the current stories.\n\n"
+                   "| Proposal | Story that is gone |\n| --- | --- |\n" + rows + "\n")
+    elif report_path.exists():
+        remove(report_path)
+    return result
+
+
 def strip_refinement_section(text: str) -> str:
     marker = "## Agent Backlog Refinements"
     if marker not in text:

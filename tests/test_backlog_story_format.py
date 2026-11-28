@@ -44,16 +44,21 @@ EARS_STATEMENTS = [
 class StoryNarrativeUnitTests(unittest.TestCase):
     """Direct rendering guards that do not need a full workspace."""
 
-    def test_user_format_is_byte_identical_to_history(self):
+    def test_user_format_is_built_from_its_parts(self):
+        # IMP-435 (A-08): actor, capability, benefit; no fixed persona, no lowercased names.
         story = {"goal": "Do The Thing", "benefit": "The Outcome Happens"}
         self.assertEqual(
             render_story_narrative(story, "user"),
-            "As a target user,\nI want do the thing,\nSo that the outcome happens",
+            "As a user,\nI want to do The Thing,\nso that the Outcome Happens",
         )
         self.assertEqual(
             render_story_narrative(story, "user", inline=True),
-            "As a target user, I want do the thing so that the outcome happens",
+            "As a user, I want to do The Thing, so that the Outcome Happens",
         )
+        story = {"goal": "enviar el alta", "trigger": "el analista la carga", "actor": "los analistas", "benefit": "agilizar",
+                 "benefit_is_goal": True, "language": "es"}
+        self.assertEqual(render_story_narrative(story, "user"),
+                         "Como los analistas,\nquiero enviar el alta cuando el analista la carga,\npara agilizar")
 
     def test_job_format_leads_with_situation_not_a_persona(self):
         story = {"goal": "Review the queues", "benefit": "prepare before the meeting"}
@@ -118,10 +123,10 @@ class BacklogStoryFormatTests(SnapshotWorkspaceCase):
         self.assertEqual(main(["backlog", pid]), 0)
         epic_user = self._epic(workspace)
         story_user = self._story(workspace)
-        self.assertIn("As a target user,", epic_user)
+        self.assertIn("As a user,", epic_user)
         self.assertNotIn("When the target user faces the operational situation", epic_user)
         self.assertIn("## User Story", story_user)
-        self.assertIn("As a target user, I want", story_user)
+        self.assertIn("As a user, I want to", story_user)
         story_count_user = epic_user.count("**Narrative:**")
         self.assertEqual(story_count_user, len(EARS_STATEMENTS))
 
@@ -130,7 +135,7 @@ class BacklogStoryFormatTests(SnapshotWorkspaceCase):
         epic_job = self._epic(workspace)
         story_job = self._story(workspace)
         self.assertIn("When the target user faces the operational situation", epic_job)
-        self.assertNotIn("As a target user,", epic_job)
+        self.assertNotIn("As a user,", epic_job)
         self.assertIn("## Job Story", story_job)
         self.assertIn("When the target user faces the operational situation", story_job)
         # No persona named in the raw ("operations leads") leaks into the statement.

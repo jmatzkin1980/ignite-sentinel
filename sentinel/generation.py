@@ -84,6 +84,7 @@ from .compilers.slicing import (
 )
 from .gaps import parse_non_goals
 from .maturity import evaluate, parse_gap_answers, prd_gate_warnings, prd_section_readiness
+from .backlog.refinement import rerender_refinements, strip_refinement_section
 from .prd import render_prd_compositions
 from .retrieval_plans import compose_plan_query, load_retrieval_plan, select_source_context
 from .slice_plan import generate_slice_plan
@@ -438,7 +439,9 @@ def _generate_backlog(
     epic_path = base / "04_backlog" / "EPIC-001.md"
     previous_epic = epic_path.read_text(encoding="utf-8") if epic_path.exists() else ""
     write_text(epic_path, render_epic(project_id, story_specs, backlog_context, effective_story_format))
-    record_regeneration_diff(project_id, "EPIC-001.md", previous_epic, epic_path.read_text(encoding="utf-8"))
+    # IMP-435: the BA's accepted refinements are rendered again below, so they are not a change of the regenerated epic
+    previous_for_diff = strip_refinement_section(previous_epic) if "## Agent Backlog Refinements" in previous_epic else previous_epic
+    record_regeneration_diff(project_id, "EPIC-001.md", previous_for_diff, epic_path.read_text(encoding="utf-8"))
     epic_id = add_node(project_id, "EPIC", "epic", epic_path, "Deliver validated requirement value", domain="product")
     for spec in specs:
         add_edge(project_id, spec["id"], epic_id, "decomposes_to")
@@ -516,6 +519,8 @@ def _generate_backlog(
         if stale_story_path not in active_story_paths and not is_change_story(stale_story_path):
             remove(stale_story_path)
 
+    refinements = rerender_refinements(project_id)  # IMP-435 (A-02): what the BA accepted survives the new backlog
+
     assert_backlog_privacy_clean(project_id)
 
     broker = shared_broker(project_id)
@@ -556,6 +561,7 @@ def _generate_backlog(
         "task_seed_contracts": "enabled" if with_task_seeds else "disabled",
         # IMP-370: what is still stale AFTER this run (a stale specs stays stale; the backlog was just rebuilt).
         "foundation_warnings": foundation_drift_warnings(project_id, "backlog"),
+        **({"refinements_dropped": refinements["dropped"]} if refinements["dropped"] else {}),
     }
 
 

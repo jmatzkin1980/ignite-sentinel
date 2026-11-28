@@ -70,3 +70,4 @@ test_h27_change_feedback  # 48 s
 test_h27_inc8b_walk  # 21 s
 test_inc9a_baseline  # 29 s
 test_inc9a_refusals  # 30 s
+test_inc9a_backlog  # 39 s

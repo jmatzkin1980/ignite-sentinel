@@ -471,11 +471,30 @@ def render_story_narrative(story: dict[str, Any], story_format: str = "user", *,
         if inline:
             return f"When {_JOB_STORY_SITUATION}, I want {motivation} so I can {outcome}"
         return f"When {_JOB_STORY_SITUATION},\nI want {motivation},\nSo I can {outcome}"
-    goal = story["goal"].lower()
-    benefit = story["benefit"].lower()
-    if inline:
-        return f"As a target user, I want {goal} so that {benefit}"
-    return f"As a target user,\nI want {goal},\nSo that {benefit}"
+    return _story_statement(story, inline)
+
+
+def _story_statement(story: dict[str, Any], inline: bool) -> str:
+    """IMP-435 (A-08): "Como <actor>, quiero <capacidad> cuando <disparador>, para <beneficio>" from the parts of the story,
+    in the language of the workspace; an actor nobody confirmed is "usuario" / "a user", never a fixed persona."""
+    from .slicing import STORY_ACTOR_DEFAULT, STORY_ACTOR_ENABLER
+
+    language = "es" if story.get("language") == "es" else "en"
+    default = STORY_ACTOR_ENABLER if story.get("type") == "cross_cutting_enabler" else STORY_ACTOR_DEFAULT
+    actor = str(story.get("actor") or default[language]).strip()
+
+    def lowered(text: str) -> str:
+        return text[:1].lower() + text[1:]
+
+    goal, benefit = lowered(str(story["goal"]).strip()), lowered(str(story["benefit"]).strip())
+    trigger = lowered(str(story.get("trigger") or "").strip())
+    if language == "es":
+        want = f"quiero {goal}" + (f" cuando {trigger}" if trigger else "")
+        parts = [f"Como {actor}", want, ("para " if story.get("benefit_is_goal") else "para que ") + benefit]
+    else:
+        want = f"I want to {goal}" + (f" when {trigger}" if trigger else "")
+        parts = [f"As {actor}", want, ("to " if story.get("benefit_is_goal") else "so that ") + benefit]
+    return ", ".join(parts) if inline else ",\n".join(parts)
 
 
 def render_story_section(story: dict[str, Any], story_format: str = "user") -> str:

@@ -739,6 +739,9 @@ def _run_project_command(args) -> int:
                     with_task_seeds=bool(args.with_task_seeds),
                     story_format=args.story_format,
                 )
+            if result.get("refinements_dropped"):  # IMP-435 (A-02)
+                print("sentinel warning: accepted refinements not rendered again, their target story is gone: "
+                      + ", ".join(result["refinements_dropped"]) + ". See 04_backlog/refinements/rerender_report.md.", file=sys.stderr)
             print_json(result)
         elif args.command == "backlog-status":
             from .backlog.rollup import backlog_status
