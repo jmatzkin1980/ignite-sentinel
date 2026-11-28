@@ -182,6 +182,14 @@ def _record_final_export(project_id: str, change_id: str, path: str) -> dict[str
     return recorded
 
 
+def _sealed_final_current(project_id: str, change_id: str) -> bool:
+    """IMP-435: the change has a final export made from the brief and the seal as they stand now."""
+    from .changes import get_change
+    from .readiness_verdict import _final_export_current
+
+    return _final_export_current(workspace_path(project_id), change_id, get_change(project_id, change_id))
+
+
 def _export(project_id: str, artifact: str, fmt: str, source: Path, verdict: dict,
             change_id: str | None = None, final: bool = False) -> dict[str, str]:
     from .deliverables import with_banner
@@ -204,6 +212,10 @@ def _export(project_id: str, artifact: str, fmt: str, source: Path, verdict: dic
 
         text = render_change_deliverable(project_id, change_id, final)
         assert_no_leaks(project_id, text, base, f"export {artifact}")
+        if not final and _sealed_final_current(project_id, change_id):
+            # IMP-435 (B-06): the working export never replaces a sealed final that is still current
+            target = export_dir / f"{change_id}-project-brief-draft.md"
+            verdict["deliverable"] = "draft"
         if verdict["deliverable"] == "draft":
             text = with_banner(text, int(verdict["pending_marks"]), _language(project_id, change_id),
                                list(verdict.get("extraction_pending") or []))
