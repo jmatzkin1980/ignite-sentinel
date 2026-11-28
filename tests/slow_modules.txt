@@ -73,3 +73,4 @@ test_inc9a_refusals  # 30 s
 test_inc9a_backlog  # 39 s
 test_inc9a_project_next  # 41 s
 test_inc9a_change_final  # 18 s
+test_inc9a_change_series  # 93 s

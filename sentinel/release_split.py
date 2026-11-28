@@ -431,8 +431,25 @@ def _open_client_gap(project_id: str, ba: str, tech: str, language: str, change_
         return  # opened once
     if current is not None:
         reopen_change_gap(project_id, change_id, CLIENT_GAP_ID)  # a new confirmation needs the client again
-        return
-    merge_change_gaps(project_id, change_id, [row], [])
+    else:
+        merge_change_gaps(project_id, change_id, [row], [])
+    _class_client_gap(project_id, change_id, language)
+
+
+def _class_client_gap(project_id: str, change_id: str, language: str) -> None:
+    """B-07 (Q3): the client's confirmation is an operational deferred item, never a hold on r1 or on the first move."""
+    from .core.time import utc_now
+    from .changes import list_changes
+    from .workspace import update_state
+
+    reason = ("lo confirma el cliente después de que el BA y el equipo técnico confirmaron la serie; no frena la construcción"
+              if language == "es" else
+              "the client confirms it after the BA and the technical team confirmed the series; it does not hold the build")
+    changes = {key: dict(value) for key, value in list_changes(project_id).items()}
+    marks = dict(changes[change_id].get("gap_impact") or {})
+    marks[CLIENT_GAP_ID] = {"impact": "operativo", "reason": reason, "at": utc_now()}
+    changes[change_id]["gap_impact"] = marks
+    update_state(project_id, changes=changes)
 
 
 def confirm_partition(project_id: str, ba: str, tech: str, change_id: str | None = None) -> dict[str, Any]:

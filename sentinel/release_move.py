@@ -24,6 +24,7 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -137,9 +138,16 @@ def move_unit(project_id: str, spec: str, source: str, target: str, reason: str,
         raise ReleaseSplitError("the stored proposal is not the confirmed one; confirm it before moving units", gate=True)
     brief_path = base / "02_requirements" / "project-brief.md"
     brief_text = scope.brief_text if scope else (brief_path.read_text(encoding="utf-8") if brief_path.is_file() else "")
-    if (scope.brief_sha256 if scope else brief_hash(brief_path)) != stored.get("brief_sha256"):
+    if change_id and _is_unit_id(spec):
+        pass  # B-04: a unit that landed on a closed release arrives with the answer that changed the brief
+    elif (scope.brief_sha256 if scope else brief_hash(brief_path)) != stored.get("brief_sha256"):
         scope_flag = f" --change {change_id}" if change_id else ""
+        if scope is not None and scope.language == "es":  # B-31
+            raise ReleaseSplitError(
+                f"el brief cambió desde que se confirmó la serie; corré /split{scope_flag} --propose otra vez", gate=True)
         raise ReleaseSplitError(f"the brief changed since the series was confirmed; run /split{scope_flag} --propose again", gate=True)
+    if change_id and _is_unit_id(spec):
+        return _route_closed_unit(project_id, change_id, spec, source, target, reason, ba, tech, partition, scope, today)
     if change_id:
         shut = [name for name in (source, target) if name in (partition.get("closed") or {})]
         if shut:
@@ -198,6 +206,52 @@ def move_unit(project_id: str, spec: str, source: str, target: str, reason: str,
             "stale_derivations": [rid for rid in touched if (base / "03_specs" / rid).is_dir() or (base / "04_backlog" / rid).is_dir()],
             "confirmed_by": confirmed["confirmed_by"], "series": confirmed["series"],
             "next": "run /specs, /backlog and /quality with --release for each release in stale_derivations"}
+
+
+UNIT_ID_RE = re.compile(r"^SPEC-U-\d+$")
+
+
+def _is_unit_id(spec: str) -> bool:
+    return UNIT_ID_RE.match(_s(spec)) is not None
+
+
+def _route_closed_unit(project_id: str, change_id: str, spec: str, source: str, target: str, reason: str, ba: str,
+                       tech: str, partition: dict[str, Any], scope: Any, today: str | None) -> dict[str, Any]:
+    """B-04: `--move --unit SPEC-U-nnn` sends a unit that landed on a closed release to an open one of the series.
+
+    The partition does not change (the unit's surface stays in its release); the unit is routed in `unit_routes.json`,
+    the move is recorded with the others, and the derivation of the target goes stale."""
+    from .change_release import closed_owner_units, route_unit
+    from .core.io import write_text
+    from .core.time import utc_now
+    from .series_scope import series_dir
+
+    unit = _s(spec)
+    es = scope.language == "es"
+    late = closed_owner_units(project_id, change_id)
+    closed = partition.get("closed") or {}
+    if unit not in (late.get(source) or []):
+        raise ReleaseSplitError(
+            f"{unit} no es una unidad que llegó a {source} después de cerrada: lo entregado no se mueve" if es
+            else f"{unit} is not a unit that landed on {source} after it closed: what was delivered does not move", gate=True)
+    if target in closed or target not in (partition.get("releases") or []):
+        raise ReleaseSplitError(
+            f"--to {target} tiene que ser una release abierta de la serie de {change_id}" if es
+            else f"--to {target} must be an open release of the series of {change_id}", gate=True)
+    series = series_dir(scope.base, change_id)
+    from .core.io import read_json
+
+    history = read_json(series / CHANGES_JSON, None)
+    history = list(history.get("changes", [])) if isinstance(history, dict) else []
+    change = {"date": today or utc_now()[:10], "unit": unit, "unit_key": unit, "from": source, "to": target,
+              "reason": _s(reason), "finding": "", "criterion": "", "confirmed_by": {"ba": _s(ba), "technical_team": _s(tech)}}
+    route_unit(project_id, change_id, unit, target)
+    history.append(change)
+    write_text(series / CHANGES_JSON, json.dumps({"changes": history}, ensure_ascii=False, indent=2) + "\n")
+    write_text(series / CHANGES_MD, _render_changes(project_id, history))
+    return _moved_in_change(project_id, change_id, change, [target],
+                            {"confirmed_by": {"ba": _s(ba), "technical_team": _s(tech)},
+                             "series": {"releases": partition.get("releases") or []}}, source, target)
 
 
 def _open_criterion_gap(project_id: str, change_id: str | None, row: dict[str, str], language: str) -> None:

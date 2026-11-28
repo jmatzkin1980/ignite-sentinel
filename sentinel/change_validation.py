@@ -30,6 +30,7 @@ TEXT = {
         "no_backlog": "Sin backlog del cambio: corré /backlog {project} --change {change}.",
         "no_rows": "Sin filas EARS del cambio.",
         "series_stale": "La serie de releases de {change} está desactualizada: el cambio se movió desde que se compiló.",
+        "series_closed_unit": "{unit} llega a {rid}, cerrada: proponé una release nueva con /split {project} --change {change} --propose",
         "series_next": "Proponé la serie de nuevo con /split {project} --change {change} --propose --source PROPUESTA.json y confirmala con --confirm.",
         "series_unit_next": "/split {project} --change {change} --move --unit <C-NN> --from <rA> --to <rB> --reason \"...\" --ba \"...\" --tech \"...\"",
         "release_specs_old": "Las unidades de {rid} en 03_specs/{change}/{rid}/ están viejas: cambió la serie o el cambio desde que se derivaron.",
@@ -57,6 +58,7 @@ TEXT = {
         "no_backlog": "No backlog for the change: run /backlog {project} --change {change}.",
         "no_rows": "No EARS rows for the change.",
         "series_stale": "The release series of {change} is stale: the change moved since it was compiled.",
+        "series_closed_unit": "{unit} lands on {rid}, which is closed: propose a new release with /split {project} --change {change} --propose",
         "series_next": "Propose the series again with /split {project} --change {change} --propose --source PROPOSAL.json and confirm it with --confirm.",
         "series_unit_next": "/split {project} --change {change} --move --unit <C-NN> --from <rA> --to <rB> --reason \"...\" --ba \"...\" --tech \"...\"",
         "release_specs_old": "The units of {rid} in 03_specs/{change}/{rid}/ are old: the series or the change moved since they were derived.",
@@ -107,7 +109,7 @@ def _p2p_lines(text: str) -> list[str]:
 
 def _series_findings(project_id: str, change_id: str, text: dict, has_units: bool) -> list[tuple[str, str, dict]] | None:
     """(message, next-step key, its fields) of what is wrong with the confirmed series of the change; None when it has none."""
-    from .change_release import ChangeReleaseError, release_units, stale_derivations
+    from .change_release import ChangeReleaseError, closed_owner_units, release_units, stale_derivations
     from .core.io import read_json
     from .release_series import MAP_FILE, series_validation_findings
     from .series_scope import series_dir, series_scope
@@ -126,6 +128,13 @@ def _series_findings(project_id: str, change_id: str, text: dict, has_units: boo
             release_units(project_id, change_id)
         except ChangeReleaseError as exc:
             found.append((str(exc), "series_unit_next", {}))
+        # B-04 (Q4): a unit on a closed release with no open release left asks for a new release (with one open, /next names the move)
+        late = closed_owner_units(project_id, change_id)
+        if late and all(rid in (partition.get("closed") or {}) for rid in partition.get("releases") or []):
+            for rid, units in late.items():
+                for unit in units:
+                    found.append((text["series_closed_unit"].format(unit=unit, rid=rid, change=change_id, project=project_id),
+                                  "series_next", {}))
         # I1: an open release derived before another closed, or whose series or change moved, is old
         for row in stale_derivations(project_id, change_id):
             fields = {"rid": row["release"], "closed": row["closed_since"]}

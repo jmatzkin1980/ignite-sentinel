@@ -91,7 +91,7 @@ class Clash(ClashCase):
         rows = [line for line in annex(text).splitlines() if line.startswith("| GAP-")]
         loser = next(r for r in rows if "reemplazada por" in r)
         self.assertIn(f"reemplazada por {first} según {chq}", loser)
-        self.assertTrue(loser.endswith("| — | — |"), loser)
+        self.assertTrue(loser.endswith("| sin opción | sin responsable |"), loser)
         self.assertTrue(any(r.startswith(f"| {chq} |") and "| A |" in r for r in rows), rows)
 
 

@@ -683,6 +683,9 @@ CHANGE_TEXT = {
                          "(veredicto {verdict}, cobertura {coverage}, {deferred} pendiente(s) diferido(s)). Después siguen las specs."),
         "specs": ("Preparar las specs del cambio", "Corré /specs --change {cid}: faltan o no están al día con sus filas EARS."),
         "backlog": ("Preparar el backlog del cambio", "Corré /backlog --change {cid}: falta o está atrasado respecto de las specs."),
+        "series_closed_units": ("Mover lo que llegó a una release cerrada",
+                                "Estas unidades de {cid} llegaron a una release ya cerrada y nadie las construye: {units}. "
+                                "Movelas a la release abierta {rid_to} con el comando de abajo (una por vez)."),
         "quality": ("Auditar la calidad de las historias del cambio",
                     "Corré /quality --change {cid}: las historias del cambio no tienen una auditoría vigente."),
         "validate": ("Validar el cambio", "Corré /validate --change {cid}: hay hallazgos por corregir."),
@@ -794,6 +797,9 @@ CHANGE_TEXT = {
                          "(verdict {verdict}, coverage {coverage}, {deferred} deferred item(s)). The specs follow."),
         "specs": ("Prepare the change specs", "Run /specs --change {cid}: they are missing or not current with its EARS rows."),
         "backlog": ("Prepare the change backlog", "Run /backlog --change {cid}: it is missing or behind the specs."),
+        "series_closed_units": ("Move what landed on a closed release",
+                                "These units of {cid} landed on a release that is already closed and nobody builds them: {units}. "
+                                "Move them to the open release {rid_to} with the command below (one at a time)."),
         "quality": ("Check the change stories",
                     "Run /quality --change {cid}: the change stories have no current audit."),
         "validate": ("Validate the change", "Run /validate --change {cid}: there are findings to fix."),
@@ -829,6 +835,8 @@ CHANGE_COMMANDS = {
     "extract_verify_result": "/extract {pid} --change {cid} --verify-result PATH",
     "specs": "/specs {pid} --change {cid}",
     "backlog": "/backlog {pid} --change {cid}",
+    "series_closed_units": "/split {pid} --change {cid} --move --unit {unit} --from {rid_from} --to {rid_to} "
+                           "--reason TEXT --ba NAME --tech NAME",
     "quality": "/quality {pid} --change {cid}",
     "validate": "/validate {pid} --change {cid}",
     "done": "",
@@ -1152,6 +1160,15 @@ def change_next_step(project_id: str, change_id: str) -> dict[str, Any]:
         "first_orphan": orphans[0]["id"] if orphans else "ID",
     }
     ctx["first_replacement"] = "ID"
+    ctx.update(units="", unit="SPEC-U-NNN", rid_from="rA", rid_to="rB")
+    if key == "series_closed_units":
+        from .change_release import series_step
+
+        walking = series_step(project_id, change_id, change) or {}
+        late = walking.get("units") or {}
+        rid_from = next(iter(late), "rA")
+        ctx.update(units="; ".join(f"{unit} ({rid})" for rid, found in late.items() for unit in found),
+                   unit=(late.get(rid_from) or ["SPEC-U-NNN"])[0], rid_from=rid_from, rid_to=walking.get("release", "rB"))
     if key in ("consolidate", "consolidate_confirm"):
         from .consolidation_control import consolidation_control
 
