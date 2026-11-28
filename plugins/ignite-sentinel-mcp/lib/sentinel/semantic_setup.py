@@ -31,7 +31,6 @@ from .errors import WorkspaceBusy
 from .resources import package_resource, read_package_json
 
 CONFIG_FILE = "semantic.json"
-PIP_NEXT_STEP = "pip install -r constraints/memory-semantic.txt"
 PIP_COMMAND = "python -m pip install -c constraints/memory-semantic.txt -e .[memory-semantic]"
 
 # fetch(url, dest, allowed_hosts, max_bytes)
@@ -137,6 +136,17 @@ def _clear_dir(path: Path, home: Path) -> None:
     core_io.remove(path, root=home)
 
 
+def _pip_command(root: Path | None) -> str:
+    """M-5: the install command of `_pip_hint`, alone: the documented one in a clone, the package form elsewhere."""
+    from . import doctor
+
+    command = PIP_COMMAND
+    if not doctor.is_framework_root((Path(root) if root is not None else Path.cwd()).resolve()):
+        for clone_form, package_form in doctor._runtime_installs():
+            command = command.replace(clone_form, package_form)
+    return command
+
+
 def _pip_hint(root: Path | None) -> str:
     """The install command for this kind of install (clone, plugin, wheel or .pyz), as /doctor words it."""
     from . import doctor
@@ -159,7 +169,7 @@ def install_semantic_memory(
     manifest = manifest if manifest is not None else load_manifest()
     model = _model(manifest)
     if model["embedder"] == "model2vec" and importlib.util.find_spec("model2vec") is None:
-        raise SetupError(_pip_hint(root), kind="prerequisite", next_step=PIP_NEXT_STEP)
+        raise SetupError(_pip_hint(root), kind="prerequisite", next_step=_pip_command(root))
 
     staging = core_io.confine(home / "models" / f".staging-{model['id']}", home)
     destination = core_io.confine(model_dir(home, model), home)

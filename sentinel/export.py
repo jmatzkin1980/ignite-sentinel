@@ -46,6 +46,8 @@ def export_artifact(project_id: str, artifact: str, fmt: str = "md", domain: str
         from .changes import refuse_change_only_deliverable
 
         refuse_change_only_deliverable(project_id, "export", artifact)
+        if artifact.lower() == "release-guide":
+            _refuse_project_release_guide(project_id)
     source = artifact_source(base, artifact, domain, change_id)
     if not source.exists():
         raise _missing_source(project_id, artifact, domain, change_id, source)
@@ -61,6 +63,23 @@ def export_artifact(project_id: str, artifact: str, fmt: str = "md", domain: str
     if final and change_id and artifact.lower() == "brief" and fmt == "md":
         _record_final_export(project_id, change_id, result["path"])
     return {**result, **verdict}
+
+
+def _refuse_project_release_guide(project_id: str) -> None:
+    """M-3: `release-guide` is exported per change; the project's own guide is a `/view` artifact."""
+    from .changes import list_changes
+    from .core.text import project_language
+    from .series_scope import series_dir
+
+    es = project_language(project_id) == "es"
+    open_changes = sorted(list_changes(project_id))
+    if (series_dir(workspace_path(project_id)) / "partition.json").is_file() or not open_changes:
+        step = f"/view {project_id} --artifact release-guide"
+        how = "la guía de la serie del proyecto se ve con /view" if es else "the guide of the project series is read with /view"
+    else:
+        step = f"/export {project_id} --artifact release-guide --change {open_changes[0]}"
+        how = "la guía de release se exporta de un cambio" if es else "the release guide is exported from a change"
+    raise InputError(f"/export --artifact release-guide: {how} ({step})", next_step=step)
 
 
 TEXT = {
@@ -127,10 +146,10 @@ def _check_final_change(project_id: str, change_id: str) -> None:
         reasons = "; ".join(found["blockers"])
         if held:
             command = (f"/gaps {project_id} --change {change_id} --id {first['id']} "
-                       "--impact IMPACT --reason TEXTO")
-            how_es = (f"Respondelos o clasificalos con {command} (IMPACT = construccion u operativo); "
+                       f"--impact operativo --reason {'TEXTO' if es else 'TEXT'}")
+            how_es = (f"Respondelos o clasificalos con {command} (operativo no frena; cambialo por construccion si frena); "
                       "/export sin --final deja un borrador.")
-            how_en = (f"Answer them or class them with {command} (IMPACT = construccion or operativo); "
+            how_en = (f"Answer them or class them with {command} (operativo does not block; use construccion if it does); "
                       "/export without --final leaves a draft.")
         else:
             command = f"/next {project_id} --change {change_id}"

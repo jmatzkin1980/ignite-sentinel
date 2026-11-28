@@ -68,6 +68,16 @@ class ProjectWalk(SnapshotWorkspaceCase):
 
 
 class ChangeWalk(SeriesCase):
+    def test_confirmed_series_does_not_advise_propose(self):
+        """I-2: with a confirmed series /next and /status --change show one decided notice, never /split --propose."""
+        self.confirmed()
+        for argv in (["next", PID, "--change", CID], ["status", PID, "--change", CID]):
+            forget_read_snapshots()
+            out = run_ok(argv)
+            self.assertNotIn("--propose", out, argv)
+        step = self.step()
+        self.assertEqual([w["trigger"] for w in step.get("warnings", []) if w.get("trigger") == "third_party_contract"], [])
+
     def test_change_walk_reaches_done(self):
         """B-03, B-04, B-06, B-07: the series of the change ends done, and a working export keeps it done."""
         self.confirmed()

@@ -18,6 +18,7 @@ from .core.graph import add_edge, add_node, load_graph, save_graph
 from .core.io import append_text, copy_file, write_text
 from .core.text import project_language, unique_path
 from .workspace import read_json, read_state, state_path, update_state, utc_now, workspace_path
+from .core.time import utc_now_ns
 
 # IMP-250b: the note on a confirmed answer that came from an example file.
 EXAMPLE_SOURCE_NOTE = "example-source: an example never closes a rule; confirm it from a governing source"
@@ -592,6 +593,7 @@ def mark_downstream_of_rewritten_brief(project_id: str, change_id: str) -> None:
             "impacted_knowledge_units": [],
             "downstream_artifacts": downstream,
             "recorded_at": utc_now(),
+            "recorded_at_ns": utc_now_ns(),
         })
 
 

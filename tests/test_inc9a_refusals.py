@@ -178,11 +178,13 @@ class ImpactPlaceholder(ExportCase):
         self.assertEqual(code, 3, misuse_err)
         for command in (step["command"], next_step_of(final_err), next_step_of(misuse_err)):
             self.assertNotIn("construccion|operativo", command)
-            self.assertIn("--impact IMPACT", command)
-            parse_command(command)
+            self.assertIn("--impact operativo", command)
+            self.assertNotIn("IMPACT", command)
+            self.assertEqual(build_parser().parse_args(shlex.split(command[1:])).impact, "operativo")  # M-4: parses as is
         for text in (step["text"], final_err, misuse_err):
-            self.assertIn("IMPACT = construccion u operativo", text)
+            self.assertIn("construccion", text)
             self.assertNotIn("construccion|operativo", text)
+            self.assertNotIn("IMPACT", text)
 
 
 class ReleaseCase(ChangeReleaseCase):
@@ -193,6 +195,15 @@ class ReleaseCase(ChangeReleaseCase):
         target = workspace_path(REL_PID) / "08_context_packs" / "exports" / f"{CID}-release-guide.md"
         self.assertTrue(target.is_file())
         self.assertEqual(json.loads(out)["path"], target.as_posix())
+
+    def test_export_release_guide_without_change(self):
+        """M-3: the project export of release-guide says where the guide is, with a next step that parses."""
+        code, _, err = run_all(["export", REL_PID, "--artifact", "release-guide"])
+        self.assertEqual(code, 3, err)
+        step = next_step_of(err)
+        self.assertIn("release-guide", step)
+        self.assertNotIn("PROJECT_ID", step)
+        parse_command(step)
 
     def test_export_change_refusal_lists_only_what_it_exports(self):
         """B-17: every artifact the refusal of `/export --artifact prd --change` lists is one `/export` takes."""

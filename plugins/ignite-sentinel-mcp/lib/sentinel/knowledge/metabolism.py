@@ -9,6 +9,7 @@ from ..core.paths import workspace_citation
 from ..development_readiness import compute_development_readiness
 from ..discovery import refresh_knowledge_ledger
 from ..workspace import read_json, state_path, update_state, utc_now, workspace_path
+from ..core.time import utc_now_ns
 from .ledger import record_promotion_event, record_superseded_units
 
 INVALIDATION_TOKENS = (
@@ -130,6 +131,7 @@ def metabolize_knowledge(
             "impacted_knowledge_units": unit_ids,
             "downstream_artifacts": stale_artifacts,
             "recorded_at": utc_now(),
+            "recorded_at_ns": utc_now_ns(),
         }
     update_state(project_id, **update_kwargs)
     return payload

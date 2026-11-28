@@ -113,5 +113,23 @@ class EveryHolder(test_h27_consolidated_export.FinalCase):
         self.assertNotIn("5.000.000", self.final())
 
 
+class LosingTokens(unittest.TestCase):
+    def test_only_significant_numbers_are_losing_tokens(self):
+        """M-1: 1-2 digit numbers in a request sentence do not make other elements holders; figures and ids do."""
+        from sentinel.extraction.consolidation import _significant_tokens
+
+        sentence = "el umbral de 5.000.000 con 30 días, 2 niveles, 15% de recargo, 500 casos y REQ-ALTA-3 desde $ 40"
+        self.assertEqual(_significant_tokens(sentence),
+                         ["REQ-ALTA-3", "5.000.000", "15%", "500", "40"])
+
+    def test_bounded_text_short_first_line_keeps_the_body(self):
+        """M-7: a short line followed by a very long one is cut at a word, not at the first line."""
+        from sentinel.compilers.specs import bounded_text
+
+        text = "Titulo\n" + "palabra " * 100
+        cut = bounded_text(text, 200, at_line=True)
+        self.assertGreater(len(cut.split("\n\n[TRUNCATED")[0]), 100)
+
+
 if __name__ == "__main__":
     unittest.main()

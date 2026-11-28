@@ -28,6 +28,7 @@ from .sources import already_loaded_source, discover_source_novelty, mark_source
 from .core.graph import add_edge, add_node, children_of, count_by_type, load_graph, save_graph
 from .core.io import append_text, write_text
 from .core.text import project_language, unique_path
+from .core.time import utc_now_ns
 from .workspace import load_config, read_json, update_state, utc_now, workspace_path
 
 
@@ -40,7 +41,9 @@ def sync_change(project_id: str, source: Path, note: str = "", digest: bool = Fa
         # `source_id` as in any sync result; no top-level `change_id`, since no change was opened (it is in `already_loaded`).
         return {"project_id": project_id, "already_loaded": loaded, "source_id": loaded["source_id"],
                 "source": str(source.as_posix()),
-                "message": f"{source.name} is already loaded as {loaded['source_id']} ({loaded['change_id']}); nothing was written."}
+                "message": (f"{source.name} ya está cargado como {loaded['source_id']} ({loaded['change_id']}); no se escribió nada."
+                            if project_language(project_id) == "es" else
+                            f"{source.name} is already loaded as {loaded['source_id']} ({loaded['change_id']}); nothing was written.")}
 
     target_dir = change_target_dir(base, source)
     target = unique_path(target_dir / f"{source.stem}{target_suffix(source)}")
@@ -444,6 +447,7 @@ def suspicious_links_state(project_id: str, change_id: str, links: list[dict[str
             "count": len(links),
             "links": links,
             "recorded_at": utc_now(),
+            "recorded_at_ns": utc_now_ns(),
             "downstream_artifacts": downstream_stale_artifacts(workspace_path(project_id)) if links else [],
         }
     }

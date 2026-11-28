@@ -226,11 +226,18 @@ def enforce_foundation_drift_gate(project_id: str, phase: str, config: dict) -> 
 
 def blocked_refusal(project_id: str, command: str, maturity: dict[str, object]) -> GateRefusal:
     """IMP-435 (A-13.1): `/specs` and `/backlog` on a blocked project name each blocking gap and the command that closes it."""
+    from .core.text import project_language
     from .health import blocking_gap_fix
 
     gaps = [str(gap) for gap in maturity.get("blocking_gaps", [])]
     _fix, steps = blocking_gap_fix(project_id)
     again = f"/{command} {project_id}"
+    if project_language(project_id) == "es":  # IMP-435 (M-2)
+        return GateRefusal(
+            f"No se puede generar {command} mientras la madurez de los requisitos está BLOQUEADA"
+            + (f" por {', '.join(gaps)}." if gaps else ".") + " " + _fix,
+            next_step="Corré " + ", y después ".join([*steps, again]) + ".",
+        )
     return GateRefusal(
         f"Cannot generate {command} while requirement maturity is BLOCKED"
         + (f" by {', '.join(gaps)}." if gaps else ".") + " " + _fix,

@@ -16,7 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from helpers import SnapshotWorkspaceCase, run_ok  # noqa: E402
 from sentinel.cli import build_parser, main  # noqa: E402
 from sentinel.core.io import forget_read_snapshots  # noqa: E402
-from sentinel.workspace import read_json, workspace_path  # noqa: E402
+from sentinel.workspace import read_json, update_state, workspace_path  # noqa: E402
 
 FX = Path(__file__).resolve().parent / "fixtures" / "inc9a"
 NOTICE = "Prose is stored and indexed, not interpreted"
@@ -36,10 +36,10 @@ def next_step_line(err: str) -> str:
 
 def commands_in(step: str) -> list[str]:
     """The commands a next step names ("Run /a X, then /b Y."), each of which must parse with the real parser."""
-    pieces = [piece.strip() for piece in re.split(r",? then |; ", step.strip())]
+    pieces = [piece.strip() for piece in re.split(r",? then |,? y después |; ", step.strip())]
     found = []
     for piece in pieces:
-        piece = re.sub(r"^Run ", "", piece).rstrip(".")
+        piece = re.sub(r"^(?:Run|Corré) ", "", piece).rstrip(".")
         found.append(piece)
     return found
 
@@ -101,6 +101,29 @@ class Ingested(SnapshotWorkspaceCase):
             code, _out, err = run_all(command)
             self.assertEqual(code, 4, err)
             assert_runnable(self, next_step_line(err))
+
+
+class SpanishProject(SnapshotWorkspaceCase):
+    @classmethod
+    def build_workspace(cls) -> None:
+        run_ok(["init", "ALTA"])
+        update_state("ALTA", project_language="es")
+        run_ok(["ingest", "ALTA", "--source", str(FX / "pedido_alta.md")])
+
+    def test_project_messages_follow_the_language(self):
+        """M-2: the project-path refusals and warnings of a Spanish workspace are in Spanish."""
+        forget_read_snapshots()
+        code, _out, err = run_all(["validate", "ALTA", "--override", "nofile.json"])
+        self.assertEqual(code, 3, err)
+        self.assertIn("no se encontró el archivo de --override", err)
+        code, _out, err = run_all(["specs", "ALTA"])
+        self.assertEqual(code, 4, err)
+        self.assertIn("No se puede generar specs", err)
+        self.assertIn("Corré", err)
+        self.assertNotIn("Cannot generate", err)
+        code, _out, err = run_all(["brief", "ALTA", "--profile", "UI"])
+        self.assertEqual(code, 0, err)
+        self.assertIn("los ajustes del brief no están confirmados", err)
 
 
 class Answered(SnapshotWorkspaceCase):
@@ -268,6 +291,30 @@ class Briefed(SnapshotWorkspaceCase):
         self.assertEqual(self.health()["verdict"], "DIRTY")
         self.regenerate()
         self.assertEqual(self.health()["verdict"], "CLEAN")
+
+    def test_same_second_regeneration_clears_review(self):
+        """I-1: sync then brief, specs and backlog back to back (same wall-clock second) do not leave /backlog refused."""
+        first = json.loads(run_ok(["sync", "ALTA", "--source", self.note("minuta_con_respuesta.md")]))
+        self.assertIn("GAP-BUSINESS-RULES", first["sync_closed_gaps"])
+        marker = read_json(self.base / "state.json", {})["suspicious_trace_links"]
+        self.assertIsInstance(marker.get("recorded_at_ns"), int)
+        self.regenerate()
+        self.assertEqual(self.health()["verdict"], "CLEAN")
+
+    def test_marker_nanosecond_stamp_and_old_markers(self):
+        """I-1: the sub-second stamp decides when present; a marker without it keeps the one-second comparison."""
+        from datetime import datetime, timezone
+        from sentinel.health import _not_regenerated
+
+        target = self.base / "02_requirements" / "project-brief.md"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text("x", encoding="utf-8")
+        mtime_ns = target.stat().st_mtime_ns
+        iso = datetime.fromtimestamp(target.stat().st_mtime, timezone.utc).replace(microsecond=0).isoformat()
+        base = {"downstream_artifacts": [str(target)], "recorded_at": iso}
+        self.assertEqual(_not_regenerated("ALTA", {**base, "recorded_at_ns": mtime_ns - 1}), [])
+        self.assertEqual(len(_not_regenerated("ALTA", {**base, "recorded_at_ns": mtime_ns + 1})), 1)
+        self.assertEqual(len(_not_regenerated("ALTA", base)), 1)  # old marker: same second counts as pending
 
     def test_prose_notice_on_stderr(self):
         """A-01: a note that changes nothing says so on stderr, and /next repeats it."""

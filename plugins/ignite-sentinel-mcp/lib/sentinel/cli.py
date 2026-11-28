@@ -41,6 +41,34 @@ TEXT_BRIEF_CLASH = {
            "next": "/brief {project} --change {change}"},
 }
 
+# IMP-435 (M-2): the project-path messages follow the workspace language, English byte-equal to what they were.
+TEXT_PROJECT = {
+    "es": {
+        "override_missing": "no se encontró el archivo de --override: {path}",
+        "override_next": "Revisá la ruta; se lee desde la carpeta en la que corrés Sentinel ({cwd}).",
+        "profile_contradicts": "el perfil {profiles} contradice la génesis {genesis} ({detail})",
+        "joiner": " y ",
+        "still_missing": "{what} todavía falta",
+        "settings_warning": "los ajustes del brief no están confirmados: {what}; GAP-BRIEF-PROFILE sigue abierto. Corré {again}.",
+        "refinements_dropped": "refinamientos aceptados que no se renderizaron de nuevo, su historia ya no existe: {ids}. Ver 04_backlog/refinements/rerender_report.md.",
+    },
+    "en": {
+        "override_missing": "--override file not found: {path}",
+        "override_next": "Check the path; it is read relative to the folder you run Sentinel from ({cwd}).",
+        "profile_contradicts": "profile {profiles} contradicts genesis {genesis} ({detail})",
+        "joiner": " and ",
+        "still_missing": "{what} still missing",
+        "settings_warning": "the brief settings are not confirmed: {what}; GAP-BRIEF-PROFILE stays open. Run {again}.",
+        "refinements_dropped": "accepted refinements not rendered again, their target story is gone: {ids}. See 04_backlog/refinements/rerender_report.md.",
+    },
+}
+
+
+def _project_text(project_id: str | None) -> dict:
+    from .core.text import project_language
+
+    return TEXT_PROJECT[project_language(project_id) if project_id else "en"]
+
 
 def main(argv: list[str] | None = None) -> int:
     utf8_stderr()
@@ -86,9 +114,10 @@ def check_source_exists(args) -> None:
     if override and not Path(override).is_file():
         from .errors import InputError
 
+        text = _project_text(getattr(args, "project_id", None))
         raise InputError(
-            f"--override file not found: {override}",
-            next_step=f"Check the path; it is read relative to the folder you run Sentinel from ({Path.cwd()}).",
+            text["override_missing"].format(path=override),
+            next_step=text["override_next"].format(cwd=Path.cwd()),
         )
     source = getattr(args, "source", None)
     if not source or (args.command == "prototype" and getattr(args, "inventory", False)):
@@ -133,13 +162,14 @@ def _warn_incomplete_brief_settings(project_id: str) -> None:
     proposal = brief_settings_proposal(project_id)
     again = f"/brief {project_id} --profile {','.join(proposal['profiles'])} --genesis {proposal['genesis']}"
     settings = status["settings"]
+    text = _project_text(project_id)
     if status.get("contradictions"):
-        profiles = ",".join(settings.get("profiles") or [])
-        what = f"profile {profiles} contradicts genesis {settings.get('genesis')} ({'; '.join(status['contradictions'])})"
+        what = text["profile_contradicts"].format(
+            profiles=",".join(settings.get("profiles") or []), genesis=settings.get("genesis"),
+            detail="; ".join(status["contradictions"]))
     else:
-        what = " and ".join(status["missing"]) + " still missing"
-    print(f"sentinel warning: the brief settings are not confirmed: {what}; GAP-BRIEF-PROFILE stays open. Run {again}.",
-          file=sys.stderr)
+        what = text["still_missing"].format(what=text["joiner"].join(status["missing"]))
+    print("sentinel warning: " + text["settings_warning"].format(what=what, again=again), file=sys.stderr)
 
 
 def run_command(args, argv: list[str]) -> int:
@@ -328,9 +358,10 @@ def _run_project_command(args) -> int:
 
                 es = change_language(args.project_id, get_change(args.project_id, args.change)) == "es"
                 raise InputError(
-                    "/gaps --change con --id va con --impact IMPACT --reason TEXTO (IMPACT = construccion u operativo)." if es
-                    else "/gaps --change with --id goes with --impact IMPACT --reason TEXT (IMPACT = construccion or operativo).",
-                    next_step=f"/gaps {args.project_id} --change {args.change} --id {args.gap_id} --impact IMPACT --reason TEXTO",
+                    "/gaps --change con --id va con --impact (operativo o construccion) y --reason TEXTO (operativo no frena la construcción; construccion sí)." if es
+                    else "/gaps --change with --id goes with --impact (operativo or construccion) and --reason TEXT (operativo does not block the build; construccion does).",
+                    next_step=(f"/gaps {args.project_id} --change {args.change} --id {args.gap_id} --impact operativo --reason "
+                               + ("TEXTO" if es else "TEXT")),
                 )
             elif args.change and (args.gap_id or args.disposition or args.top is not None):
                 from .errors import InputError
@@ -793,8 +824,8 @@ def _run_project_command(args) -> int:
                     story_format=args.story_format,
                 )
             if result.get("refinements_dropped"):  # IMP-435 (A-02)
-                print("sentinel warning: accepted refinements not rendered again, their target story is gone: "
-                      + ", ".join(result["refinements_dropped"]) + ". See 04_backlog/refinements/rerender_report.md.", file=sys.stderr)
+                print("sentinel warning: " + _project_text(args.project_id)["refinements_dropped"].format(
+                    ids=", ".join(result["refinements_dropped"])), file=sys.stderr)
             print_json(result)
         elif args.command == "backlog-status":
             from .backlog.rollup import backlog_status

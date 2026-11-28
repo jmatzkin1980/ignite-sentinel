@@ -161,6 +161,22 @@ class Series(SeriesCase):
         self.assertFalse((folder / "r1" / "units" / f"{unit}.md").exists())
         self.assertNotEqual(self.step()["key"], "series_closed_units")
 
+    def test_unit_already_routed_says_so(self):
+        """M-6: a second `--move --unit` of a routed unit says it was already routed, and where."""
+        self.confirmed()
+        self.build_and_close("r1")
+        unit = self.add_unit_on_r1()
+        argv = ["split", PID, "--move", "--unit", unit, "--from", "r1", "--to", "r2",
+                "--reason", "llegó con el último pedido", *BA, "--change", CID]
+        forget_read_snapshots()
+        self.assertEqual(run_all(argv)[0], 0)
+        forget_read_snapshots()
+        code, _out, err = run_all(argv)
+        self.assertEqual(code, 4, err)
+        self.assertIn("ya se enrutó a r2", err)
+        self.assertIn("unit_routes.json", err)
+        self.assertNotIn("lo entregado no se mueve", err)
+
     def test_unit_on_closed_release_no_open(self):
         """B-04 (Q4): every release closed: /validate says a new release is needed and names the unit."""
         self.confirmed()

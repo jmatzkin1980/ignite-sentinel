@@ -160,7 +160,7 @@ def _losing_tokens(decision: dict, elements: list[dict]) -> list[str]:
         for cite in cites:
             if (cite.get("side") == "pedido" and cite.get("line") and str(cite.get("source_id")) == str(element.get("source_id"))
                     and first <= int(cite["line"]) <= last):
-                found.extend(t for t in _tokens(str(cite["quote"])) if not _has_token(t, winning))
+                found.extend(t for t in _significant_tokens(str(cite["quote"])) if not _has_token(t, winning))
     return list(dict.fromkeys(found))
 
 
@@ -253,6 +253,22 @@ def _tokens(sentence: str) -> list[str]:
     ids = _ID_TOKEN.findall(sentence)
     rest = _ID_TOKEN.sub(" ", sentence)
     return [*ids, *_NUMBER_TOKEN.findall(rest)]
+
+
+_CURRENCY = r"(?:[$€£]|USD|ARS|EUR|US\$|pesos|d[oó]lares|euros)"
+
+
+def _significant_tokens(sentence: str) -> list[str]:
+    """IMP-435 (M-1): the tokens of the sentence worth chasing in other elements: ids, numbers of 3+ digits, with a
+    thousands/decimal separator, `%` or a currency mark. `30` or `2` match half the request by chance."""
+    out = []
+    for token in _tokens(sentence):
+        shown = re.escape(token)
+        currency = re.search(rf"{_CURRENCY}\s*{shown}(?!\d)|(?<!\d){shown}\s*{_CURRENCY}", sentence, re.I)
+        if (_ID_TOKEN.fullmatch(token) or token.endswith("%") or len(re.sub(r"\D", "", token)) >= 3
+                or re.search(r"[.,]", token) or currency):
+            out.append(token)
+    return out
 
 
 def _numbers_unknown(sentence: str, haystack: str) -> list[str]:

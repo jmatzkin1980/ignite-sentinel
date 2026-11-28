@@ -221,7 +221,7 @@ def _route_closed_unit(project_id: str, change_id: str, spec: str, source: str, 
 
     The partition does not change (the unit's surface stays in its release); the unit is routed in `unit_routes.json`,
     the move is recorded with the others, and the derivation of the target goes stale."""
-    from .change_release import closed_owner_units, route_unit
+    from .change_release import ROUTES_FILE, closed_owner_units, route_unit, unit_routes
     from .core.io import write_text
     from .core.time import utc_now
     from .series_scope import series_dir
@@ -230,6 +230,12 @@ def _route_closed_unit(project_id: str, change_id: str, spec: str, source: str, 
     es = scope.language == "es"
     late = closed_owner_units(project_id, change_id)
     closed = partition.get("closed") or {}
+    routed = unit_routes(project_id, change_id).get(unit)
+    if unit not in (late.get(source) or []) and routed:  # M-6: a second `--move --unit` of a unit already routed
+        where = f"02_requirements/{change_id}/series/{ROUTES_FILE}"
+        raise ReleaseSplitError(
+            f"{unit} ya se enrutó a {routed} ({where}); /split --move --unit no lo vuelve a enrutar" if es
+            else f"{unit} was already routed to {routed} ({where}); /split --move --unit does not route it again", gate=True)
     if unit not in (late.get(source) or []):
         raise ReleaseSplitError(
             f"{unit} no es una unidad que llegó a {source} después de cerrada: lo entregado no se mueve" if es

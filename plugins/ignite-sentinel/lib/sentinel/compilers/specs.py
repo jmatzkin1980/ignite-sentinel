@@ -540,7 +540,7 @@ def bounded_text(text: str, limit: int, at_line: bool = False) -> str:
     head = cleaned[:limit]
     if at_line:
         boundary = cleaned.rfind("\n", 0, limit + 1)
-        if boundary > 0:
+        if boundary >= limit // 2:  # M-7: a short first line and a very long second one must not shrink the snapshot to a few characters
             head = cleaned[:boundary]
         elif " " in head:
             head = head.rsplit(" ", 1)[0]

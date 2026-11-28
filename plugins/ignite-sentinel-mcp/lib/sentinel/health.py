@@ -310,11 +310,17 @@ def _not_regenerated(project_id: str, payload: object) -> list[str]:
         return []
     artifacts = [str(item) for item in payload.get("downstream_artifacts", []) if item]
     recorded_at = str(payload.get("recorded_at", ""))
+    recorded_ns = payload.get("recorded_at_ns")  # I-1: sub-second stamp; older markers fall back to recorded_at
     pending = []
     for item in artifacts:
         path = Path(item)
         if recorded_at:
             if not path.exists():
+                continue
+            if isinstance(recorded_ns, int) and not isinstance(recorded_ns, bool):
+                if path.stat().st_mtime_ns > recorded_ns:
+                    continue
+                pending.append(workspace_relative(project_id, item))
                 continue
             mtime_iso = datetime.fromtimestamp(path.stat().st_mtime, timezone.utc).replace(microsecond=0).isoformat()
             if mtime_iso > recorded_at:
@@ -589,6 +595,9 @@ def blocking_gap_fix(project_id: str) -> tuple[str, list[str]]:
     """IMP-435 (A-13): what closes each blocking gap: the brief settings are confirmed with /brief, the rest are the client's answers."""
     from .brief_schema import SETTINGS_GAP_ID, brief_settings_proposal
 
+    from .core.text import project_language
+
+    es = project_language(project_id) == "es"  # IMP-435 (M-2)
     pid = project_id
     ids = open_blocking_gaps(project_id)
     steps: list[str] = []
@@ -596,12 +605,17 @@ def blocking_gap_fix(project_id: str) -> tuple[str, list[str]]:
     if SETTINGS_GAP_ID in ids:
         proposal = brief_settings_proposal(project_id)
         steps.append(f"/brief {pid} --profile {','.join(proposal['profiles'])} --genesis {proposal['genesis']}")
-        parts.append(f"Confirm the brief settings ({SETTINGS_GAP_ID}): run {steps[-1]}.")
+        parts.append(f"Confirmá los ajustes del brief ({SETTINGS_GAP_ID}): corré {steps[-1]}." if es
+                     else f"Confirm the brief settings ({SETTINGS_GAP_ID}): run {steps[-1]}.")
     rest = [gap for gap in ids if gap != SETTINGS_GAP_ID]
     if rest or not steps:
         steps.append(f"/resolve-gaps {pid} --source ANSWERS")
-        parts.append((f"Close {', '.join(rest)} " if rest else "Close them ")
-                     + f"with the client's answers: run /resolve-gaps {pid} --source ANSWERS.")
+        if es:
+            parts.append((f"Cerrá {', '.join(rest)} " if rest else "Cerralos ")
+                         + f"con las respuestas del cliente: corré /resolve-gaps {pid} --source ANSWERS.")
+        else:
+            parts.append((f"Close {', '.join(rest)} " if rest else "Close them ")
+                         + f"with the client's answers: run /resolve-gaps {pid} --source ANSWERS.")
     return " ".join(parts), steps
 
 
